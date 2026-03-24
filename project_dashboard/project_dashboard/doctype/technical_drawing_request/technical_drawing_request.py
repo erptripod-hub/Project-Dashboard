@@ -1,8 +1,6 @@
 import frappe
 from frappe.model.document import Document
 
-
-# Default checklist items
 CHECKLIST_ITEMS = [
 	"Concept/3D Renders",
 	"Initial Architectural Drawings",
@@ -14,7 +12,6 @@ CHECKLIST_ITEMS = [
 	"LOD",
 ]
 
-# Default drawing packages
 DRAWING_PACKAGES = [
 	"Demolition Plan",
 	"General Arrangement Plan",
@@ -32,33 +29,7 @@ DRAWING_PACKAGES = [
 
 class TechnicalDrawingRequest(Document):
 
-	def onload(self):
-		self.load_default_rows()
-
-	def before_insert(self):
-		self.load_default_rows()
-
-	def load_default_rows(self):
-		# Auto-populate checklist if empty
-		if not self.initiation_checklist:
-			for item in CHECKLIST_ITEMS:
-				self.append("initiation_checklist", {
-					"particular": item,
-					"status": "NA",
-					"remarks": ""
-				})
-
-		# Auto-populate drawing packages if empty
-		if not self.drawing_packages:
-			for pkg in DRAWING_PACKAGES:
-				self.append("drawing_packages", {
-					"drawing_package": pkg,
-					"drawing_status": "Pending",
-					"remarks": ""
-				})
-
 	def validate(self):
-		# Auto set requested_by from logged in user if not set
 		if not self.requested_by:
 			employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
 			if employee:
@@ -72,7 +43,6 @@ class TechnicalDrawingRequest(Document):
 		self.status = "Draft"
 
 	def notify_design_manager(self):
-		# Get all users with Design Manager role
 		design_managers = frappe.db.sql("""
 			SELECT DISTINCT u.email, u.full_name
 			FROM `tabUser` u
@@ -83,28 +53,28 @@ class TechnicalDrawingRequest(Document):
 		""", as_dict=1)
 
 		if not design_managers:
-			frappe.msgprint(
-				"No users found with Design Manager role. Email not sent.",
-				alert=True, indicator="orange"
-			)
+			frappe.msgprint("No users found with Design Manager role. Email not sent.", alert=True, indicator="orange")
 			return
 
-		# Build checklist summary
 		checklist_rows = "".join([
-			f"<tr><td>{i+1}</td><td>{row.particular}</td><td><b>{row.status}</b></td><td>{row.remarks or '—'}</td></tr>"
+			f"<tr><td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{i+1}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{row.particular}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'><b>{row.status}</b></td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{row.remarks or '—'}</td></tr>"
 			for i, row in enumerate(self.initiation_checklist)
 		])
 
-		# Build drawing packages summary
 		drawing_rows = "".join([
-			f"<tr><td>{i+1}</td><td>{row.drawing_package}</td><td>{str(row.required_date) if row.required_date else '—'}</td><td>{row.remarks or '—'}</td></tr>"
+			f"<tr><td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{i+1}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{row.drawing_package}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{str(row.required_date) if row.required_date else '—'}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{row.drawing_status}</td>"
+			f"<td style='padding:6px 8px;border-bottom:1px solid #f1f5f9'>{row.remarks or '—'}</td></tr>"
 			for i, row in enumerate(self.drawing_packages)
 		])
 
-		# Project info
 		project_name = frappe.db.get_value("Project", self.project, "project_name") or self.project
 		pm_name = frappe.db.get_value("Employee", self.requested_by, "employee_name") or self.requested_by
-
 		subject = f"Technical Drawing Request — {self.name} | {project_name}"
 
 		message = f"""
@@ -113,11 +83,9 @@ class TechnicalDrawingRequest(Document):
 				<h2 style="color:#fff;margin:0;font-size:16px;">TRIPOD MENA | Technical Drawing Request</h2>
 			</div>
 			<div style="background:#f8fafc;padding:20px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
-
 				<table style="width:100%;margin-bottom:16px;border-collapse:collapse;">
 					<tr><td style="color:#64748b;font-size:12px;padding:4px 0;width:140px;">TDR Reference</td><td style="font-weight:700">{self.name}</td></tr>
 					<tr><td style="color:#64748b;font-size:12px;padding:4px 0;">Project</td><td style="font-weight:700">{self.project} — {project_name}</td></tr>
-					<tr><td style="color:#64748b;font-size:12px;padding:4px 0;">Project Location</td><td>{self.project_location or '—'}</td></tr>
 					<tr><td style="color:#64748b;font-size:12px;padding:4px 0;">Requested By</td><td>{pm_name}</td></tr>
 					<tr><td style="color:#64748b;font-size:12px;padding:4px 0;">Date</td><td>{str(self.date)}</td></tr>
 				</table>
@@ -142,6 +110,7 @@ class TechnicalDrawingRequest(Document):
 							<th style="padding:6px 8px;text-align:left;color:#64748b;">#</th>
 							<th style="padding:6px 8px;text-align:left;color:#64748b;">Drawing Package</th>
 							<th style="padding:6px 8px;text-align:left;color:#64748b;">Required Date</th>
+							<th style="padding:6px 8px;text-align:left;color:#64748b;">Status</th>
 							<th style="padding:6px 8px;text-align:left;color:#64748b;">Remarks</th>
 						</tr>
 					</thead>
@@ -150,8 +119,8 @@ class TechnicalDrawingRequest(Document):
 
 				<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px;font-size:11px;color:#92400e;">
 					<b>Notes:</b><br>
-					• Please mention NA (Not applicable) for information not applicable for the project.<br>
-					• Required date for drawings must match the project schedule with a buffer of 2 days for review.<br>
+					• Please mention NA for information not applicable for the project.<br>
+					• Required date for drawings must match the project schedule with a buffer of 2 days.<br>
 					• Please update the Received Date and Status once drawings are received in the system.
 				</div>
 
@@ -165,17 +134,14 @@ class TechnicalDrawingRequest(Document):
 		</div>
 		"""
 
-		recipients = [dm.email for dm in design_managers]
-
 		frappe.sendmail(
-			recipients=recipients,
+			recipients=[dm.email for dm in design_managers],
 			subject=subject,
 			message=message,
 			now=True
 		)
 
 		frappe.msgprint(
-			f"Email sent to Design Manager(s): {', '.join(recipients)}",
-			indicator="green",
-			alert=True
+			f"Email sent to: {', '.join([dm.email for dm in design_managers])}",
+			indicator="green", alert=True
 		)

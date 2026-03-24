@@ -18,7 +18,6 @@ frappe.ui.form.on("Technical Drawing Request", {
 				"Site Survey Sketch - where applicable",
 				"LOD"
 			];
-
 			frm.clear_table("initiation_checklist");
 			checklist_items.forEach(function(item) {
 				var row = frm.add_child("initiation_checklist");
@@ -41,7 +40,6 @@ frappe.ui.form.on("Technical Drawing Request", {
 				"IT Works - CCTV, Data",
 				"Others - If any"
 			];
-
 			frm.clear_table("drawing_packages");
 			drawing_packages.forEach(function(pkg) {
 				var row = frm.add_child("drawing_packages");
@@ -96,14 +94,6 @@ frappe.ui.form.on("Technical Drawing Request", {
 					});
 				});
 			}, __("Actions"));
-		}
-	},
-
-	project: function(frm) {
-		if (frm.doc.project) {
-			frappe.db.get_value("Project", frm.doc.project, ["project_name", "custom_project_location"], function(r) {
-				if (r && r.custom_project_location) frm.set_value("project_location", r.custom_project_location);
-			});
 		}
 	}
 });
