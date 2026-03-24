@@ -28,6 +28,7 @@ DRAWING_PACKAGES = [
 
 
 def get_dashboard_data(data):
+	"""Called by Frappe to show TDR in Project connections panel"""
 	return {
 		"fieldname": "project",
 		"transactions": [
@@ -157,3 +158,16 @@ class TechnicalDrawingRequest(Document):
 			f"Email sent to: {', '.join([dm.email for dm in design_managers])}",
 			indicator="green", alert=True
 		)
+
+
+def get_project_dashboard_data(data):
+	"""Used by override_doctype_dashboards hook to add TDR to Project connections"""
+	return {
+		"fieldname": "project",
+		"transactions": [
+			{
+				"label": "Technical Drawing",
+				"items": ["Technical Drawing Request"]
+			}
+		]
+	}

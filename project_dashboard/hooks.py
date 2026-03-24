@@ -7,18 +7,7 @@ app_description = "Project Dashboard for ERPNext v14"
 app_email = "erp@tripodmena.com"
 app_license = "MIT"
 
-# Show Technical Drawing Request in Project form connections
+# Show Technical Drawing Request count in Project form connections
 override_doctype_dashboards = {
-	"Project": "project_dashboard.project_dashboard.page.project_dashboard.project_dashboard.get_project_dashboard"
-}
-
-dashboards = {
-	"Project": {
-		"transactions": [
-			{
-				"label": "Technical Drawing",
-				"items": ["Technical Drawing Request"]
-			}
-		]
-	}
+	"Project": "project_dashboard.project_dashboard.project_dashboard.doctype.technical_drawing_request.technical_drawing_request.get_project_dashboard_data"
 }
