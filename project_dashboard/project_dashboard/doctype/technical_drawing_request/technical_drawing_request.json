@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "project",
+  "project_code",
+  "project_location",
+  "column_break_1",
+  "date",
+  "requested_by",
+  "status",
+  "amended_from",
+  "section_checklist",
+  "initiation_checklist",
+  "section_drawings",
+  "drawing_packages",
+  "section_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "TDR-.YYYY.-.####",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project Name",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "project.name",
+   "fieldname": "project_code",
+   "fieldtype": "Data",
+   "label": "Project Code",
+   "read_only": 1,
+   "fetch_if_empty": 1
+  },
+  {
+   "fetch_from": "project.custom_project_location",
+   "fieldname": "project_location",
+   "fieldtype": "Data",
+   "label": "Project Location",
+   "read_only": 1,
+   "fetch_if_empty": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By (PM)",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nSubmitted to Design\nAcknowledged\nIn Progress\nCompleted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Technical Drawing Request",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_checklist",
+   "fieldtype": "Section Break",
+   "label": "Technical Drawing Initiation Checklist"
+  },
+  {
+   "fieldname": "initiation_checklist",
+   "fieldtype": "Table",
+   "label": "Initiation Checklist",
+   "options": "TDR Initiation Checklist"
+  },
+  {
+   "fieldname": "section_drawings",
+   "fieldtype": "Section Break",
+   "label": "Technical Drawing Packages"
+  },
+  {
+   "fieldname": "drawing_packages",
+   "fieldtype": "Table",
+   "label": "Drawing Packages",
+   "options": "TDR Drawing Package"
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Additional Notes"
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Technical Drawing Request",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1, "print": 1,
+   "read": 1, "report": 1, "role": "System Manager",
+   "share": 1, "submit": 1, "cancel": 1, "amend": 1, "write": 1
+  },
+  {
+   "create": 1, "email": 1, "print": 1, "read": 1, "report": 1,
+   "role": "Project Manager", "share": 1, "submit": 1, "write": 1
+  },
+  {
+   "email": 1, "print": 1, "read": 1, "report": 1,
+   "role": "Design Manager", "share": 1, "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
