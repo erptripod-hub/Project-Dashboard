@@ -8,5 +8,5 @@ app_email = "erp@tripodmena.com"
 app_license = "MIT"
 
 override_doctype_dashboards = {
-	"Project": "project_dashboard.project_dashboard.project_dashboard.doctype.technical_drawing_request.technical_drawing_request.get_project_dashboard_data"
+	"Project": "project_dashboard.project_dashboard.doctype.technical_drawing_request.technical_drawing_request.get_project_dashboard_data"
 }
