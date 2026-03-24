@@ -7,15 +7,16 @@ app_description = "Project Dashboard for ERPNext v14"
 app_email = "erp@tripodmena.com"
 app_license = "MIT"
 
-# Add Technical Drawing Request to Project dashboard connections
+# Show Technical Drawing Request in Project form connections
+override_doctype_dashboards = {
+	"Project": "project_dashboard.project_dashboard.page.project_dashboard.project_dashboard.get_project_dashboard"
+}
+
 dashboards = {
 	"Project": {
-		"heatmap": 0,
-		"heatmap_message": "",
-		"fieldname": "project",
 		"transactions": [
 			{
-				"label": "Technical",
+				"label": "Technical Drawing",
 				"items": ["Technical Drawing Request"]
 			}
 		]

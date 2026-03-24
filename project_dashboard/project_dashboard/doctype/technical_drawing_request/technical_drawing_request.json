@@ -114,12 +114,7 @@
   }
  ],
  "is_submittable": 1,
- "links": [
-  {
-   "link_doctype": "Project",
-   "link_fieldname": "project"
-  }
- ],
+ "links": [],
  "modified": "2024-01-01 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Project Dashboard",

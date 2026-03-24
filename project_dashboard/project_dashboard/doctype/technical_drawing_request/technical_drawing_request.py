@@ -27,6 +27,18 @@ DRAWING_PACKAGES = [
 ]
 
 
+def get_dashboard_data(data):
+	return {
+		"fieldname": "project",
+		"transactions": [
+			{
+				"label": "Technical Drawing",
+				"items": ["Technical Drawing Request"]
+			}
+		]
+	}
+
+
 class TechnicalDrawingRequest(Document):
 
 	def validate(self):
