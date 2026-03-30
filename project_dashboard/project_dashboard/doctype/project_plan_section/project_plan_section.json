@@ -1,0 +1,26 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["section_name","boq_total","work_type","adjusted_cost","variance"],
+ "fields": [
+  {"fieldname":"section_name","fieldtype":"Data","in_list_view":1,"label":"Section","columns":3},
+  {"fieldname":"boq_total","fieldtype":"Currency","in_list_view":1,"label":"BOQ Total","read_only":1,"columns":2},
+  {"default":"Subcontract","fieldname":"work_type","fieldtype":"Select","in_list_view":1,"label":"Type","options":"Subcontract\nInhouse","columns":2},
+  {"fieldname":"adjusted_cost","fieldtype":"Currency","in_list_view":1,"label":"Adjusted Cost","columns":2},
+  {"fieldname":"variance","fieldtype":"Currency","in_list_view":1,"label":"Variance","read_only":1,"columns":2}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Plan Section",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

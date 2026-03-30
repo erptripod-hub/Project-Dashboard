@@ -1,0 +1,46 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series","project","boq","column_break_1","status","boq_grand_total",
+  "section_boq_sections","section_costs",
+  "section_overhead","overhead_costs",
+  "section_summary","total_adjusted_cost","total_overhead","total_project_cost","total_variance"
+ ],
+ "fields": [
+  {"fieldname":"naming_series","fieldtype":"Select","label":"Series","options":"PP-.YYYY.-.####","reqd":1,"set_only_once":1},
+  {"fieldname":"project","fieldtype":"Link","label":"Project","options":"Project","reqd":1,"in_list_view":1},
+  {"fieldname":"boq","fieldtype":"Link","label":"BOQ","options":"BOQ"},
+  {"fieldname":"column_break_1","fieldtype":"Column Break"},
+  {"default":"Draft","fieldname":"status","fieldtype":"Select","label":"Status","options":"Draft\nActive\nCompleted\nOn Hold"},
+  {"fieldname":"boq_grand_total","fieldtype":"Currency","label":"BOQ Grand Total","read_only":1,"description":"Auto-fetched from linked BOQ"},
+  {"fieldname":"section_boq_sections","fieldtype":"Section Break","label":"Section Cost Plan"},
+  {"fieldname":"section_costs","fieldtype":"Table","label":"Section Costs","options":"Project Plan Section"},
+  {"fieldname":"section_overhead","fieldtype":"Section Break","label":"Project Overhead Costs"},
+  {"fieldname":"overhead_costs","fieldtype":"Table","label":"Overhead Costs","options":"Project Overhead"},
+  {"fieldname":"section_summary","fieldtype":"Section Break","label":"Cost Summary"},
+  {"fieldname":"total_adjusted_cost","fieldtype":"Currency","label":"Total Adjusted Cost","read_only":1},
+  {"fieldname":"total_overhead","fieldtype":"Currency","label":"Total Overhead","read_only":1},
+  {"fieldname":"total_project_cost","fieldtype":"Currency","label":"Total Project Cost","read_only":1},
+  {"fieldname":"total_variance","fieldtype":"Currency","label":"Total Variance vs BOQ","read_only":1}
+ ],
+ "links": [],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Plan",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"role":"System Manager","share":1,"write":1},
+  {"create":1,"email":1,"print":1,"read":1,"report":1,"role":"Project Manager","share":1,"write":1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
