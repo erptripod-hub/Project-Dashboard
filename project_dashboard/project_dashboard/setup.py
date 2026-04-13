@@ -162,7 +162,7 @@ def unhide_project_fields():
 		"total_billed_amount", "total_consumed_material_cost", "cost_center",
 		"gross_margin", "per_gross_margin", "collect_progress", "holiday_list",
 		"frequency", "from_time", "to_time", "first_email", "second_email",
-		"daily_time_to_send", "day_to_send", "is_active", "copied_from",
+		"daily_time_to_send", "day_to_send", "is_active", "copied_from", "from_template", "percent_complete",
 	]
 
 	# Sections to unhide
