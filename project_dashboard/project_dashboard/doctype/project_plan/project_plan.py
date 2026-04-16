@@ -35,6 +35,20 @@ BOQ_SECTIONS = [
 ]
 
 
+def get_po_spent_by_order_type(project, order_type):
+	"""Get total submitted PO value for a project filtered by custom_order_type"""
+	if not project or not order_type:
+		return 0
+	result = frappe.db.sql("""
+		SELECT COALESCE(SUM(grand_total), 0)
+		FROM `tabPurchase Order`
+		WHERE project = %s
+		AND custom_order_type = %s
+		AND docstatus = 1
+	""", (project, order_type))
+	return result[0][0] if result else 0
+
+
 class ProjectPlan(Document):
 
 	def validate(self):
@@ -49,9 +63,7 @@ class ProjectPlan(Document):
 	def fetch_boq_totals(self):
 		if self.boq:
 			boq = frappe.get_doc("BOQ", self.boq)
-			# Grand total with VAT
 			self.boq_grand_total = boq.grand_total or 0
-			# Base total without markup/VAT
 			self.boq_base_total = sum((getattr(boq, f, 0) or 0) for f, _ in BOQ_SECTIONS)
 
 	def calculate_timeline(self):
@@ -59,8 +71,6 @@ class ProjectPlan(Document):
 			self.project_duration = date_diff(self.end_date, self.start_date)
 			self.days_passed = max(date_diff(today(), self.start_date), 0)
 			self.days_remaining = date_diff(self.end_date, today())
-
-			# Timeline status
 			days_rem = self.days_remaining
 			if days_rem < 0:
 				self.timeline_status = "Overdue"
@@ -77,8 +87,7 @@ class ProjectPlan(Document):
 		total_pct = sum(row.allocation_percent or 0 for row in self.department_budgets)
 		if total_pct > 100:
 			frappe.throw(
-				f"Total department allocation is {total_pct}% — cannot exceed 100%. "
-				f"Please adjust the percentages."
+				f"Total department allocation is {total_pct}% — cannot exceed 100%. Please adjust."
 			)
 
 	def calculate_section_variance(self):
@@ -100,8 +109,14 @@ class ProjectPlan(Document):
 		for row in self.department_budgets:
 			pct = row.allocation_percent or 0
 			row.budget_amount = round(total_adjusted * pct / 100, 2)
+
+			# Auto fetch spent from POs if po_order_type is set
+			if row.po_order_type and row.po_order_type != "Manual":
+				row.spent_amount = get_po_spent_by_order_type(self.project, row.po_order_type)
+
 			spent = row.spent_amount or 0
 			row.remaining = row.budget_amount - spent
+
 			if row.budget_amount and spent >= row.budget_amount:
 				row.status = "Exceeded"
 			elif row.budget_amount and spent >= row.budget_amount * 0.8:
@@ -114,7 +129,6 @@ class ProjectPlan(Document):
 		self.total_subcontractor_cost = sum(r.contract_value or 0 for r in self.subcontractor_allocations)
 		self.total_overhead = sum(r.amount or 0 for r in self.overhead_costs)
 		self.total_estimated_labour = sum(r.estimated_cost or 0 for r in self.labour_plan)
-		# Budget = Section Cost + Overhead + Labour (overhead ADDS to budget)
 		self.total_project_cost = (
 			self.total_adjusted_cost +
 			self.total_overhead +

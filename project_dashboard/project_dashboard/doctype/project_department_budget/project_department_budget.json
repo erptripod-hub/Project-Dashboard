@@ -4,14 +4,15 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["department_name","allocation_percent","budget_amount","spent_amount","remaining","status"],
+ "field_order": ["department_name","allocation_percent","po_order_type","budget_amount","spent_amount","remaining","status"],
  "fields": [
-  {"fieldname":"department_name","fieldtype":"Data","in_list_view":1,"label":"Department","reqd":1,"columns":3},
+  {"fieldname":"department_name","fieldtype":"Data","in_list_view":1,"label":"Department","reqd":1,"columns":2},
   {"fieldname":"allocation_percent","fieldtype":"Percent","in_list_view":1,"label":"% Allocation","reqd":1,"columns":2},
+  {"fieldname":"po_order_type","fieldtype":"Select","in_list_view":1,"label":"PO Source","options":"\nJoinery\nFitout\nLogistics\nManual","columns":2,"description":"If set, spent amount is auto-fetched from POs with this order type. If Manual, enter spent amount directly."},
   {"fieldname":"budget_amount","fieldtype":"Currency","in_list_view":1,"label":"Budget Amount","read_only":1,"columns":2},
-  {"fieldname":"spent_amount","fieldtype":"Currency","in_list_view":1,"label":"Spent","read_only":1,"columns":2},
+  {"fieldname":"spent_amount","fieldtype":"Currency","in_list_view":1,"label":"Spent","columns":2,"description":"Auto-filled from POs if PO Source is set. Enter manually if PO Source is Manual."},
   {"fieldname":"remaining","fieldtype":"Currency","in_list_view":1,"label":"Remaining","read_only":1,"columns":2},
-  {"default":"On Track","fieldname":"status","fieldtype":"Select","in_list_view":1,"label":"Status","options":"On Track\nWarning\nExceeded","read_only":1,"columns":2}
+  {"default":"On Track","fieldname":"status","fieldtype":"Select","in_list_view":0,"label":"Status","options":"On Track\nWarning\nExceeded","read_only":1}
  ],
  "istable": 1,
  "links": [],
