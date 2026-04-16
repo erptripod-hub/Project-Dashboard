@@ -60,8 +60,8 @@ def get_dashboard_data(project):
 			COUNT(DISTINCT name) as total_pos,
 			COUNT(DISTINCT supplier) as total_suppliers,
 			SUM(grand_total) as total_value,
-			SUM(grand_total - outstanding_amount) as total_received,
-			SUM(outstanding_amount) as total_pending
+			SUM(grand_total * per_billed / 100) as total_received,
+			SUM(grand_total * (1 - per_billed / 100)) as total_pending
 		FROM `tabPurchase Order`
 		WHERE project = %s AND docstatus = 1
 	""", project, as_dict=1)
