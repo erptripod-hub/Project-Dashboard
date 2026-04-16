@@ -130,7 +130,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		'<div class="pn" style="margin-bottom:16px;border-left:4px solid #2563eb">' +
 		'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">' +
 		'<div>' +
-		'<div style="font-size:18px;font-weight:800;color:#1e293b">' + d.plan.project || info.project_name + '</div>' +
+		'<div style="font-size:18px;font-weight:800;color:#1e293b">' + info.project_name + '</div>' +
 		'<div style="font-size:13px;color:#64748b;margin-top:2px">' + info.project_name + '</div>' +
 		'<div style="font-size:11px;color:#94a3b8;margin-top:4px">Customer: ' + (info.customer || '—') + '</div>' +
 		'</div>' +
