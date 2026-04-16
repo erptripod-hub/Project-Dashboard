@@ -56,28 +56,24 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		'.pd .tl-fill{height:14px;border-radius:6px;background:#2563eb;transition:width 0.5s}'
 	).appendTo('head');
 
+	// Add searchable project link field in toolbar
+	page.add_field({
+		fieldtype: 'Link',
+		fieldname: 'project',
+		options: 'Project',
+		label: 'Select Project',
+		change: function() {
+			var project = page.fields_dict.project.get_value();
+			if (project) load_dashboard(project);
+		}
+	});
+
 	$(wrapper).find('.page-content').html(
 		'<div class="pd">' +
-		'<div class="hdr"><div><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Select a project to view live data</p></div>' +
-		'<div class="hdr-r"><select id="pd-proj"><option value="">-- Select Project --</option></select></div></div>' +
-		'<div id="pd-body"><div style="text-align:center;padding:60px;color:#64748b;font-size:14px;">Select a project from the dropdown above</div></div>' +
+		'<div class="hdr"><div><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Search and select a project to view live data</p></div></div>' +
+		'<div id="pd-body"><div style="text-align:center;padding:60px;color:#64748b;font-size:14px;">Search and select a project from the field above</div></div>' +
 		'</div>'
 	);
-
-	// Load project list
-	frappe.db.get_list('Project', {fields: ['name','project_name'], limit: 500, filters: {status: ['!=','Cancelled']}}).then(function(projects) {
-		var sel = document.getElementById('pd-proj');
-		projects.forEach(function(p) {
-			var opt = document.createElement('option');
-			opt.value = p.name;
-			opt.textContent = p.name + ' — ' + p.project_name;
-			sel.appendChild(opt);
-		});
-	});
-
-	document.getElementById('pd-proj').addEventListener('change', function() {
-		if (this.value) load_dashboard(this.value);
-	});
 
 	function load_dashboard(project) {
 		document.getElementById('pd-body').innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;">Loading...</div>';
