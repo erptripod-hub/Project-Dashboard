@@ -56,24 +56,34 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		'.pd .tl-fill{height:14px;border-radius:6px;background:#2563eb;transition:width 0.5s}'
 	).appendTo('head');
 
-	// Add searchable project link field in toolbar
-	page.add_field({
-		fieldtype: 'Link',
-		fieldname: 'project',
-		options: 'Project',
-		label: 'Select Project',
-		change: function() {
-			var project = page.fields_dict.project.get_value();
-			if (project) load_dashboard(project);
-		}
-	});
-
 	$(wrapper).find('.page-content').html(
 		'<div class="pd">' +
-		'<div class="hdr"><div><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Search and select a project to view live data</p></div></div>' +
+		'<div class="hdr">' +
+		'<div><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Search and select a project to view live data</p></div>' +
+		'<div id="pd-proj-wrap" style="min-width:320px"></div>' +
+		'</div>' +
 		'<div id="pd-body"><div style="text-align:center;padding:60px;color:#64748b;font-size:14px;">Search and select a project from the field above</div></div>' +
 		'</div>'
 	);
+
+	// Render searchable link field inside dark header
+	var project_field = frappe.ui.form.make_control({
+		df: {
+			fieldtype: 'Link',
+			fieldname: 'project',
+			options: 'Project',
+			label: 'Project',
+			placeholder: 'Search project...'
+		},
+		parent: document.getElementById('pd-proj-wrap'),
+		render_input: true
+	});
+	project_field.refresh();
+	$(project_field.input).css({'background':'#1e2a3b','border-color':'#2d3748','color':'#e2e8f0','border-radius':'6px'});
+	$(project_field.input).on('change', function() {
+		var project = project_field.get_value();
+		if (project) load_dashboard(project);
+	});
 
 	function load_dashboard(project) {
 		document.getElementById('pd-body').innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;">Loading...</div>';
