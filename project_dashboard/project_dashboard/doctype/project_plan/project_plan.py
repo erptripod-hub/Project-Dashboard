@@ -1,5 +1,6 @@
 import frappe
 from frappe.model.document import Document
+from frappe.utils import date_diff, today, getdate
 
 BOQ_SECTIONS = [
 	("base_total_preliminaries", "Preliminaries"),
@@ -37,17 +38,48 @@ BOQ_SECTIONS = [
 class ProjectPlan(Document):
 
 	def validate(self):
-		self.fetch_boq_base_total()
+		self.fetch_boq_totals()
+		self.calculate_timeline()
+		self.validate_department_allocation()
 		self.calculate_section_variance()
 		self.calculate_labour_hours()
 		self.calculate_department_budgets()
 		self.calculate_summary()
 
-	def fetch_boq_base_total(self):
+	def fetch_boq_totals(self):
 		if self.boq:
 			boq = frappe.get_doc("BOQ", self.boq)
-			total = sum((getattr(boq, f, 0) or 0) for f, _ in BOQ_SECTIONS)
-			self.boq_base_total = total
+			# Grand total with VAT
+			self.boq_grand_total = boq.grand_total or 0
+			# Base total without markup/VAT
+			self.boq_base_total = sum((getattr(boq, f, 0) or 0) for f, _ in BOQ_SECTIONS)
+
+	def calculate_timeline(self):
+		if self.start_date and self.end_date:
+			self.project_duration = date_diff(self.end_date, self.start_date)
+			self.days_passed = max(date_diff(today(), self.start_date), 0)
+			self.days_remaining = date_diff(self.end_date, today())
+
+			# Timeline status
+			days_rem = self.days_remaining
+			if days_rem < 0:
+				self.timeline_status = "Overdue"
+			elif days_rem < 7:
+				self.timeline_status = "Critical"
+			elif days_rem < 15:
+				self.timeline_status = "Warning"
+			elif days_rem < 30:
+				self.timeline_status = "Attention"
+			else:
+				self.timeline_status = "On Track"
+
+	def validate_department_allocation(self):
+		total_pct = sum(row.allocation_percent or 0 for row in self.department_budgets)
+		if total_pct > 100:
+			frappe.throw(
+				f"Total department allocation is {total_pct}% — cannot exceed 100%. "
+				f"Please adjust the percentages."
+			)
 
 	def calculate_section_variance(self):
 		for row in self.section_costs:
@@ -70,7 +102,7 @@ class ProjectPlan(Document):
 			row.budget_amount = round(total_adjusted * pct / 100, 2)
 			spent = row.spent_amount or 0
 			row.remaining = row.budget_amount - spent
-			if spent >= row.budget_amount:
+			if row.budget_amount and spent >= row.budget_amount:
 				row.status = "Exceeded"
 			elif row.budget_amount and spent >= row.budget_amount * 0.8:
 				row.status = "Warning"
@@ -78,12 +110,17 @@ class ProjectPlan(Document):
 				row.status = "On Track"
 
 	def calculate_summary(self):
-		self.total_base_boq_cost = self.boq_base_total or 0
 		self.total_adjusted_cost = sum(r.adjusted_cost or 0 for r in self.section_costs)
+		self.total_subcontractor_cost = sum(r.contract_value or 0 for r in self.subcontractor_allocations)
 		self.total_overhead = sum(r.amount or 0 for r in self.overhead_costs)
 		self.total_estimated_labour = sum(r.estimated_cost or 0 for r in self.labour_plan)
-		self.total_project_cost = self.total_adjusted_cost + self.total_overhead + self.total_estimated_labour
-		self.total_variance = self.total_base_boq_cost - self.total_project_cost
+		# Budget = Section Cost + Overhead + Labour (overhead ADDS to budget)
+		self.total_project_cost = (
+			self.total_adjusted_cost +
+			self.total_overhead +
+			self.total_estimated_labour
+		)
+		self.total_variance = (self.boq_base_total or 0) - self.total_project_cost
 
 
 @frappe.whitelist()

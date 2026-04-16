@@ -4,11 +4,11 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["phase_name","start_week","end_week","progress","status","remarks"],
+ "field_order": ["phase_name","start_date","end_date","progress","status","remarks"],
  "fields": [
   {"fieldname":"phase_name","fieldtype":"Data","in_list_view":1,"label":"Phase","reqd":1,"columns":3},
-  {"fieldname":"start_week","fieldtype":"Int","in_list_view":1,"label":"Start Week","columns":1},
-  {"fieldname":"end_week","fieldtype":"Int","in_list_view":1,"label":"End Week","columns":1},
+  {"fieldname":"start_date","fieldtype":"Date","in_list_view":1,"label":"Start Date","columns":2},
+  {"fieldname":"end_date","fieldtype":"Date","in_list_view":1,"label":"End Date","columns":2},
   {"fieldname":"progress","fieldtype":"Percent","in_list_view":1,"label":"% Complete","default":"0","columns":2},
   {"default":"Not Started","fieldname":"status","fieldtype":"Select","in_list_view":1,"label":"Status","options":"Not Started\nIn Progress\nCompleted\nOn Hold\nDelayed","columns":2},
   {"fieldname":"remarks","fieldtype":"Small Text","label":"Remarks"}
