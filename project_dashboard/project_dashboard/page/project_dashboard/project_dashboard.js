@@ -15,7 +15,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		var s = document.createElement('style');
 		s.id = 'pd-style';
 		s.textContent =
-			'.pd{padding:14px;background:#f0f4f8;min-height:100vh}' +
+			'.pd-wrap{margin:-15px;background:#f0f4f8;min-height:100vh;padding:14px}' +
 			'.pd .hdr{background:#0f1623;border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}' +
 			'.pd .hdr-l h2{font-size:16px;font-weight:800;color:#fff;margin:0}.pd .hdr-l h2 span{color:#60a5fa}' +
 			'.pd .hdr-l p{font-size:11px;color:#94a3b8;margin-top:2px}' +
@@ -65,10 +65,10 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 	}
 
 	$(wrapper).find('.page-content').html(
-		'<div class="pd">' +
+		'<div class="pd-wrap">' +
 		'<div class="hdr">' +
 		'<div class="hdr-l"><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Select a project to view live data</p></div>' +
-		'<select id="pd-sel"><option value="">-- Select Project --</option></select>' +
+		'<input id="pd-inp" list="pd-dl" placeholder="Type project name or number..." style="background:#1e2a3b;border:1px solid #334155;color:#e2e8f0;padding:8px 14px;border-radius:8px;font-size:12px;min-width:300px;outline:none" autocomplete="off"><datalist id="pd-dl"></datalist>' +
 		'</div>' +
 		'<div id="pd-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">Select a project above to load dashboard</div>' +
 		'</div>'
@@ -80,18 +80,36 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		filters: {status: ['!=', 'Cancelled']},
 		order_by: 'modified desc'
 	}).then(function(projects) {
-		var sel = document.getElementById('pd-sel');
+		var dl = document.getElementById('pd-dl');
+		var map = {};
 		projects.forEach(function(p) {
 			var opt = document.createElement('option');
-			opt.value = p.name;
-			opt.textContent = p.name + ' — ' + p.project_name;
-			sel.appendChild(opt);
+			opt.value = p.name + ' — ' + p.project_name;
+			opt.setAttribute('data-id', p.name);
+			dl.appendChild(opt);
+			map[p.name + ' — ' + p.project_name] = p.name;
 		});
+		window._pd_project_map = map;
 	});
 
-	document.getElementById('pd-sel').addEventListener('change', function() {
-		cur_project = this.value;
-		if (cur_project) load_dashboard(cur_project);
+	document.getElementById('pd-inp').addEventListener('change', function() {
+		var val = this.value;
+		var map = window._pd_project_map || {};
+		// Try exact match first
+		if (map[val]) {
+			cur_project = map[val];
+			load_dashboard(cur_project);
+			return;
+		}
+		// Try matching by project ID
+		var keys = Object.keys(map);
+		for (var i = 0; i < keys.length; i++) {
+			if (keys[i].indexOf(val) === 0) {
+				cur_project = map[keys[i]];
+				load_dashboard(cur_project);
+				return;
+			}
+		}
 	});
 
 	function load_dashboard(project) {
