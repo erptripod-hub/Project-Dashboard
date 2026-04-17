@@ -64,7 +64,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		document.head.appendChild(s);
 	}
 
-	$(wrapper).find('.page-content').html(
+	$(page.main).html(
 		'<div class="pd-wrap">' +
 		'<div class="hdr">' +
 		'<div class="hdr-l"><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Select a project to view live data</p></div>' +
