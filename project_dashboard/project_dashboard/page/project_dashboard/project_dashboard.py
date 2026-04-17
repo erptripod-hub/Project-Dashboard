@@ -2,6 +2,23 @@ import frappe
 from frappe.utils import date_diff, today
 
 
+def get_employee_hourly_rate(employee):
+	"""Fetch latest salary structure assignment and calculate hourly rate"""
+	result = frappe.db.sql("""
+		SELECT custom_total_salary
+		FROM `tabSalary Structure Assignment`
+		WHERE employee = %s
+		AND docstatus = 1
+		AND custom_total_salary > 0
+		ORDER BY from_date DESC
+		LIMIT 1
+	""", employee)
+	if result and result[0][0]:
+		monthly_salary = float(result[0][0])
+		return round(monthly_salary / 30 / 8, 4)
+	return 0
+
+
 @frappe.whitelist()
 def get_dashboard_data(project):
 	data = {}
@@ -22,6 +39,13 @@ def get_dashboard_data(project):
 
 	if pp_name:
 		plan = frappe.get_doc("Project Plan", pp_name)
+
+		# Estimated totals from labour plan
+		est_workers = sum(r.headcount or 0 for r in (plan.labour_plan or []))
+		est_working_hrs = sum((r.headcount or 0) * (r.estimated_days or 0) * 8 for r in (plan.labour_plan or []))
+		est_ot_hrs = sum(r.estimated_ot_hours or 0 for r in (plan.labour_plan or []))
+		est_total_hrs = est_working_hrs + est_ot_hrs
+
 		data["plan"] = {
 			"start_date": str(plan.start_date) if plan.start_date else "",
 			"end_date": str(plan.end_date) if plan.end_date else "",
@@ -36,6 +60,10 @@ def get_dashboard_data(project):
 			"total_overhead": plan.total_overhead or 0,
 			"total_project_cost": plan.total_project_cost or 0,
 			"total_variance": plan.total_variance or 0,
+			"est_workers": est_workers,
+			"est_working_hrs": est_working_hrs,
+			"est_ot_hrs": est_ot_hrs,
+			"est_total_hrs": est_total_hrs,
 			"phases": [
 				{
 					"phase_name": r.phase_name,
@@ -76,20 +104,51 @@ def get_dashboard_data(project):
 			],
 		}
 
-	# Manpower from Project Timesheet
-	manpower = frappe.db.sql("""
+	# Manpower from Project Timesheet - get per employee
+	timesheet_employees = frappe.db.sql("""
 		SELECT
-			COUNT(DISTINCT pte.employee) as total_employees,
-			COALESCE(SUM(pte.working_hours), 0) as total_working_hours,
-			COALESCE(SUM(pte.overtime_hours), 0) as total_overtime_hours,
-			COALESCE(SUM(pte.total_hours), 0) as total_manhours
+			pte.employee,
+			COALESCE(SUM(pte.working_hours), 0) as working_hours,
+			COALESCE(SUM(pte.overtime_hours), 0) as overtime_hours,
+			COALESCE(SUM(pte.total_hours), 0) as total_hours
 		FROM `tabProject Timesheet Employee` pte
 		INNER JOIN `tabProject Timesheet` pt ON pt.name = pte.parent
 		WHERE pte.project = %s AND pt.docstatus = 1
+		GROUP BY pte.employee
 	""", project, as_dict=1)
-	data["manpower"] = manpower[0] if manpower else {
-		"total_employees": 0, "total_working_hours": 0,
-		"total_overtime_hours": 0, "total_manhours": 0
+
+	# Calculate manhour cost per employee
+	total_working_cost = 0
+	total_ot_cost = 0
+	total_working_hrs = 0
+	total_ot_hrs = 0
+	total_manhours = 0
+	actual_workers = len(timesheet_employees)
+
+	for emp in timesheet_employees:
+		hourly_rate = get_employee_hourly_rate(emp.employee)
+		working_hrs = float(emp.working_hours or 0)
+		ot_hrs = float(emp.overtime_hours or 0)
+
+		working_cost = working_hrs * hourly_rate
+		ot_cost = ot_hrs * 5  # Fixed AED 5 per OT hour
+
+		total_working_cost += working_cost
+		total_ot_cost += ot_cost
+		total_working_hrs += working_hrs
+		total_ot_hrs += ot_hrs
+		total_manhours += float(emp.total_hours or 0)
+
+	total_labour_cost = total_working_cost + total_ot_cost
+
+	data["manpower"] = {
+		"actual_workers": actual_workers,
+		"actual_working_hours": round(total_working_hrs, 2),
+		"actual_ot_hours": round(total_ot_hrs, 2),
+		"actual_manhours": round(total_manhours, 2),
+		"total_working_cost": round(total_working_cost, 2),
+		"total_ot_cost": round(total_ot_cost, 2),
+		"total_labour_cost": round(total_labour_cost, 2)
 	}
 
 	# POs by order type (submitted only)
@@ -118,9 +177,12 @@ def get_dashboard_data(project):
 		"total_pos": 0, "total_suppliers": 0,
 		"total_value": 0, "total_received": 0, "total_pending": 0
 	}
-	data["po_by_type"] = {row.order_type: {"count": row.count, "total_value": row.total_value} for row in po_by_type}
+	data["po_by_type"] = {
+		row.order_type: {"count": row.count, "total_value": float(row.total_value or 0)}
+		for row in po_by_type
+	}
 
-	# Expense Claims (submitted only)
+	# Expense Claims
 	expenses = frappe.db.sql("""
 		SELECT COALESCE(SUM(grand_total), 0) as total_expenses
 		FROM `tabExpense Claim`

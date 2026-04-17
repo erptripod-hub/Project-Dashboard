@@ -161,6 +161,25 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		return badge(status, map[status] || 'bb');
 	}
 
+	function fmtAED(v) {
+		v = parseFloat(v) || 0;
+		if (v >= 1000000) return 'AED ' + (v/1000000).toFixed(2) + 'M';
+		if (v >= 1000) return 'AED ' + Math.round(v/1000) + 'K';
+		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:2, maximumFractionDigits:2});
+	}
+
+	function mp_row(label, est, act, unit) {
+		var diff = act - est;
+		var diff_col = diff >= 0 ? '#15803d' : '#b91c1c';
+		var diff_str = (diff >= 0 ? '+' : '') + Math.round(diff) + unit;
+		return '<tr>' +
+			'<td style="font-size:12px;font-weight:600;color:#0f172a">' + label + '</td>' +
+			'<td style="text-align:right;font-size:12px;font-weight:700;color:#7c3aed">' + Math.round(est) + unit + '</td>' +
+			'<td style="text-align:right;font-size:12px;font-weight:700;color:#0d9488">' + Math.round(act) + unit + '</td>' +
+			'<td style="text-align:right;font-size:12px;font-weight:700;color:' + diff_col + '">' + diff_str + '</td>' +
+			'</tr>';
+	}
+
 	function render(d) {
 		var info = d.project_info || {};
 		var plan = d.plan || {};
@@ -207,12 +226,40 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		// --- Row: Manpower + PO ---
 		html += '<div class="g2">';
 
-		// Manpower
-		html += '<div class="card"><div class="ch"><div class="ci ci-b">👷</div><div><div class="ct">Manpower & Hours</div><div class="cs">From submitted timesheets</div></div></div>';
-		html += sr('Employees worked', mp.total_employees || 0);
-		html += sr('Working hours', (mp.total_working_hours || 0) + ' hrs', 'sv-b');
-		html += sr('Overtime hours', (mp.total_overtime_hours || 0) + ' hrs', 'sv-o');
-		html += sr('Total manhours', (mp.total_manhours || 0) + ' hrs', 'sv-g');
+		// Manpower - Estimated vs Actual + Cost
+		var est_w = (has_plan && plan.est_working_hrs) ? plan.est_working_hrs : 0;
+		var est_ot = (has_plan && plan.est_ot_hrs) ? plan.est_ot_hrs : 0;
+		var est_tot = (has_plan && plan.est_total_hrs) ? plan.est_total_hrs : 0;
+		var est_wkrs = (has_plan && plan.est_workers) ? plan.est_workers : 0;
+		var act_w = mp.actual_working_hours || 0;
+		var act_ot = mp.actual_ot_hours || 0;
+		var act_tot = mp.actual_manhours || 0;
+		var act_wkrs = mp.actual_workers || 0;
+
+		html += '<div class="card">';
+		html += '<div class="ch"><div class="ci ci-b">👷</div><div><div class="ct">Manpower & Hours</div><div class="cs">Estimated vs actual progress</div></div></div>';
+
+		// Comparison table
+		html += '<table style="margin-bottom:14px">';
+		html += '<thead><tr><th></th><th style="text-align:right;color:#7c3aed">Estimated</th><th style="text-align:right;color:#0d9488">Actual</th><th style="text-align:right;color:#64748b">Variance</th></tr></thead>';
+		html += '<tbody>';
+		html += mp_row('Workers', est_wkrs, act_wkrs, '');
+		html += mp_row('Working Hrs', est_w, act_w, ' hrs');
+		html += mp_row('OT Hrs', est_ot, act_ot, ' hrs');
+		html += mp_row('Total Hrs', est_tot, act_tot, ' hrs');
+		html += '</tbody></table>';
+
+		// Labour cost breakdown
+		html += '<div style="background:#f8fafc;border-radius:8px;padding:12px;border:1px solid #e2e8f0">';
+		html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:10px">Labour Cost</div>';
+		html += sr('Working cost (' + act_w + ' hrs × rate)', fmtAED(mp.total_working_cost || 0));
+		html += sr('OT cost (' + act_ot + ' hrs × AED 5)', fmtAED(mp.total_ot_cost || 0), 'sv-o');
+		html += '<div style="border-top:2px solid #e2e8f0;margin-top:6px;padding-top:8px;display:flex;justify-content:space-between">';
+		html += '<span style="font-size:13px;font-weight:700;color:#0f172a">Total Labour Cost</span>';
+		html += '<span style="font-size:14px;font-weight:800;color:#2563eb">' + fmtAED(mp.total_labour_cost || 0) + '</span>';
+		html += '</div>';
+		html += '<div style="font-size:10px;color:#94a3b8;margin-top:6px">Rate: monthly salary ÷ 30 days ÷ 8 hrs &nbsp;|&nbsp; OT: AED 5/hr fixed</div>';
+		html += '</div>';
 		html += '</div>';
 
 		// POs with breakdown by type
