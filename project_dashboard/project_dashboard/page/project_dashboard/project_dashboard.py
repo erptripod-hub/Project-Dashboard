@@ -207,4 +207,59 @@ def get_dashboard_data(project):
 	except Exception:
 		pass
 
+	# Material Tracking - PO items vs Stock Entry items
+	po_items = frappe.db.sql("""
+		SELECT
+			poi.item_code,
+			poi.item_name,
+			poi.uom,
+			COALESCE(SUM(poi.qty), 0) as ordered_qty,
+			COALESCE(SUM(poi.amount), 0) as ordered_value
+		FROM `tabPurchase Order Item` poi
+		INNER JOIN `tabPurchase Order` po ON po.name = poi.parent
+		WHERE poi.project = %s AND po.docstatus = 1
+		GROUP BY poi.item_code, poi.item_name, poi.uom
+		ORDER BY ordered_value DESC
+	""", project, as_dict=1)
+
+	stock_items = frappe.db.sql("""
+		SELECT
+			sed.item_code,
+			COALESCE(SUM(sed.qty), 0) as issued_qty,
+			COALESCE(SUM(sed.amount), 0) as issued_value
+		FROM `tabStock Entry Detail` sed
+		INNER JOIN `tabStock Entry` se ON se.name = sed.parent
+		WHERE se.project = %s
+		AND se.stock_entry_type = 'Material Issue'
+		AND se.docstatus = 1
+		GROUP BY sed.item_code
+	""", project, as_dict=1)
+
+	# Build stock lookup by item_code
+	stock_map = {r.item_code: {"issued_qty": float(r.issued_qty or 0), "issued_value": float(r.issued_value or 0)} for r in stock_items}
+
+	# Merge PO items with stock data
+	material_tracking = []
+	for item in po_items:
+		stock = stock_map.get(item.item_code, {"issued_qty": 0, "issued_value": 0})
+		material_tracking.append({
+			"item_code": item.item_code,
+			"item_name": item.item_name or item.item_code,
+			"uom": item.uom or "",
+			"ordered_qty": float(item.ordered_qty or 0),
+			"ordered_value": float(item.ordered_value or 0),
+			"issued_qty": stock["issued_qty"],
+			"issued_value": stock["issued_value"],
+			"variance_qty": float(item.ordered_qty or 0) - stock["issued_qty"],
+			"variance_value": float(item.ordered_value or 0) - stock["issued_value"],
+		})
+
+	data["material_tracking"] = material_tracking
+	data["material_totals"] = {
+		"total_ordered_value": sum(r["ordered_value"] for r in material_tracking),
+		"total_issued_value": sum(r["issued_value"] for r in material_tracking),
+		"total_variance_value": sum(r["variance_value"] for r in material_tracking),
+		"total_items": len(material_tracking)
+	}
+
 	return data
