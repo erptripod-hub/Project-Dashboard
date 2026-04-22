@@ -1,13 +1,30 @@
 import frappe
 
 
+def remove_stale_project_links():
+	"""Remove invalid DocType links from Project doctype"""
+	try:
+		stale = ["Drawing Request Form"]
+		for dt in stale:
+			frappe.db.sql("""
+				DELETE FROM `tabDocType Link`
+				WHERE parent = 'Project'
+				AND link_doctype = %s
+			""", dt)
+		frappe.db.commit()
+	except Exception as e:
+		frappe.log_error(str(e), "Remove Stale Project Links")
+
+
 def after_install():
+	remove_stale_project_links()
 	create_custom_fields()
 	create_project_custom_fields()
 	unhide_project_fields()
 
 
 def after_migrate():
+	remove_stale_project_links()
 	create_custom_fields()
 	create_project_custom_fields()
 	unhide_project_fields()
