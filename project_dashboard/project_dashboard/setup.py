@@ -1,6 +1,17 @@
 import frappe
 
 
+def remove_invalid_custom_fields():
+	"""Remove invalid custom fields that conflict with standalone doctypes"""
+	try:
+		for fieldname in ["project_plan_tab", "project_plan"]:
+			if frappe.db.exists("Custom Field", {"dt": "Project", "fieldname": fieldname}):
+				frappe.delete_doc("Custom Field", frappe.db.get_value("Custom Field", {"dt": "Project", "fieldname": fieldname}))
+		frappe.db.commit()
+	except Exception as e:
+		frappe.log_error(str(e), "Remove Invalid Custom Fields")
+
+
 def remove_stale_project_links():
 	"""Remove invalid DocType links from Project doctype"""
 	try:
@@ -30,6 +41,7 @@ def remove_stale_project_links():
 
 
 def after_install():
+	remove_invalid_custom_fields()
 	remove_stale_project_links()
 	create_custom_fields()
 	create_project_custom_fields()
@@ -37,6 +49,7 @@ def after_install():
 
 
 def after_migrate():
+	remove_invalid_custom_fields()
 	remove_stale_project_links()
 	create_custom_fields()
 	create_project_custom_fields()
@@ -115,25 +128,10 @@ def create_project_custom_fields():
 	project_fields = [
 		{
 			"dt": "Project",
-			"fieldname": "project_plan_tab",
-			"label": "Project Plan",
-			"fieldtype": "Tab Break",
-			"insert_after": "expected_end_date",
-		},
-		{
-			"dt": "Project",
-			"fieldname": "project_plan",
-			"label": "Project Plan",
-			"fieldtype": "Table",
-			"options": "Project Plan",
-			"insert_after": "project_plan_tab",
-		},
-		{
-			"dt": "Project",
 			"fieldname": "project_subcontractors_tab",
 			"label": "Subcontractors",
 			"fieldtype": "Tab Break",
-			"insert_after": "project_plan",
+			"insert_after": "expected_end_date",
 		},
 		{
 			"dt": "Project",
