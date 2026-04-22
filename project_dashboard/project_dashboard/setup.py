@@ -2,19 +2,21 @@ import frappe
 
 
 def remove_invalid_custom_fields():
-	"""Remove invalid custom fields that conflict with standalone doctypes"""
+	"""Remove invalid custom fields using direct SQL"""
 	try:
-		to_remove = [
-			"project_plan_tab",
-			"project_plan",
-			"project_subcontractors_tab",
-			"project_subcontractors",
-		]
-		for fieldname in to_remove:
-			existing = frappe.db.get_value("Custom Field", {"dt": "Project", "fieldname": fieldname})
-			if existing:
-				frappe.delete_doc("Custom Field", existing, force=1, ignore_permissions=True)
+		frappe.db.sql("""
+			DELETE FROM `tabCustom Field`
+			WHERE dt = 'Project'
+			AND fieldname IN (
+				'project_plan_tab',
+				'project_plan',
+				'project_subcontractors_tab',
+				'project_subcontractors'
+			)
+		""")
 		frappe.db.commit()
+		# Clear cache so changes reflect immediately
+		frappe.clear_cache(doctype="Project")
 	except Exception as e:
 		frappe.log_error(str(e), "Remove Invalid Custom Fields")
 
