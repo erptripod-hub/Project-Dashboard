@@ -207,8 +207,8 @@ def get_dashboard_data(project):
 	except Exception:
 		pass
 
-	# Material Tracking - PO items vs Stock Entry items
-	po_items = frappe.db.sql("""
+	# Joinery PO items vs Stock Entry (material comparison)
+	joinery_po_items = frappe.db.sql("""
 		SELECT
 			poi.item_code,
 			poi.item_name,
@@ -217,7 +217,9 @@ def get_dashboard_data(project):
 			COALESCE(SUM(poi.amount), 0) as ordered_value
 		FROM `tabPurchase Order Item` poi
 		INNER JOIN `tabPurchase Order` po ON po.name = poi.parent
-		WHERE poi.project = %s AND po.docstatus = 1
+		WHERE poi.project = %s
+		AND po.docstatus = 1
+		AND po.custom_order_type = 'Joinery'
 		GROUP BY poi.item_code, poi.item_name, poi.uom
 		ORDER BY ordered_value DESC
 	""", project, as_dict=1)
@@ -235,14 +237,12 @@ def get_dashboard_data(project):
 		GROUP BY sed.item_code
 	""", project, as_dict=1)
 
-	# Build stock lookup by item_code
 	stock_map = {r.item_code: {"issued_qty": float(r.issued_qty or 0), "issued_value": float(r.issued_value or 0)} for r in stock_items}
 
-	# Merge PO items with stock data
-	material_tracking = []
-	for item in po_items:
+	joinery_tracking = []
+	for item in joinery_po_items:
 		stock = stock_map.get(item.item_code, {"issued_qty": 0, "issued_value": 0})
-		material_tracking.append({
+		joinery_tracking.append({
 			"item_code": item.item_code,
 			"item_name": item.item_name or item.item_code,
 			"uom": item.uom or "",
@@ -254,12 +254,42 @@ def get_dashboard_data(project):
 			"variance_value": float(item.ordered_value or 0) - stock["issued_value"],
 		})
 
-	data["material_tracking"] = material_tracking
-	data["material_totals"] = {
-		"total_ordered_value": sum(r["ordered_value"] for r in material_tracking),
-		"total_issued_value": sum(r["issued_value"] for r in material_tracking),
-		"total_variance_value": sum(r["variance_value"] for r in material_tracking),
-		"total_items": len(material_tracking)
+	data["joinery_tracking"] = joinery_tracking
+	data["joinery_totals"] = {
+		"total_ordered_value": sum(r["ordered_value"] for r in joinery_tracking),
+		"total_issued_value": sum(r["issued_value"] for r in joinery_tracking),
+		"total_variance_value": sum(r["variance_value"] for r in joinery_tracking),
+	}
+
+	# Fitout POs - reference only (supplier level)
+	fitout_pos = frappe.db.sql("""
+		SELECT
+			po.supplier,
+			po.supplier_name,
+			po.name as po_name,
+			po.transaction_date,
+			COALESCE(po.grand_total, 0) as po_value,
+			COALESCE(po.grand_total * po.per_billed / 100, 0) as received,
+			COALESCE(po.grand_total * (1 - po.per_billed / 100), 0) as pending
+		FROM `tabPurchase Order` po
+		WHERE po.project = %s
+		AND po.docstatus = 1
+		AND po.custom_order_type = 'Fitout'
+		ORDER BY po.grand_total DESC
+	""", project, as_dict=1)
+
+	data["fitout_pos"] = [{
+		"supplier": r.supplier_name or r.supplier,
+		"po_name": r.po_name,
+		"transaction_date": str(r.transaction_date) if r.transaction_date else "",
+		"po_value": float(r.po_value or 0),
+		"received": float(r.received or 0),
+		"pending": float(r.pending or 0),
+	} for r in fitout_pos]
+	data["fitout_totals"] = {
+		"total_value": sum(float(r.po_value or 0) for r in fitout_pos),
+		"total_received": sum(float(r.received or 0) for r in fitout_pos),
+		"total_pending": sum(float(r.pending or 0) for r in fitout_pos),
 	}
 
 	return data

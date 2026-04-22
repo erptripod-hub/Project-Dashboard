@@ -321,12 +321,12 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '</tbody></table></div>';
 		}
 
-		// Material Tracking - full width
-		var mt = d.material_tracking || [];
-		var mtot = d.material_totals || {};
+		// Joinery Material Tracking - full width
+		var jt = d.joinery_tracking || [];
+		var jtot = d.joinery_totals || {};
 		html += '<div class="card">';
-		html += '<div class="ch"><div class="ci ci-t">📦</div><div><div class="ct">Material Tracking — PO vs Stock Issue</div><div class="cs">What was ordered vs what was issued on site</div></div></div>';
-		if (mt.length) {
+		html += '<div class="ch"><div class="ci ci-b">📦</div><div><div class="ct">Joinery — Material Ordered vs Issued</div><div class="cs">Joinery POs vs Stock Entries (Material Issue)</div></div></div>';
+		if (jt.length) {
 			html += '<div style="overflow-x:auto">';
 			html += '<table><thead><tr>';
 			html += '<th>Item</th><th>UOM</th>';
@@ -336,7 +336,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<th style="text-align:right;color:#0f6e56">Issued Value</th>';
 			html += '<th style="text-align:right">Variance Qty</th>';
 			html += '</tr></thead><tbody>';
-			mt.forEach(function(r) {
+			jt.forEach(function(r) {
 				var vqty = r.variance_qty || 0;
 				var vcol = vqty < 0 ? '#b91c1c' : vqty === 0 ? '#15803d' : '#64748b';
 				html += '<tr>';
@@ -349,17 +349,48 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 				html += '<td style="text-align:right;font-weight:700;color:' + vcol + '">' + vqty.toFixed(2) + '</td>';
 				html += '</tr>';
 			});
-			// Totals row
 			html += '<tr style="background:#f8fafc;border-top:2px solid #e2e8f0">';
 			html += '<td colspan="3" style="font-weight:700;color:#0f172a">Total</td>';
-			html += '<td style="text-align:right;font-weight:800;color:#1d4ed8">' + fmt(mtot.total_ordered_value||0) + '</td>';
-			html += '<td style="text-align:right"></td>';
-			html += '<td style="text-align:right;font-weight:800;color:#0f6e56">' + fmt(mtot.total_issued_value||0) + '</td>';
-			html += '<td style="text-align:right;font-weight:800;color:#64748b">' + fmt(mtot.total_variance_value||0) + '</td>';
-			html += '</tr>';
-			html += '</tbody></table></div>';
+			html += '<td style="text-align:right;font-weight:800;color:#1d4ed8">' + fmt(jtot.total_ordered_value||0) + '</td>';
+			html += '<td></td>';
+			html += '<td style="text-align:right;font-weight:800;color:#0f6e56">' + fmt(jtot.total_issued_value||0) + '</td>';
+			html += '<td style="text-align:right;font-weight:800;color:#64748b">' + fmt(jtot.total_variance_value||0) + '</td>';
+			html += '</tr></tbody></table></div>';
 		} else {
-			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No purchase orders or stock entries found for this project</div>';
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No Joinery POs found for this project</div>';
+		}
+		html += '</div>';
+
+		// Fitout POs - reference only
+		var fp = d.fitout_pos || [];
+		var ftot = d.fitout_totals || {};
+		html += '<div class="card">';
+		html += '<div class="ch"><div class="ci ci-a">🔧</div><div><div class="ct">Fitout / Subcontractor POs</div><div class="cs">Service POs — reference only, no stock comparison</div></div></div>';
+		if (fp.length) {
+			html += '<table><thead><tr>';
+			html += '<th>Supplier</th><th>PO No.</th><th>Date</th>';
+			html += '<th style="text-align:right;color:#1d4ed8">PO Value</th>';
+			html += '<th style="text-align:right;color:#0f6e56">Received</th>';
+			html += '<th style="text-align:right;color:#b91c1c">Pending</th>';
+			html += '</tr></thead><tbody>';
+			fp.forEach(function(r) {
+				html += '<tr>';
+				html += '<td><b>' + (r.supplier||'') + '</b></td>';
+				html += '<td style="color:#64748b;font-size:11px">' + (r.po_name||'') + '</td>';
+				html += '<td style="color:#64748b">' + (r.transaction_date||'') + '</td>';
+				html += '<td style="text-align:right;font-weight:600;color:#1d4ed8">' + fmt(r.po_value) + '</td>';
+				html += '<td style="text-align:right;font-weight:600;color:#0f6e56">' + fmt(r.received) + '</td>';
+				html += '<td style="text-align:right;font-weight:600;color:#b91c1c">' + fmt(r.pending) + '</td>';
+				html += '</tr>';
+			});
+			html += '<tr style="background:#f8fafc;border-top:2px solid #e2e8f0">';
+			html += '<td colspan="3" style="font-weight:700;color:#0f172a">Total</td>';
+			html += '<td style="text-align:right;font-weight:800;color:#1d4ed8">' + fmt(ftot.total_value||0) + '</td>';
+			html += '<td style="text-align:right;font-weight:800;color:#0f6e56">' + fmt(ftot.total_received||0) + '</td>';
+			html += '<td style="text-align:right;font-weight:800;color:#b91c1c">' + fmt(ftot.total_pending||0) + '</td>';
+			html += '</tr></tbody></table>';
+		} else {
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No Fitout POs found for this project</div>';
 		}
 		html += '</div>';
 
