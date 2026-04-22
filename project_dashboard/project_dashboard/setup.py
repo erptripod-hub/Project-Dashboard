@@ -4,13 +4,26 @@ import frappe
 def remove_stale_project_links():
 	"""Remove invalid DocType links from Project doctype"""
 	try:
-		stale = ["Drawing Request Form"]
-		for dt in stale:
-			frappe.db.sql("""
-				DELETE FROM `tabDocType Link`
-				WHERE parent = 'Project'
-				AND link_doctype = %s
-			""", dt)
+		# Remove by exact doctype name
+		frappe.db.sql("""
+			DELETE FROM `tabDocType Link`
+			WHERE parent = 'Project'
+			AND link_doctype = 'Drawing Request Form'
+		""")
+		# Remove empty/invalid rows
+		frappe.db.sql("""
+			DELETE FROM `tabDocType Link`
+			WHERE parent = 'Project'
+			AND (link_doctype = '' OR link_doctype IS NULL OR link_fieldname = '' OR link_fieldname IS NULL)
+		""")
+		# Remove by checking if doctype actually exists
+		frappe.db.sql("""
+			DELETE dl FROM `tabDocType Link` dl
+			LEFT JOIN `tabDocType` dt ON dt.name = dl.link_doctype
+			WHERE dl.parent = 'Project'
+			AND dt.name IS NULL
+			AND dl.link_doctype != ''
+		""")
 		frappe.db.commit()
 	except Exception as e:
 		frappe.log_error(str(e), "Remove Stale Project Links")
