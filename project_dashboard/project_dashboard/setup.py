@@ -4,19 +4,34 @@ import frappe
 def remove_invalid_custom_fields():
 	"""Remove invalid custom fields using direct SQL"""
 	try:
+		fields_to_remove = [
+			'project_plan_tab',
+			'project_plan',
+			'project_subcontractors_tab',
+			'project_subcontractors',
+		]
+		placeholders = ', '.join(['%s'] * len(fields_to_remove))
+
+		# Delete custom fields
 		frappe.db.sql("""
 			DELETE FROM `tabCustom Field`
 			WHERE dt = 'Project'
-			AND fieldname IN (
-				'project_plan_tab',
-				'project_plan',
-				'project_subcontractors_tab',
-				'project_subcontractors'
-			)
-		""")
+			AND fieldname IN ({})
+		""".format(placeholders), fields_to_remove)
+
+		# Delete any property setters for these fields
+		frappe.db.sql("""
+			DELETE FROM `tabProperty Setter`
+			WHERE doc_type = 'Project'
+			AND field_name IN ({})
+		""".format(placeholders), fields_to_remove)
+
 		frappe.db.commit()
-		# Clear cache so changes reflect immediately
+
+		# Clear all caches
 		frappe.clear_cache(doctype="Project")
+		frappe.clear_cache()
+
 	except Exception as e:
 		frappe.log_error(str(e), "Remove Invalid Custom Fields")
 
