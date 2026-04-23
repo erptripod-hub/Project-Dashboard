@@ -317,39 +317,29 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		html += '</div>';
 		html += '</div>';
 
-		// Row 4: Weekly Reports + Labour Plan (side by side)
-		html += '<div class="g2">';
+		// Labour Plan - full width
+		if (hp && plan.labour_plan && plan.labour_plan.length) {
+			html += '<div class="card">';
+			html += '<div class="ch"><div class="ci ci-b">📊</div><div><div class="ct">Labour Plan (Estimated)</div><div class="cs">Planned workforce</div></div></div>';
+			html += '<table><thead><tr><th>Trade / Role</th><th>Headcount</th><th>Days</th><th>Working Hrs</th><th>OT Hrs</th><th>Total Hrs</th></tr></thead><tbody>';
+			plan.labour_plan.forEach(function(l) {
+				html += '<tr><td><b>' + l.trade_role + '</b></td><td>' + l.headcount + '</td><td>' + l.estimated_days + '</td><td>' + (l.estimated_working_hours||0) + '</td><td>' + (l.estimated_ot_hours||0) + '</td><td><b>' + (l.estimated_total_hours||0) + '</b></td></tr>';
+			});
+			html += '</tbody></table></div>';
+		}
 
-		// Weekly Reports
-		html += '<div class="card">';
-		html += '<div class="ch"><div class="ci ci-g">📅</div><div><div class="ct">Weekly Reports</div><div class="cs">Client submission status</div></div></div>';
+		// Weekly Reports - only show if has data
 		if (d.weekly_reports && d.weekly_reports.length) {
+			html += '<div class="card">';
+			html += '<div class="ch"><div class="ci ci-g">📅</div><div><div class="ct">Weekly Reports</div><div class="cs">Client submission status</div></div></div>';
 			html += '<table><thead><tr><th>Week</th><th>Date</th><th>File</th><th>Client</th></tr></thead><tbody>';
 			d.weekly_reports.forEach(function(r) {
 				html += '<tr><td><b>Week ' + (r.week_number||'') + '</b></td><td style="color:#64748b">' + (r.report_date||'') + '</td>';
 				html += '<td>' + (r.report_file ? '<a href="' + r.report_file + '" target="_blank" style="color:#2563eb">Download</a>' : '<span style="color:#94a3b8">—</span>') + '</td>';
 				html += '<td>' + badge(r.sent_to_client ? 'Sent' : 'Pending', r.sent_to_client ? 'bg' : 'ba') + '</td></tr>';
 			});
-			html += '</tbody></table>';
-		} else {
-			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No reports yet</div>';
+			html += '</tbody></table></div>';
 		}
-		html += '</div>';
-
-		// Labour Plan
-		html += '<div class="card">';
-		html += '<div class="ch"><div class="ci ci-b">📊</div><div><div class="ct">Labour Plan (Estimated)</div><div class="cs">Planned workforce</div></div></div>';
-		if (hp && plan.labour_plan && plan.labour_plan.length) {
-			html += '<table><thead><tr><th>Trade / Role</th><th>Headcount</th><th>Days</th><th>Working Hrs</th><th>OT Hrs</th><th>Total Hrs</th></tr></thead><tbody>';
-			plan.labour_plan.forEach(function(l) {
-				html += '<tr><td><b>' + l.trade_role + '</b></td><td>' + l.headcount + '</td><td>' + l.estimated_days + '</td><td>' + (l.estimated_working_hours||0) + '</td><td>' + (l.estimated_ot_hours||0) + '</td><td><b>' + (l.estimated_total_hours||0) + '</b></td></tr>';
-			});
-			html += '</tbody></table>';
-		} else {
-			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No labour plan added</div>';
-		}
-		html += '</div>';
-		html += '</div>';
 
 		// Joinery Material Tracking - full width
 		var jt = d.joinery_tracking || [];
