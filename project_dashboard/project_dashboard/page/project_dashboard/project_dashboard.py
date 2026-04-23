@@ -160,6 +160,26 @@ def get_dashboard_data(project):
 
 	total_labour_cost = total_working_cost + total_ot_cost
 
+	# Debug: check salary per employee
+	emp_debug = []
+	for emp in timesheet_employees:
+		salary_result = frappe.db.sql("""
+			SELECT custom_total_salary, from_date, docstatus
+			FROM `tabSalary Structure Assignment`
+			WHERE employee = %s
+			ORDER BY from_date DESC LIMIT 1
+		""", emp.employee, as_dict=1)
+		salary = salary_result[0] if salary_result else None
+		hourly = get_employee_hourly_rate(emp.employee)
+		emp_debug.append({
+			"employee": emp.employee,
+			"working_hrs": float(emp.working_hours or 0),
+			"salary": float(salary.custom_total_salary or 0) if salary else 0,
+			"salary_docstatus": salary.docstatus if salary else "no record",
+			"hourly_rate": hourly,
+			"cost": round(float(emp.working_hours or 0) * hourly, 2)
+		})
+
 	data["manpower"] = {
 		"actual_workers": actual_workers,
 		"actual_working_hours": round(total_working_hrs, 2),
@@ -167,7 +187,8 @@ def get_dashboard_data(project):
 		"actual_manhours": round(total_manhours, 2),
 		"total_working_cost": round(total_working_cost, 2),
 		"total_ot_cost": round(total_ot_cost, 2),
-		"total_labour_cost": round(total_labour_cost, 2)
+		"total_labour_cost": round(total_labour_cost, 2),
+		"emp_debug": emp_debug
 	}
 
 	# POs by order type (submitted only)
