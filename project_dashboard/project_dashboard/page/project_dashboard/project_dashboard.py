@@ -5,11 +5,11 @@ from frappe.utils import date_diff, today
 def get_employee_hourly_rate(employee):
 	"""Fetch latest salary structure assignment and calculate hourly rate"""
 	result = frappe.db.sql("""
-		SELECT custom_total_salary
+		SELECT custom_monthly_ctc
 		FROM `tabSalary Structure Assignment`
 		WHERE employee = %s
 		AND docstatus = 1
-		AND custom_total_salary > 0
+		AND custom_monthly_ctc > 0
 		ORDER BY from_date DESC
 		LIMIT 1
 	""", employee)

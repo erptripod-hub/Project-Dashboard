@@ -63,8 +63,8 @@ def get_project_labour_cost(project):
 	total_cost = 0
 	for emp in employees:
 		salary = frappe.db.sql("""
-			SELECT custom_total_salary FROM `tabSalary Structure Assignment`
-			WHERE employee = %s AND docstatus = 1 AND custom_total_salary > 0
+			SELECT custom_monthly_ctc FROM `tabSalary Structure Assignment`
+			WHERE employee = %s AND docstatus = 1 AND custom_monthly_ctc > 0
 			ORDER BY from_date DESC LIMIT 1
 		""", emp.employee)
 		if salary and salary[0][0]:
