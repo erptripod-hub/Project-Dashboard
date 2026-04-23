@@ -300,6 +300,21 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		}
 		html += '</div>';
 
+		// Suppliers
+		html += '<div class="card">';
+		html += '<div class="ch"><div class="ci ci-t">🏪</div><div><div class="ct">Suppliers' + (hp && plan.suppliers ? ' (' + plan.suppliers.length + ')' : '') + '</div><div class="cs">Material suppliers per project plan</div></div></div>';
+		if (hp && plan.suppliers && plan.suppliers.length) {
+			html += '<table><thead><tr><th>Supplier</th><th>Scope</th><th>Value</th><th>Status</th></tr></thead><tbody>';
+			plan.suppliers.forEach(function(s) {
+				var bc = s.status === 'Active' ? 'bg' : s.status === 'Completed' ? 'bb' : 'bo';
+				html += '<tr><td><b>' + (s.supplier_name||'') + '</b></td><td style="color:#64748b">' + (s.scope_of_work||'—') + '</td><td><b>' + fmt(s.contract_value) + '</b></td><td>' + badge(s.status, bc) + '</td></tr>';
+			});
+			html += '</tbody></table>';
+		} else {
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No suppliers added</div>';
+		}
+		html += '</div>';
+
 		// Weekly Reports
 		html += '<div class="card">';
 		html += '<div class="ch"><div class="ci ci-g">📅</div><div><div class="ct">Weekly Reports</div><div class="cs">Client submission status</div></div></div>';
