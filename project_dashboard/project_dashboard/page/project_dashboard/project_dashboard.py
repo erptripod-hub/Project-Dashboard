@@ -76,9 +76,12 @@ def get_dashboard_data(project):
 			"department_budgets": [
 				{
 					"department_name": r.department_name,
+					"department_type": r.department_type or "",
 					"allocation_percent": r.allocation_percent or 0,
 					"po_order_type": r.po_order_type or "",
 					"budget_amount": r.budget_amount or 0,
+					"estimated_hours": r.estimated_hours or 0,
+					"actual_hours": r.actual_hours or 0,
 					"spent_amount": r.spent_amount or 0,
 					"remaining": r.remaining or 0,
 					"status": r.status or "On Track"
@@ -91,6 +94,22 @@ def get_dashboard_data(project):
 					"contract_value": r.contract_value or 0,
 					"status": r.status or "Active"
 				} for r in (plan.subcontractor_allocations or [])
+			],
+			"suppliers": [
+				{
+					"supplier_name": r.supplier_name or r.supplier or "",
+					"scope_of_work": r.scope_of_work or "",
+					"contract_value": r.contract_value or 0,
+					"status": r.status or "Active"
+				} for r in (plan.supplier_allocations or [])
+			],
+			"suppliers": [
+				{
+					"supplier_name": r.supplier_name or r.supplier or "",
+					"scope_of_work": r.scope_of_work or "",
+					"contract_value": r.contract_value or 0,
+					"status": r.status or "Active"
+				} for r in (plan.supplier_allocations or [])
 			],
 			"labour_plan": [
 				{

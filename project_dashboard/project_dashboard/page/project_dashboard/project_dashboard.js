@@ -258,8 +258,11 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 				var pct = bamt > 0 ? Math.min(Math.round(spent/bamt*100), 100) : 0;
 				var over = bamt > 0 && spent > bamt;
 				var col = dep.status === 'Exceeded' ? '#dc2626' : dep.status === 'Warning' ? '#d97706' : '#15803d';
-				var src = dep.po_order_type ? dep.po_order_type : 'Manual';
-				html += '<div style="margin-bottom:12px">';
+				var dtype = dep.department_type || '';
+				var src = dtype === 'Design' ? 'Hrs × Rate' :
+						 dtype === 'Production' ? 'Labour + Overhead' :
+						 dep.po_order_type ? dep.po_order_type : 'Manual';
+				html += '<div style="margin-bottom:14px">';
 				html += '<div style="display:flex;justify-content:space-between;margin-bottom:3px">';
 				html += '<span style="font-size:12px;font-weight:600;color:#0f172a">' + dep.department_name + ' <span style="font-weight:400;color:#94a3b8;font-size:11px">(' + dep.allocation_percent + '%)</span></span>';
 				html += '<span style="font-size:12px;font-weight:700;color:' + col + '">' + (over ? '⚠ ' : '') + pct + '% used</span>';
@@ -268,7 +271,11 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 				html += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px">';
 				html += '<span style="color:#64748b">Spent: <b style="color:#0f172a">' + fmt(spent) + '</b> <span style="color:#94a3b8">(' + src + ')</span></span>';
 				html += '<span style="color:#64748b">Budget: <b style="color:#0f172a">' + fmt(bamt) + '</b></span>';
-				html += '</div></div>';
+				html += '</div>';
+				if (dtype === 'Design' && (dep.estimated_hours || dep.actual_hours)) {
+					html += '<div style="font-size:11px;color:#94a3b8;margin-top:2px">Est: <b style="color:#7c3aed">' + (dep.estimated_hours||0) + ' hrs</b> &nbsp;·&nbsp; Actual: <b style="color:#0d9488">' + (dep.actual_hours||0) + ' hrs</b></div>';
+				}
+				html += '</div>';
 			});
 		} else {
 			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No budgets set</div>';
@@ -308,6 +315,22 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No reports yet</div>';
 		}
 		html += '</div>';
+		html += '</div>';
+
+		// Suppliers - full width
+		var supp = (hp && plan.suppliers) ? plan.suppliers : [];
+		html += '<div class="card">';
+		html += '<div class="ch"><div class="ci ci-t">🏪</div><div><div class="ct">Suppliers' + (supp.length ? ' (' + supp.length + ')' : '') + '</div><div class="cs">Material suppliers per project plan</div></div></div>';
+		if (supp.length) {
+			html += '<table><thead><tr><th>Supplier</th><th>Scope</th><th>Value</th><th>Status</th></tr></thead><tbody>';
+			supp.forEach(function(s) {
+				var bc = s.status === 'Active' ? 'bg' : s.status === 'Completed' ? 'bb' : 'bo';
+				html += '<tr><td><b>' + (s.supplier_name||'') + '</b></td><td style="color:#64748b">' + (s.scope_of_work||'—') + '</td><td><b>' + fmt(s.contract_value) + '</b></td><td>' + badge(s.status, bc) + '</td></tr>';
+			});
+			html += '</tbody></table>';
+		} else {
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No suppliers added</div>';
+		}
 		html += '</div>';
 
 		// Labour Plan (full width)

@@ -6,53 +6,245 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "naming_series","project","boq","start_date","end_date",
-  "column_break_1","status","boq_grand_total","boq_base_total",
-  "project_duration","days_passed","days_remaining","timeline_status",
-  "section_boq_cost","section_costs",
-  "section_subcontractors","subcontractor_allocations",
-  "section_dept","department_budgets",
-  "section_labour","labour_plan",
-  "section_phases","phase_plan",
-  "section_overhead","overhead_costs",
+  "naming_series",
+  "project",
+  "boq",
+  "start_date",
+  "end_date",
+  "column_break_1",
+  "status",
+  "boq_grand_total",
+  "boq_base_total",
+  "project_duration",
+  "days_passed",
+  "days_remaining",
+  "timeline_status",
+  "section_boq_cost",
+  "section_costs",
+  "section_subcontractors",
+  "subcontractor_allocations",
+  "section_suppliers",
+  "supplier_allocations",
+  "section_dept",
+  "department_budgets",
+  "section_labour",
+  "labour_plan",
+  "section_phases",
+  "phase_plan",
+  "section_overhead",
+  "overhead_costs",
   "section_summary",
-  "total_adjusted_cost","total_subcontractor_cost",
-  "total_overhead","total_estimated_labour",
-  "total_project_cost","total_variance"
+  "total_adjusted_cost",
+  "total_subcontractor_cost",
+  "total_overhead",
+  "total_estimated_labour",
+  "total_project_cost",
+  "total_variance"
  ],
  "fields": [
-  {"fieldname":"naming_series","fieldtype":"Select","label":"Series","options":"PP-.YYYY.-.####","reqd":1,"set_only_once":1},
-  {"fieldname":"project","fieldtype":"Link","label":"Project","options":"Project","reqd":1,"in_list_view":1},
-  {"fieldname":"boq","fieldtype":"Link","label":"BOQ","options":"BOQ"},
-  {"fieldname":"start_date","fieldtype":"Date","label":"Start Date","reqd":1},
-  {"fieldname":"end_date","fieldtype":"Date","label":"End Date","reqd":1},
-  {"fieldname":"column_break_1","fieldtype":"Column Break"},
-  {"default":"Draft","fieldname":"status","fieldtype":"Select","label":"Status","options":"Draft\nActive\nCompleted\nOn Hold"},
-  {"fieldname":"boq_grand_total","fieldtype":"Currency","label":"Contract Value (BOQ with VAT)","read_only":1,"description":"Grand total from BOQ including markup and VAT"},
-  {"fieldname":"boq_base_total","fieldtype":"Currency","label":"BOQ Base Cost (No Markup/VAT)","read_only":1},
-  {"fieldname":"project_duration","fieldtype":"Int","label":"Total Days","read_only":1},
-  {"fieldname":"days_passed","fieldtype":"Int","label":"Days Passed","read_only":1},
-  {"fieldname":"days_remaining","fieldtype":"Int","label":"Days Remaining","read_only":1},
-  {"default":"On Track","fieldname":"timeline_status","fieldtype":"Select","label":"Timeline Status","options":"On Track\nAttention\nWarning\nCritical\nOverdue","read_only":1},
-  {"fieldname":"section_boq_cost","fieldtype":"Section Break","label":"BOQ Section Cost Plan"},
-  {"fieldname":"section_costs","fieldtype":"Table","label":"Section Costs","options":"Project Plan Section"},
-  {"fieldname":"section_subcontractors","fieldtype":"Section Break","label":"Subcontractor Allocation"},
-  {"fieldname":"subcontractor_allocations","fieldtype":"Table","label":"Subcontractor Allocations","options":"Project Subcontractor Allocation"},
-  {"fieldname":"section_dept","fieldtype":"Section Break","label":"Department Budget Split"},
-  {"fieldname":"department_budgets","fieldtype":"Table","label":"Department Budgets","options":"Project Department Budget"},
-  {"fieldname":"section_labour","fieldtype":"Section Break","label":"Labour Plan"},
-  {"fieldname":"labour_plan","fieldtype":"Table","label":"Labour Plan","options":"Project Labour Plan"},
-  {"fieldname":"section_phases","fieldtype":"Section Break","label":"Phase Plan"},
-  {"fieldname":"phase_plan","fieldtype":"Table","label":"Phase Plan","options":"Project Phase Plan"},
-  {"fieldname":"section_overhead","fieldtype":"Section Break","label":"Project Overhead Costs"},
-  {"fieldname":"overhead_costs","fieldtype":"Table","label":"Overhead Costs","options":"Project Overhead"},
-  {"fieldname":"section_summary","fieldtype":"Section Break","label":"Cost Summary"},
-  {"fieldname":"total_adjusted_cost","fieldtype":"Currency","label":"Total Section Cost","read_only":1},
-  {"fieldname":"total_subcontractor_cost","fieldtype":"Currency","label":"Total Subcontractor Cost","read_only":1},
-  {"fieldname":"total_overhead","fieldtype":"Currency","label":"Total Overhead","read_only":1},
-  {"fieldname":"total_estimated_labour","fieldtype":"Currency","label":"Total Estimated Labour","read_only":1},
-  {"fieldname":"total_project_cost","fieldtype":"Currency","label":"Total Project Budget","read_only":1,"description":"Section Cost + Overhead + Labour"},
-  {"fieldname":"total_variance","fieldtype":"Currency","label":"Variance vs BOQ Base","read_only":1}
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "PP-.YYYY.-.####",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "boq",
+   "fieldtype": "Link",
+   "label": "BOQ",
+   "options": "BOQ"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nActive\nCompleted\nOn Hold"
+  },
+  {
+   "fieldname": "boq_grand_total",
+   "fieldtype": "Currency",
+   "label": "Contract Value (BOQ with VAT)",
+   "read_only": 1,
+   "description": "Grand total from BOQ including markup and VAT"
+  },
+  {
+   "fieldname": "boq_base_total",
+   "fieldtype": "Currency",
+   "label": "BOQ Base Cost (No Markup/VAT)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project_duration",
+   "fieldtype": "Int",
+   "label": "Total Days",
+   "read_only": 1
+  },
+  {
+   "fieldname": "days_passed",
+   "fieldtype": "Int",
+   "label": "Days Passed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "days_remaining",
+   "fieldtype": "Int",
+   "label": "Days Remaining",
+   "read_only": 1
+  },
+  {
+   "default": "On Track",
+   "fieldname": "timeline_status",
+   "fieldtype": "Select",
+   "label": "Timeline Status",
+   "options": "On Track\nAttention\nWarning\nCritical\nOverdue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_boq_cost",
+   "fieldtype": "Section Break",
+   "label": "BOQ Section Cost Plan"
+  },
+  {
+   "fieldname": "section_costs",
+   "fieldtype": "Table",
+   "label": "Section Costs",
+   "options": "Project Plan Section"
+  },
+  {
+   "fieldname": "section_subcontractors",
+   "fieldtype": "Section Break",
+   "label": "Subcontractor Allocation"
+  },
+  {
+   "fieldname": "subcontractor_allocations",
+   "fieldtype": "Table",
+   "label": "Subcontractor Allocations",
+   "options": "Project Subcontractor Allocation"
+  },
+  {
+   "fieldname": "section_suppliers",
+   "fieldtype": "Section Break",
+   "label": "Supplier Allocation"
+  },
+  {
+   "fieldname": "supplier_allocations",
+   "fieldtype": "Table",
+   "label": "Supplier Allocations",
+   "options": "Project Supplier Allocation"
+  },
+  {
+   "fieldname": "section_dept",
+   "fieldtype": "Section Break",
+   "label": "Department Budget Split"
+  },
+  {
+   "fieldname": "department_budgets",
+   "fieldtype": "Table",
+   "label": "Department Budgets",
+   "options": "Project Department Budget"
+  },
+  {
+   "fieldname": "section_labour",
+   "fieldtype": "Section Break",
+   "label": "Labour Plan"
+  },
+  {
+   "fieldname": "labour_plan",
+   "fieldtype": "Table",
+   "label": "Labour Plan",
+   "options": "Project Labour Plan"
+  },
+  {
+   "fieldname": "section_phases",
+   "fieldtype": "Section Break",
+   "label": "Phase Plan"
+  },
+  {
+   "fieldname": "phase_plan",
+   "fieldtype": "Table",
+   "label": "Phase Plan",
+   "options": "Project Phase Plan"
+  },
+  {
+   "fieldname": "section_overhead",
+   "fieldtype": "Section Break",
+   "label": "Project Overhead Costs"
+  },
+  {
+   "fieldname": "overhead_costs",
+   "fieldtype": "Table",
+   "label": "Overhead Costs",
+   "options": "Project Overhead"
+  },
+  {
+   "fieldname": "section_summary",
+   "fieldtype": "Section Break",
+   "label": "Cost Summary"
+  },
+  {
+   "fieldname": "total_adjusted_cost",
+   "fieldtype": "Currency",
+   "label": "Total Section Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_subcontractor_cost",
+   "fieldtype": "Currency",
+   "label": "Total Subcontractor Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_overhead",
+   "fieldtype": "Currency",
+   "label": "Total Overhead",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_estimated_labour",
+   "fieldtype": "Currency",
+   "label": "Total Estimated Labour",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_project_cost",
+   "fieldtype": "Currency",
+   "label": "Total Project Budget",
+   "read_only": 1,
+   "description": "Section Cost + Overhead + Labour"
+  },
+  {
+   "fieldname": "total_variance",
+   "fieldtype": "Currency",
+   "label": "Variance vs BOQ Base",
+   "read_only": 1
+  }
  ],
  "links": [],
  "modified": "2024-01-01 00:00:00.000000",
@@ -62,8 +254,28 @@
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
-  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"role":"System Manager","share":1,"write":1},
-  {"create":1,"email":1,"print":1,"read":1,"report":1,"role":"Project Manager","share":1,"write":1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "share": 1,
+   "write": 1
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

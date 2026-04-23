@@ -1,0 +1,27 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["supplier","supplier_name","scope_of_work","contract_value","status","remarks"],
+ "fields": [
+  {"fieldname":"supplier","fieldtype":"Link","in_list_view":1,"label":"Supplier","options":"Supplier","reqd":1,"columns":2},
+  {"fetch_from":"supplier.supplier_name","fieldname":"supplier_name","fieldtype":"Data","in_list_view":1,"label":"Supplier Name","read_only":1,"fetch_if_empty":1,"columns":2},
+  {"fieldname":"scope_of_work","fieldtype":"Data","in_list_view":1,"label":"Scope of Work","columns":3},
+  {"fieldname":"contract_value","fieldtype":"Currency","in_list_view":1,"label":"Contract Value","reqd":1,"columns":2},
+  {"default":"Active","fieldname":"status","fieldtype":"Select","in_list_view":1,"label":"Status","options":"Active\nCompleted\nTerminated\nOn Hold","columns":2},
+  {"fieldname":"remarks","fieldtype":"Small Text","label":"Remarks"}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Supplier Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

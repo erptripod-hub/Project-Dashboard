@@ -36,17 +36,42 @@ BOQ_SECTIONS = [
 
 
 def get_po_spent_by_order_type(project, order_type):
-	"""Get total submitted PO value for a project filtered by custom_order_type"""
 	if not project or not order_type:
 		return 0
 	result = frappe.db.sql("""
 		SELECT COALESCE(SUM(grand_total), 0)
 		FROM `tabPurchase Order`
-		WHERE project = %s
-		AND custom_order_type = %s
-		AND docstatus = 1
+		WHERE project = %s AND custom_order_type = %s AND docstatus = 1
 	""", (project, order_type))
-	return result[0][0] if result else 0
+	return float(result[0][0]) if result else 0
+
+
+def get_project_labour_cost(project):
+	"""Get total labour cost from project timesheets"""
+	if not project:
+		return 0
+	employees = frappe.db.sql("""
+		SELECT pte.employee,
+			COALESCE(SUM(pte.working_hours), 0) as working_hours,
+			COALESCE(SUM(pte.overtime_hours), 0) as overtime_hours
+		FROM `tabProject Timesheet Employee` pte
+		INNER JOIN `tabProject Timesheet` pt ON pt.name = pte.parent
+		WHERE pte.project = %s AND pt.docstatus = 1
+		GROUP BY pte.employee
+	""", project, as_dict=1)
+
+	total_cost = 0
+	for emp in employees:
+		salary = frappe.db.sql("""
+			SELECT custom_total_salary FROM `tabSalary Structure Assignment`
+			WHERE employee = %s AND docstatus = 1 AND custom_total_salary > 0
+			ORDER BY from_date DESC LIMIT 1
+		""", emp.employee)
+		if salary and salary[0][0]:
+			hourly_rate = float(salary[0][0]) / 30 / 8
+			total_cost += float(emp.working_hours or 0) * hourly_rate
+			total_cost += float(emp.overtime_hours or 0) * 5
+	return round(total_cost, 2)
 
 
 class ProjectPlan(Document):
@@ -86,9 +111,7 @@ class ProjectPlan(Document):
 	def validate_department_allocation(self):
 		total_pct = sum(row.allocation_percent or 0 for row in self.department_budgets)
 		if total_pct > 100:
-			frappe.throw(
-				f"Total department allocation is {total_pct}% — cannot exceed 100%. Please adjust."
-			)
+			frappe.throw(f"Total department allocation is {total_pct}% — cannot exceed 100%.")
 
 	def calculate_section_variance(self):
 		for row in self.section_costs:
@@ -106,17 +129,34 @@ class ProjectPlan(Document):
 
 	def calculate_department_budgets(self):
 		total_adjusted = sum(r.adjusted_cost or 0 for r in self.section_costs)
+		total_overhead = sum(r.amount or 0 for r in self.overhead_costs)
+		labour_cost = get_project_labour_cost(self.project) if self.project else 0
+
 		for row in self.department_budgets:
 			pct = row.allocation_percent or 0
 			row.budget_amount = round(total_adjusted * pct / 100, 2)
 
-			# Auto fetch spent from POs if po_order_type is set
-			if row.po_order_type and row.po_order_type != "Manual":
-				row.spent_amount = get_po_spent_by_order_type(self.project, row.po_order_type)
+			dept_type = row.department_type or ""
+
+			if dept_type == "Design":
+				# Hours based calculation
+				actual_hrs = row.actual_hours or 0
+				rate = row.avg_hourly_rate or 0
+				row.spent_amount = round(actual_hrs * rate, 2)
+
+			elif dept_type == "Production":
+				# Labour cost + all overhead
+				row.spent_amount = round(labour_cost + total_overhead, 2)
+
+			elif dept_type in ("Procurement Material", "Procurement Subcontractor"):
+				# Auto from POs by order type
+				if row.po_order_type and row.po_order_type != "Manual":
+					row.spent_amount = get_po_spent_by_order_type(self.project, row.po_order_type)
+
+			# For Other or empty type — keep manual (don't overwrite)
 
 			spent = row.spent_amount or 0
 			row.remaining = row.budget_amount - spent
-
 			if row.budget_amount and spent >= row.budget_amount:
 				row.status = "Exceeded"
 			elif row.budget_amount and spent >= row.budget_amount * 0.8:
