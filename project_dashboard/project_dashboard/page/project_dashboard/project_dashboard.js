@@ -283,7 +283,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		html += '</div>';
 		html += '</div>';
 
-		// Row 3: Subcontractors + Weekly Reports
+		// Row 3: Subcontractors + Suppliers (side by side)
 		html += '<div class="g2">';
 
 		// Subcontractors
@@ -292,7 +292,8 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		if (hp && plan.subcontractors && plan.subcontractors.length) {
 			html += '<table><thead><tr><th>Supplier</th><th>Scope</th><th>Value</th><th>Status</th></tr></thead><tbody>';
 			plan.subcontractors.forEach(function(s) {
-				html += '<tr><td><b>' + (s.supplier_name||'') + '</b></td><td style="color:#64748b">' + (s.scope_of_work||'—') + '</td><td><b>' + fmt(s.contract_value) + '</b></td><td>' + badge(s.status, s.status==='Active'?'bg':s.status==='Completed'?'bb':'bo') + '</td></tr>';
+				var bc = s.status === 'Active' ? 'bg' : s.status === 'Completed' ? 'bb' : 'bo';
+				html += '<tr><td><b>' + (s.supplier_name||'') + '</b></td><td style="color:#64748b">' + (s.scope_of_work||'—') + '</td><td><b>' + fmt(s.contract_value) + '</b></td><td>' + badge(s.status, bc) + '</td></tr>';
 			});
 			html += '</tbody></table>';
 		} else {
@@ -314,6 +315,10 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No suppliers added</div>';
 		}
 		html += '</div>';
+		html += '</div>';
+
+		// Row 4: Weekly Reports + Labour Plan (side by side)
+		html += '<div class="g2">';
 
 		// Weekly Reports
 		html += '<div class="card">';
@@ -330,34 +335,21 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No reports yet</div>';
 		}
 		html += '</div>';
-		html += '</div>';
 
-		// Suppliers - full width
-		var supp = (hp && plan.suppliers) ? plan.suppliers : [];
+		// Labour Plan
 		html += '<div class="card">';
-		html += '<div class="ch"><div class="ci ci-t">🏪</div><div><div class="ct">Suppliers' + (supp.length ? ' (' + supp.length + ')' : '') + '</div><div class="cs">Material suppliers per project plan</div></div></div>';
-		if (supp.length) {
-			html += '<table><thead><tr><th>Supplier</th><th>Scope</th><th>Value</th><th>Status</th></tr></thead><tbody>';
-			supp.forEach(function(s) {
-				var bc = s.status === 'Active' ? 'bg' : s.status === 'Completed' ? 'bb' : 'bo';
-				html += '<tr><td><b>' + (s.supplier_name||'') + '</b></td><td style="color:#64748b">' + (s.scope_of_work||'—') + '</td><td><b>' + fmt(s.contract_value) + '</b></td><td>' + badge(s.status, bc) + '</td></tr>';
-			});
-			html += '</tbody></table>';
-		} else {
-			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No suppliers added</div>';
-		}
-		html += '</div>';
-
-		// Labour Plan (full width)
+		html += '<div class="ch"><div class="ci ci-b">📊</div><div><div class="ct">Labour Plan (Estimated)</div><div class="cs">Planned workforce</div></div></div>';
 		if (hp && plan.labour_plan && plan.labour_plan.length) {
-			html += '<div class="card">';
-			html += '<div class="ch"><div class="ci ci-b">📊</div><div><div class="ct">Labour Plan (Estimated)</div><div class="cs">Planned workforce</div></div></div>';
 			html += '<table><thead><tr><th>Trade / Role</th><th>Headcount</th><th>Days</th><th>Working Hrs</th><th>OT Hrs</th><th>Total Hrs</th></tr></thead><tbody>';
 			plan.labour_plan.forEach(function(l) {
 				html += '<tr><td><b>' + l.trade_role + '</b></td><td>' + l.headcount + '</td><td>' + l.estimated_days + '</td><td>' + (l.estimated_working_hours||0) + '</td><td>' + (l.estimated_ot_hours||0) + '</td><td><b>' + (l.estimated_total_hours||0) + '</b></td></tr>';
 			});
-			html += '</tbody></table></div>';
+			html += '</tbody></table>';
+		} else {
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No labour plan added</div>';
 		}
+		html += '</div>';
+		html += '</div>';
 
 		// Joinery Material Tracking - full width
 		var jt = d.joinery_tracking || [];
@@ -365,8 +357,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		html += '<div class="card">';
 		html += '<div class="ch"><div class="ci ci-b">📦</div><div><div class="ct">Joinery — Material Ordered vs Issued</div><div class="cs">Joinery POs vs Stock Entries (Material Issue)</div></div></div>';
 		if (jt.length) {
-			html += '<div style="overflow-x:auto">';
-			html += '<table><thead><tr>';
+			html += '<div style="overflow-x:auto"><table><thead><tr>';
 			html += '<th>Item</th><th>UOM</th>';
 			html += '<th style="text-align:right;color:#1d4ed8">Ordered Qty</th>';
 			html += '<th style="text-align:right;color:#1d4ed8">Ordered Value</th>';
@@ -399,11 +390,11 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		}
 		html += '</div>';
 
-		// Fitout POs - reference only
+		// Fitout / Service POs - full width reference
 		var fp = d.fitout_pos || [];
 		var ftot = d.fitout_totals || {};
 		html += '<div class="card">';
-		html += '<div class="ch"><div class="ci ci-a">🔧</div><div><div class="ct">Fitout / Subcontractor POs</div><div class="cs">Service POs — reference only, no stock comparison</div></div></div>';
+		html += '<div class="ch"><div class="ci ci-a">🔧</div><div><div class="ct">Fitout / Service POs</div><div class="cs">Service POs — reference only, no stock comparison</div></div></div>';
 		if (fp.length) {
 			html += '<table><thead><tr>';
 			html += '<th>Supplier</th><th>PO No.</th><th>Date</th>';
@@ -428,10 +419,10 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<td style="text-align:right;font-weight:800;color:#b91c1c">' + fmt(ftot.total_pending||0) + '</td>';
 			html += '</tr></tbody></table>';
 		} else {
-			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No Fitout POs found for this project</div>';
+			html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No Fitout/Service POs found for this project</div>';
 		}
 		html += '</div>';
 
-		document.getElementById('pd-body').innerHTML = html;
+				document.getElementById('pd-body').innerHTML = html;
 	}
 };
