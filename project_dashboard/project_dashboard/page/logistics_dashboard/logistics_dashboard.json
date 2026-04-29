@@ -1,0 +1,20 @@
+{
+ "creation": "2026-04-29 10:00:00.000000",
+ "doctype": "Page",
+ "modified": "2026-04-29 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "logistics-dashboard",
+ "owner": "Administrator",
+ "page_name": "logistics-dashboard",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Project Manager"
+  }
+ ],
+ "standard": "Yes",
+ "title": "Logistics Tracker Dashboard"
+}
