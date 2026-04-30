@@ -1,10 +1,9 @@
-"""Server-side data loader for the Logistics Tracker Dashboard page.
+"""Server-side data loader for the Logistics Tracker Dashboard.
 
-Returns a dict consumed by logistics_dashboard.js. Every key has a safe
-default so the JS never sees undefined.
+Reads child rows from submitted Logistics Daily Log parents.
 """
 import frappe
-from frappe.utils import getdate, today, add_days
+from frappe.utils import today, add_days
 
 
 SENTINEL_ALL = "__ALL__"
@@ -12,80 +11,78 @@ SENTINEL_ALL = "__ALL__"
 
 @frappe.whitelist()
 def get_dashboard_data(project=None):
-    """Build the dashboard payload.
-
-    Args:
-        project: A Project name, or "__ALL__" to view every shipment.
-    """
     project = (project or "").strip()
     is_all = project == SENTINEL_ALL or project == ""
 
-    base_filters = {"docstatus": 1}
+    # Pull all child rows from submitted parents in one query
+    where = "p.docstatus = 1"
+    params = {}
     if not is_all:
-        base_filters["project"] = project
+        where += " AND r.project = %(project)s"
+        params["project"] = project
 
-    # ---------- All submitted logs in scope ----------
-    logs = frappe.get_all(
-        "Logistics Tracker",
-        filters=base_filters,
-        fields=[
-            "name", "log_date", "shipment_reference", "project", "proj_no",
-            "project_manager", "loading_place", "delivery_place",
-            "shipping_mode", "agent", "current_status", "eta",
-            "status_update", "next_action", "creation", "owner",
-        ],
-        order_by="log_date desc, creation desc",
-        limit_page_length=2000,
+    rows = frappe.db.sql(
+        f"""
+        SELECT
+            r.name AS row_name,
+            r.parent AS daily_log,
+            p.log_date AS log_date,
+            p.logged_by AS logged_by,
+            r.shipment_reference,
+            r.project, r.project_manager,
+            r.loading_place, r.delivery_place,
+            r.shipping_mode, r.agent,
+            r.current_status, r.eta,
+            r.status_update, r.next_action
+        FROM `tabLogistics Shipment Row` r
+        INNER JOIN `tabLogistics Daily Log` p ON p.name = r.parent
+        WHERE {where}
+        ORDER BY p.log_date DESC, r.idx ASC
+        """,
+        params,
+        as_dict=True,
     )
 
-    # ---------- Latest log per shipment_reference ----------
+    # Latest row per shipment_reference (by log_date)
     seen = set()
-    latest_per_shipment = []
-    for row in logs:
-        key = row.get("shipment_reference") or row.get("name")
+    latest = []
+    for row in rows:
+        key = (row.get("shipment_reference") or "").strip().lower() or row.get("row_name")
         if key in seen:
             continue
         seen.add(key)
-        latest_per_shipment.append(row)
+        latest.append(row)
 
-    # ---------- KPI counts (based on latest-per-shipment) ----------
-    active = [r for r in latest_per_shipment if (r.get("current_status") or "") != "Delivered"]
-    in_transit = [r for r in latest_per_shipment if (r.get("current_status") or "") == "In Transit"]
-    pending = [r for r in latest_per_shipment if (r.get("current_status") or "") in ("On Hold", "Pending Documents")]
-    delivered = [r for r in latest_per_shipment if (r.get("current_status") or "") == "Delivered"]
+    # ---------- KPIs ----------
+    active = [r for r in latest if (r.get("current_status") or "") != "Delivered"]
+    in_transit = [r for r in latest if (r.get("current_status") or "") == "In Transit"]
+    pending = [r for r in latest if (r.get("current_status") or "") in ("On Hold", "Pending Documents")]
+    delivered = [r for r in latest if (r.get("current_status") or "") == "Delivered"]
 
-    # logs in last 7 days (activity proxy)
     seven_days_ago = add_days(today(), -7)
-    logs_week = [r for r in logs if r.get("log_date") and str(r["log_date"]) >= str(seven_days_ago)]
+    rows_week = [r for r in rows if r.get("log_date") and str(r["log_date"]) >= str(seven_days_ago)]
 
-    # ---------- Group-bys ----------
-    def group_count(rows, key):
+    def group_count(items, key):
         out = {}
-        for r in rows:
+        for r in items:
             v = (r.get(key) or "").strip() or "(blank)"
             out[v] = out.get(v, 0) + 1
         return [{"label": k, "value": v} for k, v in sorted(out.items(), key=lambda x: -x[1])]
 
-    by_status = group_count(latest_per_shipment, "current_status")
-    by_mode = group_count(latest_per_shipment, "shipping_mode")
-    by_pm = group_count(latest_per_shipment, "project_manager")
-    by_agent = group_count(latest_per_shipment, "agent")
+    by_status = group_count(latest, "current_status")
+    by_mode = group_count(latest, "shipping_mode")
+    by_pm = group_count(latest, "project_manager")
 
-    # ---------- Daily activity (last 14 days) ----------
+    # 14-day activity (rows logged per day)
     daily = {}
-    for r in logs:
+    cutoff = str(add_days(today(), -13))
+    for r in rows:
         d = str(r.get("log_date") or "")
-        if not d:
-            continue
-        if d < str(add_days(today(), -13)):
+        if not d or d < cutoff:
             continue
         daily[d] = daily.get(d, 0) + 1
     daily_series = [{"label": k, "value": v} for k, v in sorted(daily.items())]
 
-    # ---------- Recent logs (top 15 by log_date) ----------
-    recent = logs[:15]
-
-    # ---------- Project meta (when a single project is selected) ----------
     project_meta = {}
     if not is_all and project:
         try:
@@ -109,15 +106,14 @@ def get_dashboard_data(project=None):
             "in_transit": len(in_transit),
             "pending": len(pending),
             "delivered": len(delivered),
-            "shipments_total": len(latest_per_shipment),
-            "logs_week": len(logs_week),
-            "logs_total": len(logs),
+            "shipments_total": len(latest),
+            "rows_week": len(rows_week),
+            "rows_total": len(rows),
         },
         "by_status": by_status,
         "by_mode": by_mode,
         "by_pm": by_pm,
-        "by_agent": by_agent,
         "daily_series": daily_series,
-        "latest_per_shipment": latest_per_shipment,
-        "recent": recent,
+        "latest_per_shipment": latest,
+        "recent": rows[:15],
     }

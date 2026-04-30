@@ -1,0 +1,1 @@
+project_dashboard.project_dashboard.patches.v1_0.migrate_logistics_tracker_to_daily_log

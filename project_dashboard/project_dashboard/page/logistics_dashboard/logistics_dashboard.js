@@ -5,7 +5,6 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
         single_column: true
     });
 
-    // CSS — inject once
     if (!document.getElementById('lt-style')) {
         var s = document.createElement('style');
         s.id = 'lt-style';
@@ -20,8 +19,6 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             '.lt .kc .s{font-size:10px;color:#94a3b8;margin-top:4px}' +
             '.lt .ch{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}' +
             '.lt .ct{font-size:13px;font-weight:700;color:#0f172a}.lt .cs{font-size:11px;color:#94a3b8}' +
-            '.lt .sr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f8fafc;font-size:12px}' +
-            '.lt .sr:last-child{border-bottom:none}.lt .sl{color:#64748b}.lt .sv{font-weight:700;color:#0f172a}' +
             '.lt table{width:100%;border-collapse:collapse}' +
             '.lt th{font-size:10px;text-transform:uppercase;color:#94a3b8;font-weight:600;padding:6px 8px;text-align:left;border-bottom:2px solid #f1f5f9}' +
             '.lt td{font-size:12px;padding:8px;border-bottom:1px solid #f8fafc;color:#0f172a;vertical-align:top}' +
@@ -30,26 +27,28 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             '.lt .bo{background:#fff7ed;color:#c2410c}.lt .br{background:#fee2e2;color:#b91c1c}' +
             '.lt .by{background:#fef9c3;color:#854d0e}.lt .bv{background:#ede9fe;color:#6d28d9}' +
             '.lt .spark{display:flex;align-items:flex-end;gap:3px;height:60px;padding:6px 0}' +
-            '.lt .spark .b{flex:1;background:#3b82f6;border-radius:2px 2px 0 0;min-height:2px;position:relative}' +
+            '.lt .spark .b{flex:1;background:#3b82f6;border-radius:2px 2px 0 0;min-height:2px}' +
             '.lt .spark .b:hover{background:#1d4ed8}';
         document.head.appendChild(s);
     }
 
-    // ✅ correct selector for v14
     $(wrapper).find('.page-content').html(
         '<div class="lt">' +
         '<div style="background:#0f1623;border-radius:10px;padding:16px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
         '<div><h2 style="font-size:16px;font-weight:800;color:#fff;margin:0">TRIPOD MENA | <span style="color:#60a5fa">Logistics Tracker</span></h2>' +
         '<p style="font-size:11px;color:#94a3b8;margin-top:2px">Daily logs submitted by the team — view by project or all shipments</p></div>' +
-        '<div><input id="lt-inp" list="lt-dl" placeholder="Type project name or pick All Shipments..." autocomplete="off" ' +
-        'style="background:#1e2a3b;border:1px solid #334155;color:#e2e8f0;padding:8px 14px;border-radius:8px;font-size:12px;min-width:300px;outline:none">' +
-        '<datalist id="lt-dl"></datalist></div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<input id="lt-inp" list="lt-dl" placeholder="Type project name or pick All Shipments..." autocomplete="off" ' +
+        'style="background:#1e2a3b;border:1px solid #334155;color:#e2e8f0;padding:8px 14px;border-radius:8px;font-size:12px;min-width:280px;outline:none">' +
+        '<datalist id="lt-dl"></datalist>' +
+        '<a id="lt-new" href="/app/logistics-daily-log/new?log_date=' + frappe.datetime.get_today() + '" ' +
+        'style="background:#2563eb;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:600">+ New Daily Log</a>' +
+        '</div>' +
         '</div>' +
         '<div id="lt-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">Select a project above, or pick "All Shipments" to view everything</div>' +
         '</div>'
     );
 
-    // Project search — datalist (not page.add_field)
     var ALL_LABEL = '★ All Shipments (no project filter)';
     window._lt_map = {};
     window._lt_map[ALL_LABEL] = '__ALL__';
@@ -128,13 +127,8 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             '<div class="s">' + esc(sub) + '</div></div>';
     }
 
-    function sr(label, value, cls) {
-        return '<div class="sr"><span class="sl">' + esc(label) + '</span>' +
-            '<span class="sv' + (cls ? ' ' + cls : '') + '">' + value + '</span></div>';
-    }
-
-    function open_doc(name) {
-        return '<a href="/app/logistics-tracker/' + encodeURIComponent(name) + '" target="_blank">' + esc(name) + '</a>';
+    function open_log(name) {
+        return '<a href="/app/logistics-daily-log/' + encodeURIComponent(name) + '" target="_blank">' + esc(name) + '</a>';
     }
 
     function bar_chart(items) {
@@ -176,7 +170,6 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
         var meta = d.project_meta || {};
         var html = '';
 
-        // Project info card
         if (d.scope === 'project' && meta.name) {
             html += '<div class="card">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
@@ -200,15 +193,13 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
                 '</div>';
         }
 
-        // KPI cards
         html += '<div class="k4">' +
             kc('Active Shipments', k.active || 0, 'Not yet delivered', '#2563eb') +
             kc('In Transit', k.in_transit || 0, 'On the move', '#0ea5e9') +
             kc('Pending Action', k.pending || 0, 'On Hold / Docs', '#dc2626') +
-            kc('Logs This Week', k.logs_week || 0, 'Submitted in last 7 days', '#16a34a') +
+            kc('Updates This Week', k.rows_week || 0, 'Submitted in last 7 days', '#16a34a') +
             '</div>';
 
-        // Row 1: Status mix + Mode mix
         html += '<div class="g2">' +
             '<div class="card"><div class="ch"><div><div class="ct">Shipments by Status</div>' +
             '<div class="cs">Latest status of each shipment</div></div></div>' +
@@ -218,17 +209,15 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             bar_chart(d.by_mode) + '</div>' +
             '</div>';
 
-        // Row 2: Workload + Daily activity
         html += '<div class="g2">' +
             '<div class="card"><div class="ch"><div><div class="ct">Workload by Project Manager</div>' +
             '<div class="cs">Shipments currently owned</div></div></div>' +
             bar_chart(d.by_pm) + '</div>' +
-            '<div class="card"><div class="ch"><div><div class="ct">Daily Log Activity</div>' +
-            '<div class="cs">Logs submitted in last 14 days</div></div></div>' +
+            '<div class="card"><div class="ch"><div><div class="ct">Daily Activity</div>' +
+            '<div class="cs">Updates submitted in last 14 days</div></div></div>' +
             spark(d.daily_series) + '</div>' +
             '</div>';
 
-        // Row 3: Latest per shipment table (the team's morning standup view)
         var latest = d.latest_per_shipment || [];
         var latest_html = '';
         if (latest.length) {
@@ -242,7 +231,7 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
                 if ((r.status_update || '').length > 120) update_short += '…';
                 latest_html += '<tr>' +
                     '<td><div style="font-weight:600">' + esc(r.shipment_reference || '—') + '</div>' +
-                    '<div style="font-size:10px;color:#94a3b8">' + open_doc(r.name) + '</div></td>' +
+                    '<div style="font-size:10px;color:#94a3b8">' + open_log(r.daily_log) + '</div></td>' +
                     '<td>' + esc(r.project_manager || '—') + '</td>' +
                     '<td style="font-size:11px">' + route + '</td>' +
                     '<td>' + mode_badge(r.shipping_mode) + '</td>' +
@@ -255,13 +244,12 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             });
             latest_html += '</tbody></table>';
         } else {
-            latest_html = '<div style="color:#94a3b8;font-size:12px;padding:20px;text-align:center">No submitted logs yet for this scope. Add a Logistics Tracker entry and submit it at end of day.</div>';
+            latest_html = '<div style="color:#94a3b8;font-size:12px;padding:20px;text-align:center">No submitted entries yet. Click "+ New Daily Log" above to file today\'s log.</div>';
         }
         html += '<div class="card"><div class="ch"><div><div class="ct">Latest Status per Shipment</div>' +
-            '<div class="cs">One row per shipment — the most recent submitted log</div></div></div>' +
+            '<div class="cs">One row per shipment — most recent submitted update</div></div></div>' +
             latest_html + '</div>';
 
-        // Row 4: Recent logs (full activity feed)
         var recent = d.recent || [];
         var recent_html = '';
         if (recent.length) {
@@ -273,18 +261,18 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
                 if ((r.status_update || '').length > 160) update_short += '…';
                 recent_html += '<tr>' +
                     '<td>' + esc(r.log_date || '—') + '</td>' +
-                    '<td>' + esc(r.shipment_reference || '—') + ' <span style="font-size:10px;color:#94a3b8">' + open_doc(r.name) + '</span></td>' +
+                    '<td>' + esc(r.shipment_reference || '—') + ' <span style="font-size:10px;color:#94a3b8">' + open_log(r.daily_log) + '</span></td>' +
                     '<td>' + status_badge(r.current_status) + '</td>' +
-                    '<td>' + esc(r.owner || '—') + '</td>' +
+                    '<td>' + esc(r.logged_by || '—') + '</td>' +
                     '<td style="max-width:340px">' + esc(update_short) + '</td>' +
                     '</tr>';
             });
             recent_html += '</tbody></table>';
         } else {
-            recent_html = '<div style="color:#94a3b8;font-size:12px;padding:20px;text-align:center">No recent logs.</div>';
+            recent_html = '<div style="color:#94a3b8;font-size:12px;padding:20px;text-align:center">No recent updates.</div>';
         }
-        html += '<div class="card"><div class="ch"><div><div class="ct">Recent Daily Logs</div>' +
-            '<div class="cs">Last 15 submitted entries</div></div></div>' +
+        html += '<div class="card"><div class="ch"><div><div class="ct">Recent Updates</div>' +
+            '<div class="cs">Last 15 shipment-row updates</div></div></div>' +
             recent_html + '</div>';
 
         document.getElementById('lt-body').innerHTML = html;

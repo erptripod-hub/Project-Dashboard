@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "creation": "2026-04-30 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "shipment_reference",
+  "project",
+  "project_manager",
+  "loading_place",
+  "delivery_place",
+  "shipping_mode",
+  "agent",
+  "current_status",
+  "eta",
+  "status_update",
+  "next_action"
+ ],
+ "fields": [
+  {
+   "fieldname": "shipment_reference",
+   "fieldtype": "Data",
+   "label": "Shipment Ref",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 2,
+   "description": "Use the same value across days for the same shipment"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "project_manager",
+   "fieldtype": "Link",
+   "label": "PM",
+   "options": "User",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "loading_place",
+   "fieldtype": "Data",
+   "label": "From",
+   "columns": 1
+  },
+  {
+   "fieldname": "delivery_place",
+   "fieldtype": "Data",
+   "label": "To",
+   "columns": 1
+  },
+  {
+   "fieldname": "shipping_mode",
+   "fieldtype": "Select",
+   "label": "Mode",
+   "options": "\nCourier\nLand\nSea\nAir\nClient Arrange",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "agent",
+   "fieldtype": "Data",
+   "label": "Agent",
+   "columns": 1
+  },
+  {
+   "fieldname": "current_status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nPlanned\nBooked\nIn Transit\nCustoms Clearance\nPending Documents\nOn Hold\nDelivered",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "eta",
+   "fieldtype": "Date",
+   "label": "ETA",
+   "columns": 1
+  },
+  {
+   "fieldname": "status_update",
+   "fieldtype": "Small Text",
+   "label": "Today's Update",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "next_action",
+   "fieldtype": "Small Text",
+   "label": "Next Action"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-30 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Logistics Shipment Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
