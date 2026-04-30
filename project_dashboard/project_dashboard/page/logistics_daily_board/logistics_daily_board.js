@@ -33,8 +33,14 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
             '.ldb table th{font-size:10px;text-transform:uppercase;color:#94a3b8;font-weight:600;padding:6px 8px;text-align:left}' +
             '.ldb table td{padding:6px 8px;font-size:12px;border-top:1px solid #f4f4f5;vertical-align:middle}' +
             '.ldb table tr:hover td{background:#fafaf9}' +
+            '.ldb table tr.row-clickable{cursor:pointer}' +
+            '.ldb table tr.row-clickable:hover td{background:#eff6ff}' +
+            '.ldb table tr.row-clickable td.no-nav{cursor:auto}' +
+            '.ldb table tr.row-clickable:hover td.no-nav{background:#fafaf9}' +
             '.ldb table tr.dirty td{background:#fef9c3 !important}' +
             '.ldb table tr.dirty td:first-child{border-left:3px solid #f59e0b}' +
+            '.ldb .price-amt{font-weight:600;color:#0f172a;font-size:11px;white-space:nowrap}' +
+            '.ldb .price-supp{font-size:10px;color:#64748b;margin-top:1px}' +
             '.ldb .lr-link{color:#2563eb;font-weight:500;text-decoration:none}' +
             '.ldb .lr-link:hover{text-decoration:underline}' +
             '.ldb .ship-name{color:#0f172a;font-weight:500}' +
@@ -89,6 +95,13 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    function fmt_amt(v) {
+        var n = parseFloat(v) || 0;
+        if (n >= 1000000) return 'AED ' + (n / 1000000).toFixed(2) + 'M';
+        if (n >= 10000) return 'AED ' + Math.round(n / 1000) + 'K';
+        return 'AED ' + n.toLocaleString('en-AE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    }
+
     function status_color(s) {
         var m = {
             'Planned': '#94a3b8', 'Quotes Received': '#fbbf24',
@@ -136,6 +149,7 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
                     '<thead><tr>' +
                     '<th style="width:100px">Request</th>' +
                     '<th>Shipment</th>' +
+                    '<th style="width:110px">Price</th>' +
                     '<th style="width:90px">ETA</th>' +
                     '<th style="width:170px">Status</th>' +
                     '<th>Today\'s update</th>' +
@@ -166,13 +180,25 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
                             'value="' + esc(r.status || 'Planned') + '" selected'
                         ) + '</select>';
 
-                    html += '<tr class="' + row_cls + '" data-name="' + esc(name) + '">' +
+                    // Price cell — show approved amount + supplier, or "—" if not yet approved
+                    var price_html = '—';
+                    if (r.approved_amount && parseFloat(r.approved_amount) > 0) {
+                        price_html = '<div class="price-amt">' + fmt_amt(r.approved_amount) + '</div>';
+                        if (r.selected_supplier) {
+                            price_html += '<div class="price-supp">' + esc(r.selected_supplier) + '</div>';
+                        }
+                    } else if (r.selected_supplier) {
+                        price_html = '<div class="price-supp">' + esc(r.selected_supplier) + ' <span style="color:#94a3b8">(pending)</span></div>';
+                    }
+
+                    html += '<tr class="row-clickable ' + row_cls + '" data-name="' + esc(name) + '" data-url="' + esc(url) + '">' +
                         '<td><a class="lr-link" href="' + url + '">' + esc(name) + ' ↗</a></td>' +
                         '<td><div class="ship-name">' + esc(r.shipment_reference || '—') + urgency_html + '</div>' +
                         (meta ? '<div class="meta">' + meta + '</div>' : '') + '</td>' +
+                        '<td>' + price_html + '</td>' +
                         '<td>' + esc(eta || '—') + '</td>' +
-                        '<td>' + sel_html + '</td>' +
-                        '<td><input class="update-input" data-name="' + esc(name) + '" placeholder="Type today\'s note..." value=""></td>' +
+                        '<td class="no-nav">' + sel_html + '</td>' +
+                        '<td class="no-nav"><input class="update-input" data-name="' + esc(name) + '" placeholder="Type today\'s note..." value=""></td>' +
                         '</tr>';
                 });
                 html += '</tbody></table>';
@@ -202,6 +228,23 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
         document.querySelectorAll('.status-sel, .update-input').forEach(function(el) {
             el.addEventListener('change', mark_dirty);
             el.addEventListener('input', mark_dirty);
+        });
+
+        // Click anywhere on a row (except status/update cells) → open the request
+        document.querySelectorAll('tr.row-clickable').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // Skip clicks landing on an editable cell, the LR link itself, or interactive elements
+                if (e.target.closest('.no-nav')) return;
+                if (e.target.closest('a, button, select, input, textarea, label')) return;
+                var url = row.dataset.url;
+                if (!url) return;
+                // Cmd/Ctrl/middle-click → open in new tab; otherwise same tab (Frappe SPA-friendly)
+                if (e.ctrlKey || e.metaKey || e.button === 1) {
+                    window.open(url, '_blank');
+                } else {
+                    window.location.href = url;
+                }
+            });
         });
     }
 
