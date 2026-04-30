@@ -1,0 +1,407 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:LR-{YY}-{####}",
+ "creation": "2026-04-30 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "workflow_state",
+  "section_request",
+  "request_date",
+  "requested_by",
+  "project",
+  "urgency",
+  "column_break_req",
+  "shipment_reference",
+  "loading_place",
+  "delivery_place",
+  "shipping_mode",
+  "expected_pickup_date",
+  "section_desc",
+  "description",
+  "section_rates",
+  "rate_quotes",
+  "section_rate_approval",
+  "selected_supplier",
+  "approved_amount",
+  "column_break_rapp",
+  "rate_approved_by",
+  "rate_approved_on",
+  "rate_approval_email",
+  "section_po",
+  "po_number",
+  "po_date",
+  "column_break_po",
+  "po_approved_by",
+  "po_attachment",
+  "section_tracking",
+  "tracking_type",
+  "tracking_number",
+  "column_break_track",
+  "agent",
+  "driver_name",
+  "driver_phone",
+  "section_dispatch",
+  "dispatch_date",
+  "expected_delivery_date",
+  "section_delivery",
+  "delivered_on",
+  "received_by",
+  "column_break_del",
+  "signed_do_attachment",
+  "delivery_notes",
+  "section_updates",
+  "daily_updates",
+  "section_audit",
+  "stage_started_on",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "label": "Status",
+   "options": "Workflow State",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "section_request",
+   "fieldtype": "Section Break",
+   "label": "1. Request"
+  },
+  {
+   "fieldname": "request_date",
+   "fieldtype": "Date",
+   "label": "Request Date",
+   "default": "Today",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "default": "__user",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Drives the dashboard project filter"
+  },
+  {
+   "fieldname": "urgency",
+   "fieldtype": "Select",
+   "label": "Urgency",
+   "options": "Normal\nUrgent\nCritical",
+   "default": "Normal",
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_req",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shipment_reference",
+   "fieldtype": "Data",
+   "label": "Shipment Reference",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Short identifier: PO/AWB/internal ref. Shown everywhere on dashboard."
+  },
+  {
+   "fieldname": "loading_place",
+   "fieldtype": "Data",
+   "label": "Loading Place"
+  },
+  {
+   "fieldname": "delivery_place",
+   "fieldtype": "Data",
+   "label": "Delivery Place"
+  },
+  {
+   "fieldname": "shipping_mode",
+   "fieldtype": "Select",
+   "label": "Mode",
+   "options": "\nCourier\nLand\nSea\nAir\nClient Arrange",
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "expected_pickup_date",
+   "fieldtype": "Date",
+   "label": "Expected Pickup"
+  },
+  {
+   "fieldname": "section_desc",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Long Text",
+   "label": "Goods / Description"
+  },
+  {
+   "fieldname": "section_rates",
+   "fieldtype": "Section Break",
+   "label": "2. Rate Quotes",
+   "depends_on": "eval:!doc.__islocal"
+  },
+  {
+   "fieldname": "rate_quotes",
+   "fieldtype": "Table",
+   "label": "Supplier Quotes",
+   "options": "Logistics Rate Quote",
+   "description": "Add one row per supplier quote. Tick 'Selected' on the chosen quote when ready for approval."
+  },
+  {
+   "fieldname": "section_rate_approval",
+   "fieldtype": "Section Break",
+   "label": "3. Rate Approval (GM/Ops)",
+   "depends_on": "eval:doc.workflow_state && ['Rates Submitted','Rates Approved','PO Issued','Dispatched','Delivered'].includes(doc.workflow_state)"
+  },
+  {
+   "fieldname": "selected_supplier",
+   "fieldtype": "Data",
+   "label": "Selected Supplier",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-filled from the ticked quote row on rate approval"
+  },
+  {
+   "fieldname": "approved_amount",
+   "fieldtype": "Currency",
+   "label": "Approved Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_rapp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rate_approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rate_approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rate_approval_email",
+   "fieldtype": "Attach",
+   "label": "Approval Email Proof",
+   "description": "Upload the email/screenshot showing GM/Ops approval"
+  },
+  {
+   "fieldname": "section_po",
+   "fieldtype": "Section Break",
+   "label": "4. Purchase Order",
+   "depends_on": "eval:doc.workflow_state && ['Rates Approved','PO Issued','Dispatched','Delivered'].includes(doc.workflow_state)"
+  },
+  {
+   "fieldname": "po_number",
+   "fieldtype": "Data",
+   "label": "PO Number"
+  },
+  {
+   "fieldname": "po_date",
+   "fieldtype": "Date",
+   "label": "PO Date"
+  },
+  {
+   "fieldname": "column_break_po",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "po_approved_by",
+   "fieldtype": "Link",
+   "label": "PO Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "po_attachment",
+   "fieldtype": "Attach",
+   "label": "PO Document"
+  },
+  {
+   "fieldname": "section_tracking",
+   "fieldtype": "Section Break",
+   "label": "5. Tracking",
+   "depends_on": "eval:doc.workflow_state && ['PO Issued','Dispatched','Delivered'].includes(doc.workflow_state)"
+  },
+  {
+   "fieldname": "tracking_type",
+   "fieldtype": "Select",
+   "label": "Tracking Type",
+   "options": "\nContainer No\nAWB No\nWaybill No\nVehicle / Truck\nCourier Tracking"
+  },
+  {
+   "fieldname": "tracking_number",
+   "fieldtype": "Data",
+   "label": "Tracking Number",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_track",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "agent",
+   "fieldtype": "Data",
+   "label": "Agent / Forwarder"
+  },
+  {
+   "fieldname": "driver_name",
+   "fieldtype": "Data",
+   "label": "Driver Name"
+  },
+  {
+   "fieldname": "driver_phone",
+   "fieldtype": "Data",
+   "label": "Driver Phone"
+  },
+  {
+   "fieldname": "section_dispatch",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "dispatch_date",
+   "fieldtype": "Date",
+   "label": "Dispatch Date"
+  },
+  {
+   "fieldname": "expected_delivery_date",
+   "fieldtype": "Date",
+   "label": "Expected Delivery (ETA)"
+  },
+  {
+   "fieldname": "section_delivery",
+   "fieldtype": "Section Break",
+   "label": "6. Delivery",
+   "depends_on": "eval:doc.workflow_state && ['Dispatched','Delivered'].includes(doc.workflow_state)"
+  },
+  {
+   "fieldname": "delivered_on",
+   "fieldtype": "Date",
+   "label": "Delivered On",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "received_by",
+   "fieldtype": "Data",
+   "label": "Received By"
+  },
+  {
+   "fieldname": "column_break_del",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "signed_do_attachment",
+   "fieldtype": "Attach",
+   "label": "Signed DO Copy"
+  },
+  {
+   "fieldname": "delivery_notes",
+   "fieldtype": "Small Text",
+   "label": "Delivery Notes"
+  },
+  {
+   "fieldname": "section_updates",
+   "fieldtype": "Section Break",
+   "label": "Daily Updates",
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:!doc.daily_updates || doc.daily_updates.length === 0"
+  },
+  {
+   "fieldname": "daily_updates",
+   "fieldtype": "Table",
+   "label": "Daily Updates",
+   "options": "Logistics Daily Update",
+   "description": "Free-text running log. Add a row whenever there's news. Auto-stamps date and user."
+  },
+  {
+   "fieldname": "section_audit",
+   "fieldtype": "Section Break",
+   "label": "Audit",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "stage_started_on",
+   "fieldtype": "Datetime",
+   "label": "Current Stage Since",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Auto-stamped when workflow state changes \u2014 drives the 'aging' alert on the dashboard"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Logistics Request",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-04-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Logistics Request",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1,
+   "amend": 1,
+   "submit": 1,
+   "cancel": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "shipment_reference",
+ "track_changes": 1
+}

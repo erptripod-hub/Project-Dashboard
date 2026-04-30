@@ -1,0 +1,91 @@
+{
+ "actions": [],
+ "creation": "2026-04-30 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "supplier_name",
+  "currency",
+  "amount",
+  "validity_date",
+  "transit_days",
+  "is_selected",
+  "remarks",
+  "quote_attachment"
+ ],
+ "fields": [
+  {
+   "fieldname": "supplier_name",
+   "fieldtype": "Data",
+   "label": "Supplier",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "default": "AED",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 2,
+   "options": "currency"
+  },
+  {
+   "fieldname": "validity_date",
+   "fieldtype": "Date",
+   "label": "Valid Until",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "transit_days",
+   "fieldtype": "Int",
+   "label": "Transit Days",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "is_selected",
+   "fieldtype": "Check",
+   "label": "Selected",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Tick the quote being approved. Only one row should be ticked."
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "quote_attachment",
+   "fieldtype": "Attach",
+   "label": "Supplier Quote (email/PDF)",
+   "in_list_view": 1,
+   "columns": 2
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Logistics Rate Quote",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

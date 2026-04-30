@@ -1,0 +1,10 @@
+{
+ "creation": "2026-04-30 12:00:00.000000",
+ "doctype": "Workflow Action Master",
+ "modified": "2026-04-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Approve Rates",
+ "owner": "Administrator",
+ "workflow_action_name": "Approve Rates"
+}

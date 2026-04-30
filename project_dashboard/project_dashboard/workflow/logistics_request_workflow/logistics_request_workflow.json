@@ -1,0 +1,110 @@
+{
+ "creation": "2026-04-30 12:00:00.000000",
+ "doctype": "Workflow",
+ "document_type": "Logistics Request",
+ "is_active": 1,
+ "modified": "2026-04-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Logistics Request Workflow",
+ "override_status": 0,
+ "owner": "Administrator",
+ "send_email_alert": 0,
+ "states": [
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Draft",
+   "style": "Danger"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Rates Submitted",
+   "style": "Warning"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Rates Approved",
+   "style": "Success"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "PO Issued",
+   "style": "Primary"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Dispatched",
+   "style": "Inverse"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Delivered",
+   "style": "Success"
+  },
+  {
+   "allow_edit": "Project Manager",
+   "doc_status": "0",
+   "state": "Rejected",
+   "style": "Danger"
+  }
+ ],
+ "transitions": [
+  {
+   "action": "Submit for Rate Approval",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "Rates Submitted",
+   "state": "Draft"
+  },
+  {
+   "action": "Approve Rates",
+   "allow_self_approval": 0,
+   "allowed": "Project Manager",
+   "next_state": "Rates Approved",
+   "state": "Rates Submitted"
+  },
+  {
+   "action": "Issue PO",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "PO Issued",
+   "state": "Rates Approved"
+  },
+  {
+   "action": "Mark Dispatched",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "Dispatched",
+   "state": "PO Issued"
+  },
+  {
+   "action": "Mark Delivered",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "Delivered",
+   "state": "Dispatched"
+  },
+  {
+   "action": "Reject",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "Rejected",
+   "state": "Rates Submitted"
+  },
+  {
+   "action": "Reopen",
+   "allow_self_approval": 1,
+   "allowed": "Project Manager",
+   "next_state": "Draft",
+   "state": "Rejected"
+  }
+ ],
+ "workflow_name": "Logistics Request Workflow",
+ "workflow_state_field": "workflow_state"
+}
