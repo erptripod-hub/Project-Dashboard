@@ -5,62 +5,142 @@ from frappe.utils import now_datetime
 
 
 class LogisticsRequest(Document):
-    def before_save(self):
-        # Stamp stage_started_on whenever workflow_state changes
-        if self.has_value_changed("workflow_state"):
-            self.stage_started_on = now_datetime()
-
-        # Sync selected_supplier + approved_amount from the ticked quote row
-        if self.rate_quotes:
-            selected = [q for q in self.rate_quotes if q.is_selected]
-            if len(selected) > 1:
-                frappe.throw(_("Only one Rate Quote row can be marked Selected. Untick the others."))
-            if len(selected) == 1:
-                self.selected_supplier = selected[0].supplier_name
-                self.approved_amount = selected[0].amount
-
     def validate(self):
-        # Stage-gated requirements (validated when entering each state)
-        state = self.workflow_state or "Draft"
+        # ---- Auto-fill selected supplier + amount from ticked quote ----
+        selected = [q for q in (self.rate_quotes or []) if q.is_selected]
+        if len(selected) > 1:
+            frappe.throw(_("Only one Rate Quote row can be marked Selected. Untick the others."))
+        if len(selected) == 1:
+            self.selected_supplier = selected[0].supplier_name
+            self.approved_amount = selected[0].amount
+        else:
+            # No selection — clear these (don't carry stale values)
+            if not self.rate_approved_by:
+                self.selected_supplier = None
+                self.approved_amount = 0
 
-        if state == "Rates Submitted":
-            if not self.rate_quotes:
-                frappe.throw(_("At least one rate quote is required before submitting for approval."))
-            for i, q in enumerate(self.rate_quotes, start=1):
-                if not q.quote_attachment:
-                    frappe.throw(_("Quote row {0} ({1}): supplier quote attachment is required.").format(i, q.supplier_name or "?"))
+        # ---- Status-driven side effects ----
+        # Auto-promote to "Quotes Received" when first quote is added
+        if self.status == "Planned" and self.rate_quotes:
+            self.status = "Quotes Received"
 
-        if state in ("Rates Approved", "PO Issued", "Dispatched", "Delivered"):
-            selected = [q for q in (self.rate_quotes or []) if q.is_selected]
-            if not selected:
-                frappe.throw(_("Tick the 'Selected' checkbox on the approved quote row before approving rates."))
-            if not self.rate_approval_email:
-                frappe.throw(_("Approval Email Proof is required to move past Rate Approval."))
-
-        if state in ("PO Issued", "Dispatched", "Delivered"):
-            if not self.po_number:
-                frappe.throw(_("PO Number is required at PO stage."))
-            if not self.po_attachment:
-                frappe.throw(_("PO document attachment is required at PO stage."))
-            if not self.po_approved_by:
-                frappe.throw(_("PO Approved By is required."))
-
-        if state in ("Dispatched", "Delivered"):
-            if not self.tracking_number:
-                frappe.throw(_("Tracking Number is required to mark as Dispatched."))
-            if not self.dispatch_date:
-                frappe.throw(_("Dispatch Date is required to mark as Dispatched."))
-
-        if state == "Delivered":
-            if not self.delivered_on:
-                frappe.throw(_("Delivered On date is required to close the request."))
-            if not self.signed_do_attachment:
-                frappe.throw(_("Signed DO copy is required to mark as Delivered."))
+        # ---- Permission gate: only GM (or System Manager) can edit approval audit fields ----
+        # Detect if a non-GM user is trying to set rate_approved_by/on directly via API
+        if not self.is_new():
+            old = self.get_doc_before_save()
+            if old:
+                for fld in ("rate_approved_by", "rate_approved_on"):
+                    if (old.get(fld) or None) != (self.get(fld) or None):
+                        if not _is_gm_or_admin():
+                            frappe.throw(_(
+                                "Only Logistics GM can change '{0}'. Use the Approve/Reject buttons."
+                            ).format(self.meta.get_label(fld)))
 
 
-def stamp_rate_approval(doc, method=None):
-    """Hook fired by Workflow when transitioning into 'Rates Approved'."""
-    if not doc.rate_approved_by:
-        doc.rate_approved_by = frappe.session.user
-    if not doc.rate_approved_on:
-        doc.rate_approved_on = now_datetime()
+def _is_gm_or_admin():
+    roles = set(frappe.get_roles(frappe.session.user))
+    return bool(roles & {"Logistics GM", "System Manager", "Administrator"})
+
+
+@frappe.whitelist()
+def approve_rates(name, email_attachment=None):
+    """Called by the Approve button. Restricted to Logistics GM."""
+    if not _is_gm_or_admin():
+        frappe.throw(_("Only Logistics GM can approve rates."), frappe.PermissionError)
+
+    doc = frappe.get_doc("Logistics Request", name)
+
+    selected = [q for q in (doc.rate_quotes or []) if q.is_selected]
+    if not selected:
+        frappe.throw(_("Tick the chosen quote row before approving."))
+    if not selected[0].quote_attachment:
+        frappe.throw(_("The selected quote row has no attachment. Cannot approve without supplier quote on file."))
+
+    doc.rate_approved_by = frappe.session.user
+    doc.rate_approved_on = now_datetime()
+    doc.status = "Rate Approved"
+    if email_attachment:
+        doc.rate_approval_email = email_attachment
+    doc.rejection_reason = None
+    doc.save()
+    return {"ok": True, "status": doc.status, "approved_by": doc.rate_approved_by}
+
+
+@frappe.whitelist()
+def reject_rates(name, reason):
+    """Called by the Reject button. Restricted to Logistics GM."""
+    if not _is_gm_or_admin():
+        frappe.throw(_("Only Logistics GM can reject rates."), frappe.PermissionError)
+
+    if not (reason or "").strip():
+        frappe.throw(_("Rejection reason is required."))
+
+    doc = frappe.get_doc("Logistics Request", name)
+    doc.status = "Rate Rejected"
+    doc.rejection_reason = reason
+    # Leave rate_approved_by/on cleared
+    doc.rate_approved_by = None
+    doc.rate_approved_on = None
+    doc.save()
+    return {"ok": True, "status": doc.status}
+
+
+@frappe.whitelist()
+def add_daily_update(name, status, update_text):
+    """Called by the Daily Board to add a running-log row."""
+    if not (update_text or "").strip():
+        return {"ok": False, "message": "Update text is required."}
+    doc = frappe.get_doc("Logistics Request", name)
+    doc.append("daily_updates", {
+        "update_date": frappe.utils.today(),
+        "status_at_time": status or doc.status,
+        "update_text": update_text.strip(),
+        "logged_by": frappe.session.user,
+    })
+    doc.save()
+    return {"ok": True}
+
+
+@frappe.whitelist()
+def daily_board_save(changes):
+    """Bulk-save inline edits from the Daily Status Board.
+
+    `changes` is a JSON string: list of {name, status, update_text, status_changed}
+    Each entry creates a Daily Update row when update_text is non-empty,
+    and updates the parent's status when changed.
+    """
+    import json as _json
+    if isinstance(changes, str):
+        changes = _json.loads(changes)
+
+    saved = 0
+    for c in changes or []:
+        name = c.get("name")
+        if not name:
+            continue
+        try:
+            doc = frappe.get_doc("Logistics Request", name)
+            dirty = False
+            new_status = (c.get("status") or "").strip()
+            new_text = (c.get("update_text") or "").strip()
+
+            if new_status and new_status != doc.status:
+                doc.status = new_status
+                dirty = True
+
+            if new_text:
+                doc.append("daily_updates", {
+                    "update_date": frappe.utils.today(),
+                    "status_at_time": doc.status,
+                    "update_text": new_text,
+                    "logged_by": frappe.session.user,
+                })
+                dirty = True
+
+            if dirty:
+                doc.save()
+                saved += 1
+        except Exception as e:
+            frappe.log_error(f"daily_board_save failed for {name}: {e}", "Logistics Daily Board")
+
+    return {"ok": True, "saved": saved}

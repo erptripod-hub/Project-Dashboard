@@ -1,6 +1,6 @@
 {
  "actions": [],
- "creation": "2026-04-30 12:00:00.000000",
+ "creation": "2026-04-30 14:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -36,10 +36,10 @@
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Amount",
+   "options": "currency",
    "in_list_view": 1,
    "reqd": 1,
-   "columns": 2,
-   "options": "currency"
+   "columns": 1
   },
   {
    "fieldname": "validity_date",
@@ -61,7 +61,7 @@
    "label": "Selected",
    "in_list_view": 1,
    "columns": 1,
-   "description": "Tick the quote being approved. Only one row should be ticked."
+   "description": "Tick the chosen quote \u2014 GM confirms and approves"
   },
   {
    "fieldname": "remarks",
@@ -71,14 +71,15 @@
   {
    "fieldname": "quote_attachment",
    "fieldtype": "Attach",
-   "label": "Supplier Quote (email/PDF)",
+   "label": "Quote (email/PDF)",
    "in_list_view": 1,
+   "reqd": 1,
    "columns": 2
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-04-30 12:00:00.000000",
+ "modified": "2026-04-30 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Project Dashboard",
  "name": "Logistics Rate Quote",
