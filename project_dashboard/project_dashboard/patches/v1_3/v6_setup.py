@@ -63,6 +63,14 @@ def _migrate_existing_records():
     if not frappe.db.table_exists("Logistics Request"):
         return  # fresh install
 
+    # Defensive: if the schema sync hasn't created shipment_type yet
+    # (shouldn't happen now that this is a post_model_sync patch, but
+    # safe to check in case patches.txt header gets dropped)
+    if not frappe.db.has_column("Logistics Request", "shipment_type"):
+        print("v6 migration: shipment_type column not yet created; skipping data migration. "
+              "Re-run `bench migrate` after deploy completes.")
+        return
+
     # Default any unset shipment_type to Company (matches pre-v6 behaviour)
     rows = frappe.db.sql(
         """SELECT name FROM `tabLogistics Request`
