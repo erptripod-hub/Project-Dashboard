@@ -8,8 +8,10 @@
  "engine": "InnoDB",
  "field_order": [
   "section_top",
-  "status",
+  "shipment_type",
+  "direction",
   "column_break_top",
+  "status",
   "approval_indicator",
   "section_request",
   "shipment_reference",
@@ -36,29 +38,43 @@
   "rate_approved_on",
   "rate_approval_email",
   "rejection_reason",
-  "section_po",
-  "po_number",
-  "po_date",
-  "po_approved_by",
-  "po_amount",
-  "column_break_po",
-  "po_attachment",
-  "po_sent_date",
-  "po_notes",
+  "section_finance",
+  "purchase_order",
+  "po_status",
+  "column_break_fin1",
+  "purchase_invoice",
+  "invoice_outstanding",
+  "section_finance_pay",
+  "total_paid_amount",
+  "column_break_fin2",
+  "payment_status",
   "section_tracking",
   "tracking_type",
   "tracking_number",
   "agent",
   "vehicle_number",
   "column_break_track",
+  "shipment_qty",
   "driver_name",
   "driver_phone",
+  "section_track_extra",
   "dispatch_date",
   "expected_delivery_date",
-  "section_logistics_extra",
+  "column_break_track2",
   "border_crossing",
   "insurance_reference",
   "tracking_link",
+  "section_documents",
+  "doc_commercial_invoice",
+  "doc_packing_list",
+  "column_break_docs1",
+  "doc_certificate_of_origin",
+  "doc_bill_of_lading",
+  "column_break_docs2",
+  "doc_insurance_certificate",
+  "doc_customs_declaration",
+  "section_documents_other",
+  "other_documents",
   "section_delivery",
   "delivered_on",
   "delivered_at",
@@ -72,6 +88,14 @@
   "delivery_notes",
   "section_daily",
   "daily_updates",
+  "section_legacy",
+  "po_number",
+  "po_date",
+  "po_approved_by",
+  "po_amount",
+  "po_attachment",
+  "po_sent_date",
+  "po_notes",
   "amended_from"
  ],
  "fields": [
@@ -81,27 +105,47 @@
    "label": ""
   },
   {
-   "fieldname": "status",
+   "fieldname": "shipment_type",
    "fieldtype": "Select",
-   "label": "Status",
-   "options": "\nPlanned\nQuotes Received\nAwaiting GM Approval\nRate Approved\nRate Rejected\nPO Issued\nDispatched\nIn Transit\nCustoms Clearance\nPending Documents\nOn Hold\nDelivered\nCancelled",
-   "default": "Planned",
+   "label": "Shipment Type",
+   "options": "\nCompany Shipment\nClient Shipment",
    "reqd": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "in_filter": 1,
    "bold": 1,
-   "description": "Free dropdown \u2014 anyone can change anytime to reflect reality"
+   "description": "Company = full flow with rates/PO/finance. Client = tracking + documents only."
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "\nImport\nExport",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "bold": 1,
+   "description": "Affects section labels \u2014 Import shows 'Receiving Process', Export shows 'Delivery & Sign-off'"
   },
   {
    "fieldname": "column_break_top",
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nPlanned\nQuotes Received\nAwaiting GM Approval\nRate Approved\nRate Rejected\nPO Issued\nDispatched\nIn Transit\nCustoms Clearance\nPending Documents\nOn Hold\nDelivered\nReceived\nCancelled",
+   "default": "Planned",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "bold": 1,
+   "description": "Free dropdown \u2014 anyone can change anytime"
+  },
+  {
    "fieldname": "approval_indicator",
    "fieldtype": "HTML",
-   "label": "Approval Status",
-   "options": "<div class='small text-muted'>Approval banner shown above based on current status</div>"
+   "label": "Indicator"
   },
   {
    "fieldname": "section_request",
@@ -164,12 +208,12 @@
   {
    "fieldname": "loading_place",
    "fieldtype": "Data",
-   "label": "Loading Place"
+   "label": "Loading Place (Origin)"
   },
   {
    "fieldname": "delivery_place",
    "fieldtype": "Data",
-   "label": "Delivery Place"
+   "label": "Delivery Place (Destination)"
   },
   {
    "fieldname": "expected_pickup_date",
@@ -196,14 +240,15 @@
   {
    "fieldname": "section_quotes",
    "fieldtype": "Section Break",
-   "label": "2. Rate Quotes"
+   "label": "2. Rate Quotes",
+   "depends_on": "eval:doc.shipment_type === 'Company Shipment'"
   },
   {
    "fieldname": "rate_quotes",
    "fieldtype": "Table",
    "label": "Quotes from Suppliers",
    "options": "Logistics Rate Quote",
-   "description": "Add one row per quote \u2014 supplier name, amount, validity, attachment. Tick 'Selected' on the chosen quote."
+   "description": "Add one row per quote \u2014 Supplier (link to ERPNext), amount, validity, attachment. Tick 'Selected' on the chosen quote."
   },
   {
    "fieldname": "rate_remarks",
@@ -213,15 +258,15 @@
   {
    "fieldname": "section_rapp",
    "fieldtype": "Section Break",
-   "label": "3. Rate Approval Result"
+   "label": "3. Rate Approval Result",
+   "depends_on": "eval:doc.shipment_type === 'Company Shipment'"
   },
   {
    "fieldname": "selected_supplier",
    "fieldtype": "Data",
    "label": "Selected Supplier",
    "read_only": 1,
-   "in_list_view": 1,
-   "description": "Auto-fills from the ticked quote row"
+   "in_list_view": 1
   },
   {
    "fieldname": "approved_amount",
@@ -260,50 +305,69 @@
    "depends_on": "eval:doc.status==='Rate Rejected'"
   },
   {
-   "fieldname": "section_po",
+   "fieldname": "section_finance",
    "fieldtype": "Section Break",
-   "label": "4. Purchase Order"
+   "label": "4. Financial Flow",
+   "depends_on": "eval:doc.shipment_type === 'Company Shipment'",
+   "description": "Linked Purchase Order \u2192 Purchase Invoice \u2192 Payment Entry"
   },
   {
-   "fieldname": "po_number",
-   "fieldtype": "Data",
-   "label": "PO Number",
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "po_date",
-   "fieldtype": "Date",
-   "label": "PO Date"
-  },
-  {
-   "fieldname": "po_approved_by",
+   "fieldname": "purchase_order",
    "fieldtype": "Link",
-   "label": "PO Approved By (Internal)",
-   "options": "User"
+   "label": "Purchase Order",
+   "options": "Purchase Order",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-set when PO created from this request"
   },
   {
-   "fieldname": "po_amount",
-   "fieldtype": "Currency",
-   "label": "PO Amount"
+   "fieldname": "po_status",
+   "fieldtype": "Data",
+   "label": "PO Status",
+   "read_only": 1,
+   "fetch_from": "purchase_order.status"
   },
   {
-   "fieldname": "column_break_po",
+   "fieldname": "column_break_fin1",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "po_attachment",
-   "fieldtype": "Attach",
-   "label": "PO Document"
+   "fieldname": "purchase_invoice",
+   "fieldtype": "Link",
+   "label": "Purchase Invoice",
+   "options": "Purchase Invoice",
+   "read_only": 1,
+   "in_list_view": 1
   },
   {
-   "fieldname": "po_sent_date",
-   "fieldtype": "Date",
-   "label": "Sent to Supplier On"
+   "fieldname": "invoice_outstanding",
+   "fieldtype": "Currency",
+   "label": "Invoice Outstanding",
+   "read_only": 1,
+   "fetch_from": "purchase_invoice.outstanding_amount"
   },
   {
-   "fieldname": "po_notes",
-   "fieldtype": "Small Text",
-   "label": "PO Notes"
+   "fieldname": "section_finance_pay",
+   "fieldtype": "Section Break",
+   "label": ""
+  },
+  {
+   "fieldname": "total_paid_amount",
+   "fieldtype": "Currency",
+   "label": "Total Paid",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fin2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "label": "Payment Status",
+   "options": "\nNot Paid\nPartially Paid\nFully Paid",
+   "read_only": 1,
+   "default": "Not Paid"
   },
   {
    "fieldname": "section_tracking",
@@ -337,6 +401,13 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "shipment_qty",
+   "fieldtype": "Data",
+   "label": "Shipment Quantity",
+   "in_list_view": 1,
+   "description": "Free text \u2014 e.g. '120 boxes', '6 wooden crates \u00b7 340 kg', '3 containers'"
+  },
+  {
    "fieldname": "driver_name",
    "fieldtype": "Data",
    "label": "Driver Name"
@@ -347,6 +418,11 @@
    "label": "Driver Phone"
   },
   {
+   "fieldname": "section_track_extra",
+   "fieldtype": "Section Break",
+   "label": ""
+  },
+  {
    "fieldname": "dispatch_date",
    "fieldtype": "Date",
    "label": "Dispatch Date"
@@ -354,13 +430,11 @@
   {
    "fieldname": "expected_delivery_date",
    "fieldtype": "Date",
-   "label": "Expected Delivery (ETA)"
+   "label": "Expected Delivery / Arrival"
   },
   {
-   "fieldname": "section_logistics_extra",
-   "fieldtype": "Section Break",
-   "collapsible": 1,
-   "label": "Additional"
+   "fieldname": "column_break_track2",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "border_crossing",
@@ -378,20 +452,75 @@
    "label": "Tracking URL"
   },
   {
+   "fieldname": "section_documents",
+   "fieldtype": "Section Break",
+   "label": "6. Shipping Documents"
+  },
+  {
+   "fieldname": "doc_commercial_invoice",
+   "fieldtype": "Attach",
+   "label": "Commercial Invoice"
+  },
+  {
+   "fieldname": "doc_packing_list",
+   "fieldtype": "Attach",
+   "label": "Packing List"
+  },
+  {
+   "fieldname": "column_break_docs1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "doc_certificate_of_origin",
+   "fieldtype": "Attach",
+   "label": "Certificate of Origin"
+  },
+  {
+   "fieldname": "doc_bill_of_lading",
+   "fieldtype": "Attach",
+   "label": "Bill of Lading / AWB"
+  },
+  {
+   "fieldname": "column_break_docs2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "doc_insurance_certificate",
+   "fieldtype": "Attach",
+   "label": "Insurance Certificate"
+  },
+  {
+   "fieldname": "doc_customs_declaration",
+   "fieldtype": "Attach",
+   "label": "Customs Declaration"
+  },
+  {
+   "fieldname": "section_documents_other",
+   "fieldtype": "Section Break",
+   "label": "Other Documents"
+  },
+  {
+   "fieldname": "other_documents",
+   "fieldtype": "Table",
+   "label": "Other Documents",
+   "options": "Logistics Shipping Document",
+   "description": "Add any additional documents \u2014 quality reports, fumigation certificates, etc."
+  },
+  {
    "fieldname": "section_delivery",
    "fieldtype": "Section Break",
-   "label": "6. Delivery & Sign-off"
+   "label": "7. Delivery & Sign-off"
   },
   {
    "fieldname": "delivered_on",
    "fieldtype": "Date",
-   "label": "Delivered On",
+   "label": "Delivered / Received On",
    "in_list_view": 1
   },
   {
    "fieldname": "delivered_at",
    "fieldtype": "Data",
-   "label": "Delivered At (Place)"
+   "label": "Delivered / Received At (Place)"
   },
   {
    "fieldname": "received_by_name",
@@ -410,12 +539,12 @@
   {
    "fieldname": "signed_do_attachment",
    "fieldtype": "Attach",
-   "label": "Signed DO Copy"
+   "label": "Signed DO / GRN Copy"
   },
   {
    "fieldname": "delivery_photos",
    "fieldtype": "Attach",
-   "label": "Photos / Proof of Delivery"
+   "label": "Photos / Proof"
   },
   {
    "fieldname": "items_condition",
@@ -431,7 +560,7 @@
   {
    "fieldname": "delivery_notes",
    "fieldtype": "Small Text",
-   "label": "Delivery Notes"
+   "label": "Delivery / Receiving Notes"
   },
   {
    "fieldname": "section_daily",
@@ -443,8 +572,57 @@
    "fieldname": "daily_updates",
    "fieldtype": "Table",
    "label": "Running Log",
-   "options": "Logistics Daily Update",
-   "description": "Same updates that appear on the Daily Status Board flow here automatically"
+   "options": "Logistics Daily Update"
+  },
+  {
+   "fieldname": "section_legacy",
+   "fieldtype": "Section Break",
+   "label": "Legacy PO Fields (deprecated)",
+   "collapsible": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_number",
+   "fieldtype": "Data",
+   "label": "PO Number (legacy)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_date",
+   "fieldtype": "Date",
+   "label": "PO Date (legacy)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_approved_by",
+   "fieldtype": "Link",
+   "label": "PO Approved By (legacy)",
+   "options": "User",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_amount",
+   "fieldtype": "Currency",
+   "label": "PO Amount (legacy)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_attachment",
+   "fieldtype": "Attach",
+   "label": "PO Document (legacy)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_sent_date",
+   "fieldtype": "Date",
+   "label": "Sent (legacy)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "po_notes",
+   "fieldtype": "Small Text",
+   "label": "PO Notes (legacy)",
+   "hidden": 1
   },
   {
    "fieldname": "amended_from",
@@ -457,8 +635,21 @@
   }
  ],
  "is_submittable": 0,
- "links": [],
- "modified": "2026-04-30 14:00:00.000000",
+ "links": [
+  {
+   "link_doctype": "Purchase Order",
+   "link_fieldname": "custom_logistics_request"
+  },
+  {
+   "link_doctype": "Purchase Invoice",
+   "link_fieldname": "custom_logistics_request"
+  },
+  {
+   "link_doctype": "Payment Entry",
+   "link_fieldname": "custom_logistics_request"
+  }
+ ],
+ "modified": "2026-05-05 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Project Dashboard",
  "name": "Logistics Request",

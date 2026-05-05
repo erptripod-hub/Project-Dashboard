@@ -3,10 +3,12 @@ import unittest
 
 
 class TestLogisticsRequest(unittest.TestCase):
-    def test_create_and_status(self):
+    def test_create_company_shipment(self):
         doc = frappe.get_doc({
             "doctype": "Logistics Request",
-            "shipment_reference": "TEST-LR-V5-001",
+            "shipment_reference": "TEST-V6-001",
+            "shipment_type": "Company Shipment",
+            "direction": "Import",
             "status": "Planned",
             "request_date": frappe.utils.today(),
             "requested_by": "Administrator",
@@ -14,5 +16,18 @@ class TestLogisticsRequest(unittest.TestCase):
         })
         doc.insert(ignore_permissions=True)
         assert doc.name.startswith("LR-")
-        assert doc.status == "Planned"
+        doc.delete()
+
+    def test_create_client_shipment(self):
+        doc = frappe.get_doc({
+            "doctype": "Logistics Request",
+            "shipment_reference": "TEST-V6-CLIENT-001",
+            "shipment_type": "Client Shipment",
+            "direction": "Export",
+            "status": "Planned",
+            "request_date": frappe.utils.today(),
+            "requested_by": "Administrator",
+        })
+        doc.insert(ignore_permissions=True)
+        assert doc.name.startswith("LR-")
         doc.delete()

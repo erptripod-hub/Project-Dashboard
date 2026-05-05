@@ -1,3 +1,4 @@
 project_dashboard.project_dashboard.patches.v1_0.migrate_logistics_tracker_to_daily_log
 project_dashboard.project_dashboard.patches.v1_1.migrate_daily_log_to_request
 project_dashboard.project_dashboard.patches.v1_2.cleanup_v3_doctypes
+project_dashboard.project_dashboard.patches.v1_3.v6_setup
