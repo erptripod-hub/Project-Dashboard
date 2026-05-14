@@ -89,14 +89,12 @@ def get_data(filters):
 		if pp:
 			total_value = pp.boq_grand_total or 0
 
-			# Fitout value from subcontractor allocations
+			# Fitout value = total of ALL subcontractor allocations in Project Plan
 			fitout_value = frappe.db.sql("""
-				SELECT COALESCE(SUM(contract_value), 0)
-				FROM `tabProject Subcontractor Allocation`
-				WHERE parent = (
-					SELECT name FROM `tabProject Plan`
-					WHERE project = %s LIMIT 1
-				)
+				SELECT COALESCE(SUM(psa.contract_value), 0)
+				FROM `tabProject Subcontractor Allocation` psa
+				INNER JOIN `tabProject Plan` pp ON pp.name = psa.parent
+				WHERE pp.project = %s
 			""", proj.project)[0][0] or 0
 
 			# Joinery value from BOQ
