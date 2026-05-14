@@ -65,6 +65,7 @@ def remove_stale_project_links():
 
 
 def after_install():
+	create_project_status_report()
 	remove_invalid_custom_fields()
 	remove_stale_project_links()
 	create_custom_fields()
@@ -72,7 +73,28 @@ def after_install():
 	unhide_project_fields()
 
 
+def create_project_status_report():
+	"""Create Project Status Overview report"""
+	try:
+		if frappe.db.exists("Report", "Project Status Overview"):
+			report = frappe.get_doc("Report", "Project Status Overview")
+		else:
+			report = frappe.new_doc("Report")
+			report.report_name = "Project Status Overview"
+		report.report_type = "Script Report"
+		report.ref_doctype = "Project"
+		report.module = "Project Dashboard"
+		report.is_standard = "Yes"
+		report.disabled = 0
+		report.flags.ignore_permissions = True
+		report.save()
+		frappe.db.commit()
+	except Exception as e:
+		frappe.log_error(str(e), "Create Project Status Report")
+
+
 def after_migrate():
+	create_project_status_report()
 	remove_invalid_custom_fields()
 	remove_stale_project_links()
 	create_custom_fields()
@@ -164,6 +186,36 @@ def create_project_custom_fields():
 			"fieldtype": "Table",
 			"options": "Project Weekly Report",
 			"insert_after": "project_weekly_reports_tab",
+		},
+		{
+			"dt": "Project",
+			"fieldname": "project_type",
+			"label": "Project Type",
+			"fieldtype": "Select",
+			"options": "\nFitout\nJoinery\nBoth",
+			"insert_after": "project_name",
+		},
+		{
+			"dt": "Project",
+			"fieldname": "dispatch_date",
+			"label": "Dispatch Date",
+			"fieldtype": "Date",
+			"insert_after": "project_type",
+		},
+		{
+			"dt": "Project",
+			"fieldname": "dispatch_status",
+			"label": "Dispatch Status",
+			"fieldtype": "Select",
+			"options": "\nPending\nDispatched\nPartial\nOn Hold",
+			"insert_after": "dispatch_date",
+		},
+		{
+			"dt": "Project",
+			"fieldname": "hold_reason",
+			"label": "Hold Reason",
+			"fieldtype": "Small Text",
+			"insert_after": "dispatch_status",
 		},
 	]
 
