@@ -62,13 +62,9 @@ def get_data(filters):
 			p.name as project,
 			p.project_name,
 			p.customer,
-			p.project_type,
 			p.status,
 			p.expected_start_date as start_date,
-			p.expected_end_date as end_date,
-			p.dispatch_date,
-			p.dispatch_status,
-			p.hold_reason
+			p.expected_end_date as end_date
 		FROM `tabProject` p
 		{conditions}
 		ORDER BY
@@ -76,8 +72,23 @@ def get_data(filters):
 			p.expected_end_date ASC
 	""", values, as_dict=1)
 
+	# Fetch custom fields separately - safe even if fields don't exist yet
+	custom_fields = ["project_type", "dispatch_date", "dispatch_status", "hold_reason"]
+	custom_data = {}
+	for proj in projects:
+		row = {}
+		for field in custom_fields:
+			try:
+				val = frappe.db.get_value("Project", proj.project, field)
+				row[field] = val or ""
+			except Exception:
+				row[field] = ""
+		custom_data[proj.project] = row
+
 	data = []
 	for proj in projects:
+		cf = custom_data.get(proj.project, {})
+
 		# Get Project Plan data
 		pp = frappe.db.get_value("Project Plan", {"project": proj.project},
 			["boq_grand_total", "boq", "total_subcontractor_cost"], as_dict=1)
@@ -105,16 +116,16 @@ def get_data(filters):
 			"project": proj.project,
 			"project_name": proj.project_name,
 			"customer": proj.customer or "",
-			"project_type": proj.project_type or "",
+			"project_type": cf.get("project_type") or "",
 			"status": proj.status,
 			"start_date": proj.start_date,
 			"end_date": proj.end_date,
 			"total_value": float(total_value),
 			"fitout_value": float(fitout_value),
 			"joinery_value": float(joinery_value),
-			"dispatch_date": proj.dispatch_date,
-			"dispatch_status": proj.dispatch_status or "",
-			"hold_reason": proj.hold_reason or "",
+			"dispatch_date": cf.get("dispatch_date") or "",
+			"dispatch_status": cf.get("dispatch_status") or "",
+			"hold_reason": cf.get("hold_reason") or "",
 		}
 		data.append(row)
 
