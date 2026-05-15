@@ -45,9 +45,7 @@ def get_data(filters):
 		conditions += " AND p.company = %(company)s"
 		values["company"] = filters["company"]
 
-	if filters.get("project_type"):
-		conditions += " AND p.project_type = %(project_type)s"
-		values["project_type"] = filters["project_type"]
+	# project_type is a custom field - filtered in Python after fetching
 
 	if filters.get("from_date"):
 		conditions += " AND p.expected_start_date >= %(from_date)s"
@@ -85,9 +83,16 @@ def get_data(filters):
 				row[field] = ""
 		custom_data[proj.project] = row
 
+	# Apply project_type filter in Python (custom field - safe)
+	project_type_filter = filters.get("project_type")
+
 	data = []
 	for proj in projects:
 		cf = custom_data.get(proj.project, {})
+
+		# Filter by project type if set
+		if project_type_filter and cf.get("project_type") != project_type_filter:
+			continue
 
 		# Get Project Plan data
 		pp = frappe.db.get_value("Project Plan", {"project": proj.project},
