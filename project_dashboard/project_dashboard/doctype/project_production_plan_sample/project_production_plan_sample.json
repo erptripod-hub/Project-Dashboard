@@ -1,0 +1,92 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "finish",
+  "pvd_electroplating",
+  "gloss_level",
+  "international_ref_code",
+  "approval_status",
+  "signed_by_pm",
+  "signed_date",
+  "attachment"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item",
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fieldname": "finish",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Finish",
+   "columns": 1
+  },
+  {
+   "fieldname": "pvd_electroplating",
+   "fieldtype": "Data",
+   "label": "PVD / Electroplating",
+   "columns": 1
+  },
+  {
+   "fieldname": "gloss_level",
+   "fieldtype": "Data",
+   "label": "Gloss Level",
+   "columns": 1
+  },
+  {
+   "fieldname": "international_ref_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "International Ref Code",
+   "columns": 2
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Approval Status",
+   "options": "Pending\nApproved\nRejected",
+   "default": "Pending",
+   "columns": 1
+  },
+  {
+   "fieldname": "signed_by_pm",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Signed By PM"
+  },
+  {
+   "fieldname": "signed_date",
+   "fieldtype": "Date",
+   "label": "Signed Date"
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Attach",
+   "label": "Attachment"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan Sample",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

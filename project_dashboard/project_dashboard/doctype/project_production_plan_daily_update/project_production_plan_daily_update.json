@@ -1,0 +1,77 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "update_date",
+  "update_type",
+  "update_text",
+  "affected_fixtures",
+  "photos",
+  "updated_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "update_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "columns": 1,
+   "default": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "update_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Type",
+   "options": "Production\nQC\nBlocker\nDrawing Change\nGeneral",
+   "default": "Production",
+   "columns": 1
+  },
+  {
+   "fieldname": "update_text",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Update",
+   "columns": 4,
+   "reqd": 1
+  },
+  {
+   "fieldname": "affected_fixtures",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Affected Fixtures",
+   "columns": 2
+  },
+  {
+   "fieldname": "photos",
+   "fieldtype": "Attach",
+   "label": "Photos",
+   "columns": 1
+  },
+  {
+   "fieldname": "updated_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "in_list_view": 1,
+   "label": "By",
+   "columns": 2
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan Daily Update",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "update_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
