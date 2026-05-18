@@ -33,6 +33,25 @@ def get_dashboard_data(project=None):
         limit_page_length=2000,
     )
 
+    # Override currency + amount from the selected quote row (source of truth)
+    request_names = [r["name"] for r in rows]
+    if request_names:
+        selected_quotes = frappe.db.sql("""
+            SELECT parent, currency, amount, supplier_name
+            FROM `tabLogistics Rate Quote`
+            WHERE is_selected = 1 AND parent IN %(names)s
+        """, {"names": tuple(request_names) if len(request_names) > 1 else (request_names[0], request_names[0])},
+            as_dict=True)
+        by_parent = {q.parent: q for q in selected_quotes}
+        for r in rows:
+            q = by_parent.get(r["name"])
+            if q:
+                r["currency"] = q.currency or r.get("currency") or "AED"
+                if q.amount:
+                    r["approved_amount"] = q.amount
+                if q.supplier_name and not r.get("selected_supplier"):
+                    r["selected_supplier"] = q.supplier_name
+
     seven_days_ago = add_days(today(), -7)
     month_start = get_first_day(today())
 

@@ -2,6 +2,7 @@ frappe.ui.form.on("Logistics Request", {
     refresh(frm) {
         render_banner(frm);
         relabel_section7(frm);
+        sync_currency_from_selected_quote(frm);
 
         const roles = new Set(frappe.user_roles || []);
         const is_gm = roles.has("Logistics GM") || roles.has("System Manager") || roles.has("Administrator");
@@ -81,16 +82,70 @@ frappe.ui.form.on("Logistics Request", {
     },
 });
 
+// ===== Sync parent currency from the selected quote =====
+// Fixes existing records where parent.currency = AED but selected quote is USD/CNY/etc.
+// Runs on every form refresh; if mismatch found, updates parent fields silently.
+function sync_currency_from_selected_quote(frm) {
+    if (frm.is_new()) return;
+    const quotes = frm.doc.rate_quotes || [];
+    const selected = quotes.find((q) => q.is_selected);
+    if (!selected) return;
+
+    let changed = false;
+    if (selected.currency && frm.doc.currency !== selected.currency) {
+        frm.set_value("currency", selected.currency);
+        changed = true;
+    }
+    if (selected.amount && parseFloat(frm.doc.approved_amount) !== parseFloat(selected.amount)) {
+        frm.set_value("approved_amount", selected.amount);
+        changed = true;
+    }
+    if (selected.supplier_name && frm.doc.selected_supplier !== selected.supplier_name) {
+        frm.set_value("selected_supplier", selected.supplier_name);
+        changed = true;
+    }
+    // If we corrected something, dirty the form so user can save the fix
+    if (changed) {
+        frm.dirty();
+    }
+}
+
 // ===== Single-tick exclusivity on quote rows =====
 frappe.ui.form.on("Logistics Rate Quote", {
     is_selected(frm, cdt, cdn) {
         const just_ticked = locals[cdt][cdn];
         if (!just_ticked.is_selected) return;
+        // Untick all other rows (only one quote can be selected)
         (frm.doc.rate_quotes || []).forEach((row) => {
             if (row.name !== just_ticked.name && row.is_selected) {
                 frappe.model.set_value(row.doctype, row.name, "is_selected", 0);
             }
         });
+        // Immediately copy ticked row's currency + amount to parent
+        // This way the form shows the correct currency BEFORE save
+        if (just_ticked.currency) {
+            frm.set_value("currency", just_ticked.currency);
+        }
+        if (just_ticked.amount) {
+            frm.set_value("approved_amount", just_ticked.amount);
+        }
+        if (just_ticked.supplier_name) {
+            frm.set_value("selected_supplier", just_ticked.supplier_name);
+        }
+    },
+    currency(frm, cdt, cdn) {
+        // If user changes currency on the already-selected row, sync to parent
+        const row = locals[cdt][cdn];
+        if (row.is_selected && row.currency) {
+            frm.set_value("currency", row.currency);
+        }
+    },
+    amount(frm, cdt, cdn) {
+        // If user changes amount on the already-selected row, sync to parent
+        const row = locals[cdt][cdn];
+        if (row.is_selected && row.amount) {
+            frm.set_value("approved_amount", row.amount);
+        }
     },
 });
 
