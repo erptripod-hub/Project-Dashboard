@@ -1,0 +1,423 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:PPP-{project}",
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "overview_section",
+  "project",
+  "overall_status",
+  "column_break_overview",
+  "overall_joinery_completion_pct",
+  "team_section",
+  "project_manager",
+  "production_manager",
+  "column_break_team",
+  "designer",
+  "qc_lead",
+  "dates_section",
+  "kickoff_date",
+  "target_dispatch_date",
+  "column_break_dates",
+  "revised_dispatch_date",
+  "actual_dispatch_date",
+  "actual_completion_date",
+  "samples_section",
+  "sample_log",
+  "kickoff_section",
+  "drawings_stamped",
+  "approved_samples_signed",
+  "completion_timeline_shared",
+  "approved_mr_raised",
+  "approved_mr_link",
+  "column_break_kickoff",
+  "kickoff_notes",
+  "drawing_checklist",
+  "design_section",
+  "drawing_log",
+  "timeline_section",
+  "weekly_photos",
+  "drawing_change_section",
+  "drawing_change_log",
+  "stages_section",
+  "production_stages",
+  "fixtures_section",
+  "fixtures",
+  "inspections_section",
+  "inspections",
+  "packing_section",
+  "packing_list_shared_date",
+  "linked_logistics_request",
+  "column_break_packing",
+  "item_checklist_in_box",
+  "drawing_printout_in_box",
+  "pre_packing_photos",
+  "installation_section",
+  "installation_notes",
+  "daily_log_section",
+  "daily_updates"
+ ],
+ "fields": [
+  {
+   "fieldname": "overview_section",
+   "fieldtype": "Section Break",
+   "label": "Overview"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "overall_status",
+   "fieldtype": "Select",
+   "label": "Overall Status",
+   "options": "Drawing Pending\nAwaiting Kickoff\nIn Production\nIn QC\nReady to Dispatch\nDispatched\nInstalled\nClosed",
+   "default": "Drawing Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_overview",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "overall_joinery_completion_pct",
+   "fieldtype": "Percent",
+   "label": "Overall Joinery Completion %",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-calculated as the average of % Complete across all Production Stages. This single value is what feeds the main Project Dashboard."
+  },
+  {
+   "fieldname": "team_section",
+   "fieldtype": "Section Break",
+   "label": "Team",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "project_manager",
+   "fieldtype": "Link",
+   "label": "Project Manager",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "production_manager",
+   "fieldtype": "Link",
+   "label": "Production Manager",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "column_break_team",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "designer",
+   "fieldtype": "Link",
+   "label": "Designer",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "qc_lead",
+   "fieldtype": "Link",
+   "label": "QC Lead",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "dates_section",
+   "fieldtype": "Section Break",
+   "label": "Key Dates",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "kickoff_date",
+   "fieldtype": "Date",
+   "label": "Kickoff Date"
+  },
+  {
+   "fieldname": "target_dispatch_date",
+   "fieldtype": "Date",
+   "label": "Target Dispatch Date"
+  },
+  {
+   "fieldname": "column_break_dates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "revised_dispatch_date",
+   "fieldtype": "Date",
+   "label": "Revised Dispatch Date",
+   "description": "Auto-flagged if a drawing change occurs"
+  },
+  {
+   "fieldname": "actual_dispatch_date",
+   "fieldtype": "Date",
+   "label": "Actual Dispatch Date"
+  },
+  {
+   "fieldname": "actual_completion_date",
+   "fieldtype": "Date",
+   "label": "Actual Completion Date"
+  },
+  {
+   "fieldname": "samples_section",
+   "fieldtype": "Section Break",
+   "label": "Samples",
+   "collapsible": 1,
+   "description": "Owners: Raju / Kalu / Nazneen + Procurement + QC + PM"
+  },
+  {
+   "fieldname": "sample_log",
+   "fieldtype": "Table",
+   "label": "Sample Log",
+   "options": "Project Production Plan Sample"
+  },
+  {
+   "fieldname": "kickoff_section",
+   "fieldtype": "Section Break",
+   "label": "Project Kickoff",
+   "collapsible": 1,
+   "description": "Owners: Nazneen / Kalu + Procurement + Designer + PM + QC"
+  },
+  {
+   "fieldname": "drawings_stamped",
+   "fieldtype": "Check",
+   "label": "Approved drawings stamped by PM + Designer",
+   "default": "0"
+  },
+  {
+   "fieldname": "approved_samples_signed",
+   "fieldtype": "Check",
+   "label": "Approved samples signed by PM (codes match drawing)",
+   "default": "0"
+  },
+  {
+   "fieldname": "completion_timeline_shared",
+   "fieldtype": "Check",
+   "label": "Completion timeline shared (within 2 days of kickoff)",
+   "default": "0"
+  },
+  {
+   "fieldname": "approved_mr_raised",
+   "fieldtype": "Check",
+   "label": "Approved MR raised",
+   "default": "0"
+  },
+  {
+   "fieldname": "approved_mr_link",
+   "fieldtype": "Link",
+   "label": "Approved MR",
+   "options": "Material Request",
+   "depends_on": "eval:doc.approved_mr_raised"
+  },
+  {
+   "fieldname": "column_break_kickoff",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kickoff_notes",
+   "fieldtype": "Long Text",
+   "label": "Kickoff Notes"
+  },
+  {
+   "fieldname": "drawing_checklist",
+   "fieldtype": "Table",
+   "label": "Drawing Checklist",
+   "options": "Project Production Plan Drawing Checklist"
+  },
+  {
+   "fieldname": "design_section",
+   "fieldtype": "Section Break",
+   "label": "Design - Drawing Log",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "drawing_log",
+   "fieldtype": "Table",
+   "label": "Drawings",
+   "options": "Project Production Plan Drawing"
+  },
+  {
+   "fieldname": "timeline_section",
+   "fieldtype": "Section Break",
+   "label": "Production Timeline - Weekly Photos",
+   "collapsible": 1,
+   "description": "SOP: weekly progress photos shared"
+  },
+  {
+   "fieldname": "weekly_photos",
+   "fieldtype": "Table",
+   "label": "Weekly Photos",
+   "options": "Project Production Plan Weekly Photos"
+  },
+  {
+   "fieldname": "drawing_change_section",
+   "fieldtype": "Section Break",
+   "label": "Drawing Change Log",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "drawing_change_log",
+   "fieldtype": "Table",
+   "label": "Drawing Changes",
+   "options": "Project Production Plan Drawing Change"
+  },
+  {
+   "fieldname": "stages_section",
+   "fieldtype": "Section Break",
+   "label": "Production Stages",
+   "description": "Define the stages unique to this project (Carpentry, Paint, etc.). The % Complete field on each stage feeds the Overall Joinery Completion %."
+  },
+  {
+   "fieldname": "production_stages",
+   "fieldtype": "Table",
+   "label": "Stages",
+   "options": "Project Production Plan Stage"
+  },
+  {
+   "fieldname": "fixtures_section",
+   "fieldtype": "Section Break",
+   "label": "Fixtures",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "fixtures",
+   "fieldtype": "Table",
+   "label": "Fixtures",
+   "options": "Project Production Plan Fixture"
+  },
+  {
+   "fieldname": "inspections_section",
+   "fieldtype": "Section Break",
+   "label": "Stage Inspections",
+   "collapsible": 1,
+   "description": "SOP: 1st (Joinery), 2nd (Paint), Pre-Final (PM+QC), Final (with Client)"
+  },
+  {
+   "fieldname": "inspections",
+   "fieldtype": "Table",
+   "label": "Inspections",
+   "options": "Project Production Plan Inspection"
+  },
+  {
+   "fieldname": "packing_section",
+   "fieldtype": "Section Break",
+   "label": "Packing & Logistics",
+   "collapsible": 1,
+   "description": "Owners: Nay / Rubel / Firoz"
+  },
+  {
+   "fieldname": "packing_list_shared_date",
+   "fieldtype": "Date",
+   "label": "Packing List Shared with Logistics"
+  },
+  {
+   "fieldname": "linked_logistics_request",
+   "fieldtype": "Data",
+   "label": "Linked Logistics Request",
+   "description": "Will be made a Link field once Logistics Request doctype is confirmed"
+  },
+  {
+   "fieldname": "column_break_packing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_checklist_in_box",
+   "fieldtype": "Check",
+   "label": "Item checklist included in box",
+   "default": "0"
+  },
+  {
+   "fieldname": "drawing_printout_in_box",
+   "fieldtype": "Check",
+   "label": "Drawing printout in box (dismantled units)",
+   "default": "0"
+  },
+  {
+   "fieldname": "pre_packing_photos",
+   "fieldtype": "Attach",
+   "label": "Pre-packing Photos"
+  },
+  {
+   "fieldname": "installation_section",
+   "fieldtype": "Section Break",
+   "label": "Installation",
+   "collapsible": 1,
+   "description": "To be defined - SOP section was blank"
+  },
+  {
+   "fieldname": "installation_notes",
+   "fieldtype": "Long Text",
+   "label": "Installation Notes"
+  },
+  {
+   "fieldname": "daily_log_section",
+   "fieldtype": "Section Break",
+   "label": "Daily Log",
+   "description": "Production Manager fills this every day"
+  },
+  {
+   "fieldname": "daily_updates",
+   "fieldtype": "Table",
+   "label": "Daily Updates",
+   "options": "Project Production Plan Daily Update"
+  }
+ ],
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "project",
+ "track_changes": 1
+}

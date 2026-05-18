@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "week_ending",
+  "photos",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "week_ending",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Week Ending",
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fieldname": "photos",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "Photos",
+   "columns": 4
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Notes",
+   "columns": 6
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan Weekly Photos",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "week_ending",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

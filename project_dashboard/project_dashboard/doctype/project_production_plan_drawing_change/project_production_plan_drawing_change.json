@@ -1,0 +1,66 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "change_date",
+  "item_changed",
+  "what_changed",
+  "revised_completion_date",
+  "pm_notified"
+ ],
+ "fields": [
+  {
+   "fieldname": "change_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Change Date",
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_changed",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Changed",
+   "columns": 2
+  },
+  {
+   "fieldname": "what_changed",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "What Changed",
+   "columns": 4
+  },
+  {
+   "fieldname": "revised_completion_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Revised Completion",
+   "columns": 2
+  },
+  {
+   "fieldname": "pm_notified",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "PM Notified",
+   "columns": 1,
+   "default": "0"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan Drawing Change",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "change_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-18 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "fixture_name",
+  "quantity_required",
+  "current_stage",
+  "quantity_completed",
+  "material_status",
+  "drawing_revision",
+  "rework_required",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "fixture_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Fixture Name",
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fieldname": "quantity_required",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Qty Req",
+   "columns": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "current_stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Current Stage",
+   "columns": 2,
+   "description": "Should match one of the Production Stages defined for this project"
+  },
+  {
+   "fieldname": "quantity_completed",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Qty Done",
+   "columns": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "material_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Material Status",
+   "options": "OK\nPending\nBlocked",
+   "default": "OK",
+   "columns": 1
+  },
+  {
+   "fieldname": "drawing_revision",
+   "fieldtype": "Data",
+   "label": "Drawing Rev",
+   "columns": 1
+  },
+  {
+   "fieldname": "rework_required",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Rework",
+   "columns": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes",
+   "columns": 2
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-18 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Project Production Plan Fixture",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
