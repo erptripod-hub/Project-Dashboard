@@ -97,3 +97,52 @@ def backfill_logistics_request_defaults():
 
     frappe.db.commit()
     print(f"v6 backfill: defaulted shipment_type=Company Shipment on {len(rows)} request(s)")
+
+    # === Currency backfill ===
+    # For each request that has a selected quote, copy that quote's currency
+    # to the parent. Fixes records saved before the currency field existed.
+    _backfill_currency_from_selected_quote()
+
+
+def _backfill_currency_from_selected_quote():
+    """For each Logistics Request, find the selected quote row (is_selected=1)
+    and copy its currency to the parent's currency field.
+
+    Only updates if the parent currency differs from the quote currency, to
+    avoid no-op writes.
+    """
+    if not frappe.db.has_column("Logistics Request", "currency"):
+        return
+    if not frappe.db.table_exists("Logistics Rate Quote"):
+        return
+
+    # Find all selected quotes with their parent and currency
+    selected_quotes = frappe.db.sql(
+        """SELECT parent, currency
+           FROM `tabLogistics Rate Quote`
+           WHERE is_selected = 1 AND currency IS NOT NULL AND currency != '' """,
+        as_dict=True,
+    )
+
+    fixed = 0
+    for q in selected_quotes:
+        try:
+            current_parent_currency = frappe.db.get_value(
+                "Logistics Request", q.parent, "currency"
+            )
+            if current_parent_currency != q.currency:
+                frappe.db.set_value(
+                    "Logistics Request", q.parent,
+                    "currency", q.currency,
+                    update_modified=False,
+                )
+                fixed += 1
+        except Exception as e:
+            frappe.log_error(
+                f"v6 currency backfill failed for {q.parent}: {e}",
+                "Logistics v6 Migration",
+            )
+
+    if fixed:
+        frappe.db.commit()
+        print(f"v6 backfill: corrected currency on {fixed} request(s) from their selected quote")
