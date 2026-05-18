@@ -92,11 +92,33 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
 
     function esc(v) { if (v === null || v === undefined) return ''; return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-    function fmt_amt(v) {
+    function fmt_amt(v, ccy) {
         var n = parseFloat(v) || 0;
-        if (n >= 1000000) return 'AED ' + (n / 1000000).toFixed(1) + 'M';
-        if (n >= 1000) return 'AED ' + Math.round(n / 1000) + 'K';
-        return 'AED ' + n.toLocaleString('en-AE', {maximumFractionDigits: 0});
+        var c = ccy || 'AED';
+        if (n >= 1000000) return c + ' ' + (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return c + ' ' + Math.round(n / 1000) + 'K';
+        return c + ' ' + n.toLocaleString('en-AE', {maximumFractionDigits: 0});
+    }
+
+    // For per-currency aggregate display in KPI cards.
+    // Input: dict like {AED: 312000, USD: 18000, CNY: 240000}
+    // Output: either single line 'AED 312K' or stacked 'AED 312K · USD 18K · CNY 240K'
+    function fmt_ccy_dict(d) {
+        d = d || {};
+        var keys = Object.keys(d).filter(function(k) { return parseFloat(d[k]) !== 0; });
+        if (!keys.length) return 'AED 0';
+        // Sort by amount descending so the biggest currency shows first
+        keys.sort(function(a, b) { return parseFloat(d[b]) - parseFloat(d[a]); });
+        if (keys.length === 1) {
+            return fmt_amt(d[keys[0]], keys[0]);
+        }
+        // Multiple currencies — return HTML with line breaks for stacking
+        return keys.map(function(k) { return fmt_amt(d[k], k); }).join('<br>');
+    }
+
+    function ccy_count(d) {
+        d = d || {};
+        return Object.keys(d).filter(function(k) { return parseFloat(d[k]) !== 0; }).length;
     }
 
     function status_badge(s) {
@@ -143,6 +165,17 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             '<div class="t">' + esc(t) + '</div><div class="v">' + esc(v) + '</div><div class="s">' + esc(sub) + '</div></div>';
     }
 
+    // KPI card that allows HTML in the value (for stacked per-currency totals)
+    function kc_html(t, v_html, sub, color, num_lines) {
+        // Shrink font as we add more currency lines so the card stays compact
+        var fsize = num_lines > 1 ? '12px' : '18px';
+        var lh = num_lines > 1 ? '1.35' : '1';
+        return '<div class="kc" style="border-top-color:' + color + '">' +
+            '<div class="t">' + esc(t) + '</div>' +
+            '<div class="v" style="font-size:' + fsize + ';line-height:' + lh + ';font-weight:700">' + v_html + '</div>' +
+            '<div class="s">' + esc(sub) + '</div></div>';
+    }
+
     function render(d) {
         d = d || {}; var k = d.kpis || {}; var meta = d.project_meta || {};
         var html = '';
@@ -165,9 +198,9 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
             kc('Awaiting GM', k.awaiting_gm || 0, 'Action queue', '#f59e0b', '/app/logistics-request?status=Awaiting%20GM%20Approval') +
             kc('Pending PO', k.pending_po || 0, 'Approved, no PO', '#6366f1') +
             kc('Pending Invoice', k.pending_invoice || 0, 'PO done, no inv', '#8b5cf6') +
-            kc('Outstanding', fmt_amt(k.outstanding_total || 0), (k.outstanding_count || 0) + ' invoices', '#dc2626') +
-            kc('Committed', fmt_amt(k.committed_value || 0), 'Approved value', '#0d9488') +
-            kc('Paid this month', fmt_amt(k.paid_this_month || 0), 'Active flows', '#16a34a') +
+            kc_html('Outstanding', fmt_ccy_dict(k.outstanding_by_ccy), (k.outstanding_count || 0) + ' invoices', '#dc2626', ccy_count(k.outstanding_by_ccy)) +
+            kc_html('Committed', fmt_ccy_dict(k.committed_value), 'Approved value', '#0d9488', ccy_count(k.committed_value)) +
+            kc_html('Paid this month', fmt_ccy_dict(k.paid_this_month), 'Active flows', '#16a34a', ccy_count(k.paid_this_month)) +
             '</div>';
 
         html += '<div class="g2">' +
@@ -192,7 +225,7 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
         if (!pp.length) html += '<div style="color:#16a34a;font-size:11px;padding:6px 0;font-weight:500">✓ All approved rates have POs</div>';
         else pp.forEach(function(r) {
             html += '<div class="pending-row"><div><b>' + open_lr(r.name) + '</b> — ' + esc(r.shipment_reference || '—') + '</div>' +
-                '<div style="font-size:10px;color:#64748b">' + fmt_amt(r.approved_amount) + '</div></div>';
+                '<div style="font-size:10px;color:#64748b">' + fmt_amt(r.approved_amount, r.currency) + '</div></div>';
         });
         html += '</div></div>';
 
@@ -236,7 +269,7 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
                 oi_html += '<tr><td>' + open_lr(r.name) + '</td>' +
                     '<td>' + esc(r.selected_supplier || '—') + '</td>' +
                     '<td>' + open_doc('Purchase Invoice', r.purchase_invoice) + '</td>' +
-                    '<td style="color:#dc2626;font-weight:600">' + fmt_amt(r.invoice_outstanding) + '</td>' +
+                    '<td style="color:#dc2626;font-weight:600">' + fmt_amt(r.invoice_outstanding, r.currency) + '</td>' +
                     '<td>' + esc(r.payment_status || '—') + '</td></tr>';
             });
             oi_html += '</tbody></table>';

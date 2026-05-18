@@ -23,7 +23,7 @@ def get_dashboard_data(project=None):
             "shipment_qty",
             "driver_name", "driver_phone",
             "dispatch_date", "expected_delivery_date", "delivered_on",
-            "selected_supplier", "approved_amount",
+            "selected_supplier", "approved_amount", "currency",
             "purchase_order", "purchase_invoice",
             "invoice_outstanding", "total_paid_amount", "payment_status",
             "rate_approved_by", "rate_approved_on",
@@ -54,13 +54,14 @@ def get_dashboard_data(project=None):
                        "Pending Documents", "On Hold"}
     closed_statuses = {"Delivered", "Received", "Cancelled"}
 
-    committed_value = 0.0
-    paid_this_month_total = 0.0
-    outstanding_total = 0.0
+    committed_value = {}   # {ccy: total}
+    paid_this_month = {}    # {ccy: total}
+    outstanding_by_ccy = {} # {ccy: total}
 
     for r in rows:
         s = r.get("status") or "Planned"
         by_status[s] = by_status.get(s, 0) + 1
+        ccy = r.get("currency") or "AED"
 
         if s in active_statuses:
             p = r.get("project") or "(no project)"
@@ -80,7 +81,7 @@ def get_dashboard_data(project=None):
             pending_invoice.append(r)
         if r.get("purchase_invoice") and (flt(r.get("invoice_outstanding")) > 0):
             outstanding_invoices.append(r)
-            outstanding_total += flt(r.get("invoice_outstanding"))
+            outstanding_by_ccy[ccy] = outstanding_by_ccy.get(ccy, 0) + flt(r.get("invoice_outstanding"))
 
         if s in ("In Transit", "Dispatched", "Customs Clearance"):
             in_transit.append(r)
@@ -90,13 +91,13 @@ def get_dashboard_data(project=None):
             delivered_week.append(r)
 
         if r.get("shipment_type") == "Company Shipment" and r.get("approved_amount") and s not in closed_statuses:
-            committed_value += flt(r.get("approved_amount"))
+            committed_value[ccy] = committed_value.get(ccy, 0) + flt(r.get("approved_amount"))
 
-    # Paid this month — sum total_paid_amount for requests whose payment was made this month
-    # Approximate: requests where total_paid > 0 and rate_approved_on or modified is this month
+    # Paid this month — sum total_paid_amount per currency for requests paid this month
     for r in rows:
         if flt(r.get("total_paid_amount")) > 0 and str(r.get("rate_approved_on") or "")[:10] >= str(month_start):
-            paid_this_month_total += flt(r.get("total_paid_amount"))
+            ccy = r.get("currency") or "AED"
+            paid_this_month[ccy] = paid_this_month.get(ccy, 0) + flt(r.get("total_paid_amount"))
 
     def to_list(d):
         return [{"label": k, "value": v} for k, v in sorted(d.items(), key=lambda x: -x[1])]
@@ -119,10 +120,10 @@ def get_dashboard_data(project=None):
             "awaiting_gm": len(awaiting_gm),
             "pending_po": len(pending_po),
             "pending_invoice": len(pending_invoice),
-            "outstanding_total": outstanding_total,
+            "outstanding_by_ccy": outstanding_by_ccy,
             "outstanding_count": len(outstanding_invoices),
             "committed_value": committed_value,
-            "paid_this_month": paid_this_month_total,
+            "paid_this_month": paid_this_month,
             "in_transit": len(in_transit),
             "on_hold": len(on_hold),
             "delivered_week": len(delivered_week),

@@ -32,6 +32,7 @@
   "rate_remarks",
   "section_rapp",
   "selected_supplier",
+  "currency",
   "approved_amount",
   "column_break_rapp",
   "rate_approved_by",
@@ -269,10 +270,21 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "default": "AED",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-set from the selected quote on rate approval"
+  },
+  {
    "fieldname": "approved_amount",
    "fieldtype": "Currency",
    "label": "Approved Amount",
-   "read_only": 1
+   "read_only": 1,
+   "options": "currency"
   },
   {
    "fieldname": "column_break_rapp",
@@ -344,7 +356,8 @@
    "fieldtype": "Currency",
    "label": "Invoice Outstanding",
    "read_only": 1,
-   "fetch_from": "purchase_invoice.outstanding_amount"
+   "fetch_from": "purchase_invoice.outstanding_amount",
+   "options": "currency"
   },
   {
    "fieldname": "section_finance_pay",
@@ -355,7 +368,8 @@
    "fieldname": "total_paid_amount",
    "fieldtype": "Currency",
    "label": "Total Paid",
-   "read_only": 1
+   "read_only": 1,
+   "options": "currency"
   },
   {
    "fieldname": "column_break_fin2",
@@ -555,7 +569,8 @@
   {
    "fieldname": "final_amount_paid",
    "fieldtype": "Currency",
-   "label": "Final Amount Paid"
+   "label": "Final Amount Paid",
+   "options": "currency"
   },
   {
    "fieldname": "delivery_notes",
@@ -604,7 +619,8 @@
    "fieldname": "po_amount",
    "fieldtype": "Currency",
    "label": "PO Amount (legacy)",
-   "hidden": 1
+   "hidden": 1,
+   "options": "currency"
   },
   {
    "fieldname": "po_attachment",

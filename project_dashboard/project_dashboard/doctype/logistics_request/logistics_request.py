@@ -6,17 +6,21 @@ from frappe.utils import now_datetime, flt
 
 class LogisticsRequest(Document):
     def validate(self):
-        # ---- Auto-fill selected supplier + amount from ticked quote ----
+        # ---- Auto-fill selected supplier + amount + currency from ticked quote ----
         selected = [q for q in (self.rate_quotes or []) if q.is_selected]
         if len(selected) > 1:
             frappe.throw(_("Only one Rate Quote row can be marked Selected. Untick the others."))
         if len(selected) == 1:
             self.selected_supplier = selected[0].supplier_name
             self.approved_amount = selected[0].amount
+            self.currency = selected[0].currency or "AED"
         else:
             if not self.rate_approved_by:
                 self.selected_supplier = None
                 self.approved_amount = 0
+                # Don't clear currency — keep AED default for client shipments etc.
+                if not self.currency:
+                    self.currency = "AED"
 
         # ---- Auto-promote status ----
         if self.status == "Planned" and self.rate_quotes and self.shipment_type == "Company Shipment":

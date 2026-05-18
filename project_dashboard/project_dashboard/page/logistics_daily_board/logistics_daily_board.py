@@ -20,7 +20,7 @@ def get_board_data(show_closed=0):
             "loading_place", "delivery_place",
             "tracking_number", "tracking_type", "shipment_qty",
             "expected_delivery_date", "delivered_on",
-            "selected_supplier", "approved_amount",
+            "selected_supplier", "approved_amount", "currency",
             "purchase_order", "purchase_invoice", "payment_status",
         ],
         order_by="project asc, modified desc",

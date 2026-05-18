@@ -99,11 +99,12 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    function fmt_amt(v) {
+    function fmt_amt(v, ccy) {
         var n = parseFloat(v) || 0;
-        if (n >= 1000000) return 'AED ' + (n / 1000000).toFixed(2) + 'M';
-        if (n >= 10000) return 'AED ' + Math.round(n / 1000) + 'K';
-        return 'AED ' + n.toLocaleString('en-AE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        var c = ccy || 'AED';
+        if (n >= 1000000) return c + ' ' + (n / 1000000).toFixed(2) + 'M';
+        if (n >= 10000) return c + ' ' + Math.round(n / 1000) + 'K';
+        return c + ' ' + n.toLocaleString('en-AE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
     }
 
     function status_color(s) {
@@ -207,7 +208,7 @@ frappe.pages['logistics-daily-board'].on_page_load = function(wrapper) {
                     var price_html = '<span style="color:#94a3b8">— n/a —</span>';
                     if (r.shipment_type === 'Company Shipment') {
                         if (r.approved_amount && parseFloat(r.approved_amount) > 0) {
-                            price_html = '<div class="price-amt">' + fmt_amt(r.approved_amount) + '</div>';
+                            price_html = '<div class="price-amt">' + fmt_amt(r.approved_amount, r.currency) + '</div>';
                             if (r.selected_supplier) {
                                 price_html += '<div class="price-supp">' + esc(r.selected_supplier) + '</div>';
                             }
