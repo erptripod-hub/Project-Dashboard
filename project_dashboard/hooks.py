@@ -11,6 +11,7 @@ app_license = "MIT"
 # Idempotent — checks state before doing work.
 after_migrate = [
     "project_dashboard.project_dashboard.patches.v1_3.v6_setup.backfill_logistics_request_defaults",
+    "project_dashboard.project_dashboard.patches.v1_4.setup_production_plan_connection.reapply_project_customizations",
 ]
 
 # Auto-create a Project Production Plan when a Project is inserted.
