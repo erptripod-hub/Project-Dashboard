@@ -1,0 +1,64 @@
+{
+ "actions": [],
+ "creation": "2026-07-03 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": [
+  "round_no",
+  "date",
+  "inspector",
+  "outcome",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "round_no",
+   "fieldtype": "Int",
+   "label": "Round",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "default": "Today",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "inspector",
+   "fieldtype": "Data",
+   "label": "Inspector",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "label": "Outcome",
+   "options": "Pass\nFail",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes",
+   "in_list_view": 1,
+   "columns": 4
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-03 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "QC Inspection Reinspection Log",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

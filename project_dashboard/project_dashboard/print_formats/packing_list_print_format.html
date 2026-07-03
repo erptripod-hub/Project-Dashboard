@@ -1,0 +1,71 @@
+<div style="font-family: Arial, Helvetica, sans-serif; color:#222; font-size:12px;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:14px;">
+    <div>
+      <div style="font-size:18px; font-weight:bold;">Packing List</div>
+      <div style="font-size:11px; color:#777;">{{ doc.company or "" }}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-weight:bold;">{{ doc.name }}</div>
+      <div style="font-size:11px; color:#777;">Date: {{ frappe.utils.formatdate(doc.packing_date, "dd-MM-yyyy") if doc.packing_date else "" }}</div>
+    </div>
+  </div>
+
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:11.5px;">
+    <tr>
+      <td style="padding:3px 0; color:#777; width:18%;">Project</td><td style="padding:3px 0; width:45%;">{{ doc.project or "" }}</td>
+      <td style="padding:3px 0; color:#777; width:14%;">QC Ref</td><td style="padding:3px 0;">{{ doc.qc_inspection or "" }}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; color:#777;">Location</td><td style="padding:3px 0;">{{ doc.location or "" }}</td>
+      <td style="padding:3px 0; color:#777;">Crates</td><td style="padding:3px 0;">{{ doc.total_crates or 0 }}</td>
+    </tr>
+  </table>
+
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:14px;">
+    <thead>
+      <tr style="background:#F1EFE8; text-align:left;">
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">Crate</th>
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">Item / Unit</th>
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">Qty</th>
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">L&times;W&times;H (cm)</th>
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">Weight (kg)</th>
+        <th style="padding:6px 7px; border:0.5px solid #e0ddd4;">Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in doc.crates %}
+      <tr>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ c.crate_no or "" }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ c.item_name or "" }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ c.qty or "" }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ (c.length or 0)|int }}&times;{{ (c.width or 0)|int }}&times;{{ (c.height or 0)|int }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ c.weight or "" }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ c.remarks or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="font-weight:bold; background:#FAFAF7;">
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;" colspan="4">Total</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ doc.total_weight or 0 }}</td>
+        <td style="padding:6px 7px; border:0.5px solid #e0ddd4;">{{ doc.total_crates or 0 }} crates</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  {% if doc.remarks %}<div style="font-size:11px; color:#555; margin-bottom:10px;">Remarks: {{ doc.remarks }}</div>{% endif %}
+
+  <table style="width:100%; margin-top:30px; font-size:10.5px; color:#666;">
+    <tr>
+      <td style="text-align:center; width:33%;"><div style="border-top:0.5px solid #999; padding-top:5px; margin:0 12px;">Packed by</div></td>
+      <td style="text-align:center; width:33%;"><div style="border-top:0.5px solid #999; padding-top:5px; margin:0 12px;">Checked by (QC)</div></td>
+      <td style="text-align:center; width:33%;"><div style="border-top:0.5px solid #999; padding-top:5px; margin:0 12px;">Received by</div></td>
+    </tr>
+  </table>
+
+  <div style="border-top:0.5px solid #e5e5e5; margin-top:22px; padding-top:8px; color:#999; font-size:10px; display:flex; justify-content:space-between;">
+    <span>Private &amp; confidential</span><span>{{ doc.company or "Tripod" }} &middot; Packing List</span>
+  </div>
+
+</div>

@@ -29,6 +29,9 @@ class LogisticsRequest(Document):
         # ---- Refresh payment status from linked PI ----
         self._refresh_payment_status()
 
+        # ---- Export gate: Finished Goods need passed QC + Packing List ----
+        self._validate_finished_goods_export_gate()
+
         # ---- Permission gate: only GM can edit approval audit fields ----
         if not self.is_new():
             old = self.get_doc_before_save()
@@ -39,6 +42,53 @@ class LogisticsRequest(Document):
                             frappe.throw(_(
                                 "Only Logistics GM can change '{0}'. Use the Approve/Reject buttons."
                             ).format(self.meta.get_label(fld)))
+
+    def _validate_finished_goods_export_gate(self):
+        """Block an Export of Finished Goods unless it is backed by a
+        Packing List whose QC Inspection is submitted + Passed.
+
+        - Import                -> no restriction
+        - Export + Materials    -> no restriction
+        - Export + Finished Goods -> Packing List (with passed QC) required
+        """
+        if self.direction != "Export":
+            return
+        if (self.export_type or "") != "Finished Goods":
+            return
+
+        if not self.packing_list:
+            frappe.throw(_(
+                "Finished Goods export needs a Packing List. Create the Packing "
+                "List (from a passed QC Inspection) and link it here, or use the "
+                "\u2018Create \u2192 Logistics Request\u2019 button on the Packing List."
+            ))
+
+        pl = frappe.db.get_value(
+            "Packing List",
+            self.packing_list,
+            ["docstatus", "project", "qc_inspection"],
+            as_dict=True,
+        )
+        if not pl:
+            frappe.throw(_("Packing List {0} not found.").format(self.packing_list))
+        if pl.docstatus == 2:
+            frappe.throw(_("Packing List {0} is cancelled.").format(self.packing_list))
+        if self.project and pl.project and self.project != pl.project:
+            frappe.throw(_(
+                "Packing List {0} belongs to project {1}, not {2}."
+            ).format(self.packing_list, pl.project, self.project))
+
+        qc = frappe.db.get_value(
+            "QC Inspection",
+            pl.qc_inspection,
+            ["docstatus", "inspection_status"],
+            as_dict=True,
+        ) if pl.qc_inspection else None
+        if not qc or qc.docstatus != 1 or qc.inspection_status != "Passed":
+            frappe.throw(_(
+                "The QC Inspection behind Packing List {0} is not submitted & "
+                "Passed. Finished Goods cannot be exported until QC passes."
+            ).format(self.packing_list))
 
     def _refresh_payment_status(self):
         """Compute total_paid_amount + payment_status from linked Purchase Invoice."""

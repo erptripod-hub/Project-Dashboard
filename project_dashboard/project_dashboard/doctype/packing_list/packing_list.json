@@ -1,0 +1,164 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-07-03 08:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "project",
+  "qc_inspection",
+  "location",
+  "column_break_hdr",
+  "company",
+  "packing_date",
+  "total_crates",
+  "total_weight",
+  "sec_crates",
+  "crates",
+  "sec_notes",
+  "remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "PL-.YYYY.-.####",
+   "default": "PL-.YYYY.-.####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "qc_inspection",
+   "fieldtype": "Link",
+   "label": "QC Inspection",
+   "options": "QC Inspection",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "column_break_hdr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "packing_date",
+   "fieldtype": "Date",
+   "label": "Packing Date",
+   "default": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_crates",
+   "fieldtype": "Int",
+   "label": "Total Crates"
+  },
+  {
+   "fieldname": "total_weight",
+   "fieldtype": "Float",
+   "label": "Total Weight (kg)"
+  },
+  {
+   "fieldname": "sec_crates",
+   "fieldtype": "Section Break",
+   "label": "Crates / Boxes"
+  },
+  {
+   "fieldname": "crates",
+   "fieldtype": "Table",
+   "label": "Crates",
+   "options": "Packing List Crate"
+  },
+  {
+   "fieldname": "sec_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Packing List",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Logistics Request",
+   "link_fieldname": "packing_list",
+   "group": "Shipping"
+  }
+ ],
+ "modified": "2026-07-03 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "Packing List",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "project",
+ "track_changes": 1
+}

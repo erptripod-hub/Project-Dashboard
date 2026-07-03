@@ -1,0 +1,95 @@
+<div style="font-family: Arial, Helvetica, sans-serif; color:#222; font-size:12px;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:14px;">
+    <div>
+      <div style="font-size:18px; font-weight:bold;">QC Inspection Report</div>
+      <div style="font-size:11px; color:#777;">{{ doc.company or "" }}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-weight:bold;">{{ doc.name }}</div>
+      {% if doc.inspection_status == "Passed" %}
+        <span style="background:#E1F5EE; color:#0F6E56; padding:2px 10px; border-radius:4px; font-size:11px;">Passed</span>
+      {% elif doc.inspection_status == "Rework Required" %}
+        <span style="background:#FCE8E6; color:#B3261E; padding:2px 10px; border-radius:4px; font-size:11px;">Rework Required</span>
+      {% else %}
+        <span style="background:#FAEEDA; color:#854F0B; padding:2px 10px; border-radius:4px; font-size:11px;">{{ doc.inspection_status }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:11.5px;">
+    <tr>
+      <td style="padding:3px 0; color:#777; width:18%;">Project / Job</td><td style="padding:3px 0; width:32%;">{{ doc.project or "" }}</td>
+      <td style="padding:3px 0; color:#777; width:18%;">Inspector</td><td style="padding:3px 0;">{{ doc.inspector or "" }}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; color:#777;">Location</td><td style="padding:3px 0;">{{ doc.location or "" }}</td>
+      <td style="padding:3px 0; color:#777;">Date</td><td style="padding:3px 0;">{{ frappe.utils.format_datetime(doc.inspection_date, "dd-MM-yyyy hh:mm a") if doc.inspection_date else "" }}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 0; color:#777;">KA Present</td><td style="padding:3px 0;">{{ doc.ka_present or "" }}</td>
+      <td style="padding:3px 0; color:#777;">Checklist Presented</td><td style="padding:3px 0;">{{ "Yes" if doc.checklist_presented else "No" }}</td>
+    </tr>
+  </table>
+
+  {% if doc.units %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:6px;">Units</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
+    <thead><tr style="background:#FAFAF7; text-align:left;">
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Unit</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">QC Passed</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Remarks</th>
+    </tr></thead>
+    <tbody>
+    {% for u in doc.units %}
+      <tr>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ u.unit_name or "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ "Yes" if u.qc_passed else "No" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ u.remarks or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if doc.snags %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:8px;">Snags</div>
+  {% for s in doc.snags %}
+    <div style="border-bottom:0.5px solid #e5e5e5; padding:8px 2px; page-break-inside:avoid;">
+      <div style="font-weight:bold;">Snag {{ loop.index }} <span style="font-weight:normal; color:#999;">&middot; {{ s.unit or "" }} &middot; {{ s.category or "" }} &middot; Priority: {{ s.priority or "" }}</span></div>
+      <div style="color:#444; margin:3px 0 6px;">{{ s.description or "" }}</div>
+      <div>
+        {% for p in [s.photo_1, s.photo_2, s.photo_3] %}
+          {% if p %}<img src="{{ p }}" style="width:120px; height:120px; object-fit:cover; border-radius:3px; margin-right:6px; border:0.5px solid #ddd;">{% endif %}
+        {% endfor %}
+      </div>
+      <div style="font-size:10.5px; color:#9a7a1a; margin-top:5px;">
+        Status: {{ s.status or "Open" }}
+        {% if s.due_date %} &middot; Due: {{ frappe.utils.formatdate(s.due_date, "dd-MM-yyyy") }}{% endif %}
+        {% if s.actual_closure %} &middot; Closed: {{ frappe.utils.formatdate(s.actual_closure, "dd-MM-yyyy") }}{% endif %}
+        {% if s.created_by_name %} &middot; By: {{ s.created_by_name }}{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+  {% endif %}
+
+  {% set photos = [] %}
+  {% for s in doc.snags %}
+    {% for p in [s.photo_1, s.photo_2, s.photo_3] %}
+      {% if p %}{% set _ = photos.append(p) %}{% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if photos %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:18px 0 8px;">Media Summary</div>
+  <div>
+    {% for p in photos %}
+      <img src="{{ p }}" style="width:150px; height:150px; object-fit:cover; border-radius:3px; margin:0 6px 6px 0; border:0.5px solid #ddd;">
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="border-top:0.5px solid #e5e5e5; margin-top:18px; padding-top:8px; color:#999; font-size:10px; display:flex; justify-content:space-between;">
+    <span>Private &amp; confidential</span><span>{{ doc.company or "Tripod" }} &middot; QC Inspection</span>
+  </div>
+
+</div>

@@ -1,0 +1,212 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-07-03 08:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "project",
+  "location",
+  "ka_present",
+  "column_break_hdr",
+  "company",
+  "inspection_date",
+  "inspector",
+  "checklist_presented",
+  "inspection_status",
+  "sec_units",
+  "units",
+  "sec_snags",
+  "snags",
+  "sec_checklist",
+  "checklist",
+  "sec_reinspect",
+  "reinspection_log",
+  "sec_notes",
+  "overall_remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "QC-.YYYY.-.####",
+   "default": "QC-.YYYY.-.####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project / Job",
+   "options": "Project",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "ka_present",
+   "fieldtype": "Data",
+   "label": "KA Present"
+  },
+  {
+   "fieldname": "column_break_hdr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "inspection_date",
+   "fieldtype": "Datetime",
+   "label": "Inspection Date",
+   "default": "Now",
+   "reqd": 1
+  },
+  {
+   "fieldname": "inspector",
+   "fieldtype": "Data",
+   "label": "QC Inspector Name"
+  },
+  {
+   "fieldname": "checklist_presented",
+   "fieldtype": "Check",
+   "label": "Checklist Presented"
+  },
+  {
+   "fieldname": "inspection_status",
+   "fieldtype": "Select",
+   "label": "Inspection Status",
+   "options": "Pending\nRework Required\nPassed",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_units",
+   "fieldtype": "Section Break",
+   "label": "Units"
+  },
+  {
+   "fieldname": "units",
+   "fieldtype": "Table",
+   "label": "Units",
+   "options": "QC Inspection Unit"
+  },
+  {
+   "fieldname": "sec_snags",
+   "fieldtype": "Section Break",
+   "label": "Snags"
+  },
+  {
+   "fieldname": "snags",
+   "fieldtype": "Table",
+   "label": "Snags",
+   "options": "QC Inspection Snag"
+  },
+  {
+   "fieldname": "sec_checklist",
+   "fieldtype": "Section Break",
+   "label": "QC Checklist",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "checklist",
+   "fieldtype": "Table",
+   "label": "Checklist",
+   "options": "QC Inspection Checklist"
+  },
+  {
+   "fieldname": "sec_reinspect",
+   "fieldtype": "Section Break",
+   "label": "Re-inspection Log",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "reinspection_log",
+   "fieldtype": "Table",
+   "label": "Re-inspection Log",
+   "options": "QC Inspection Reinspection Log"
+  },
+  {
+   "fieldname": "sec_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "overall_remarks",
+   "fieldtype": "Small Text",
+   "label": "Overall Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "QC Inspection",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Packing List",
+   "link_fieldname": "qc_inspection",
+   "group": "Shipping"
+  }
+ ],
+ "modified": "2026-07-03 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "QC Inspection",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "project",
+ "track_changes": 1
+}
