@@ -1,7 +1,10 @@
+{%- set _lh = frappe.db.get_value("Company", doc.company, "default_letter_head") -%}
+{%- set _logo = frappe.db.get_value("Letter Head", _lh, "image") if _lh else None -%}
 <div style="font-family: Arial, Helvetica, sans-serif; color:#222; font-size:12px;">
 
   <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:14px;">
     <div>
+      {% if _logo %}<img src="{{ _logo }}" style="height:55px; margin-bottom:6px;"><br>{% endif %}
       <div style="font-size:18px; font-weight:bold;">Packing List</div>
       <div style="font-size:11px; color:#777;">{{ doc.company or "" }}</div>
     </div>
