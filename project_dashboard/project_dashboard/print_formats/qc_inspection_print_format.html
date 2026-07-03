@@ -1,134 +1,200 @@
 {%- set _lh = frappe.db.get_value("Company", doc.company, "default_letter_head") -%}
 {%- set _logo = frappe.db.get_value("Letter Head", _lh, "image") if _lh else None -%}
-<div style="font-family: Arial, Helvetica, sans-serif; color:#222; font-size:12px;">
+{%- set _open = doc.snags | selectattr("status", "equalto", "Open") | list | length -%}
+{%- set _closed = doc.snags | selectattr("status", "equalto", "Closed") | list | length -%}
 
-  <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:14px;">
-    <div>
-      {% if _logo %}<img src="{{ _logo }}" style="height:55px; margin-bottom:6px;"><br>{% endif %}
-      <div style="font-size:18px; font-weight:bold;">QC Inspection Report</div>
-      <div style="font-size:11px; color:#777;">{{ doc.company or "" }}</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-weight:bold;">{{ doc.name }}</div>
-      {% if doc.inspection_status == "Passed" %}
-        <span style="background:#E1F5EE; color:#0F6E56; padding:2px 10px; border-radius:4px; font-size:11px;">Passed</span>
-      {% elif doc.inspection_status == "Rework Required" %}
-        <span style="background:#FCE8E6; color:#B3261E; padding:2px 10px; border-radius:4px; font-size:11px;">Rework Required</span>
-      {% else %}
-        <span style="background:#FAEEDA; color:#854F0B; padding:2px 10px; border-radius:4px; font-size:11px;">{{ doc.inspection_status }}</span>
-      {% endif %}
-    </div>
-  </div>
+<div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif; color:#1f2933; font-size:12px; line-height:1.45;">
 
-  <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:11.5px;">
+  <!-- ================= HEADER ================= -->
+  <table style="width:100%; border-collapse:collapse; margin-bottom:4px;">
     <tr>
-      <td style="padding:3px 0; color:#777; width:18%;">Project / Job</td><td style="padding:3px 0; width:32%;">{{ doc.project or "" }}</td>
-      <td style="padding:3px 0; color:#777; width:18%;">Inspector</td><td style="padding:3px 0;">{{ doc.inspector or "" }}</td>
+      <td style="vertical-align:middle; padding:0;">
+        {% if _logo %}<img src="{{ _logo }}" style="height:52px; margin-bottom:8px;"><br>{% endif %}
+        <div style="font-size:11px; letter-spacing:1.5px; color:#7b8794; text-transform:uppercase; font-weight:600;">Quality Control</div>
+        <div style="font-size:23px; font-weight:700; color:#1f2933; letter-spacing:-0.3px;">Inspection Report</div>
+        <div style="font-size:11.5px; color:#52606d; margin-top:2px;">{{ doc.company or "" }}</div>
+      </td>
+      <td style="vertical-align:top; text-align:right; padding:0;">
+        <div style="font-size:16px; font-weight:700; color:#1f2933;">{{ doc.name }}</div>
+        {% if doc.inspection_status == "Passed" %}
+          <div style="display:inline-block; margin-top:6px; background:#e3f9e5; color:#0b6b3a; padding:4px 14px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:0.3px;">&#10003; PASSED</div>
+        {% elif doc.inspection_status == "Rework Required" %}
+          <div style="display:inline-block; margin-top:6px; background:#fde8e8; color:#a61b1b; padding:4px 14px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:0.3px;">REWORK REQUIRED</div>
+        {% else %}
+          <div style="display:inline-block; margin-top:6px; background:#fdf3e0; color:#8a5a00; padding:4px 14px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:0.3px;">{{ (doc.inspection_status or "")|upper }}</div>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+  <div style="height:3px; background:#1f2933; margin:8px 0 16px;"></div>
+
+  <!-- ================= META ================= -->
+  <table style="width:100%; border-collapse:collapse; margin-bottom:18px; font-size:12px;">
+    <tr>
+      <td style="width:14%; padding:4px 0; color:#7b8794;">Project / Job</td>
+      <td style="width:36%; padding:4px 0; font-weight:600;">{{ doc.project or "&mdash;" }}</td>
+      <td style="width:14%; padding:4px 0; color:#7b8794;">Inspector</td>
+      <td style="width:36%; padding:4px 0; font-weight:600;">{{ doc.inspector or "&mdash;" }}</td>
     </tr>
     <tr>
-      <td style="padding:3px 0; color:#777;">Location</td><td style="padding:3px 0;">{{ doc.location or "" }}</td>
-      <td style="padding:3px 0; color:#777;">Date</td><td style="padding:3px 0;">{{ frappe.utils.format_datetime(doc.inspection_date, "dd-MM-yyyy hh:mm a") if doc.inspection_date else "" }}</td>
+      <td style="padding:4px 0; color:#7b8794;">Location</td>
+      <td style="padding:4px 0; font-weight:600;">{{ doc.location or "&mdash;" }}</td>
+      <td style="padding:4px 0; color:#7b8794;">Date</td>
+      <td style="padding:4px 0; font-weight:600;">{{ frappe.utils.format_datetime(doc.inspection_date, "dd MMM yyyy, hh:mm a") if doc.inspection_date else "&mdash;" }}</td>
     </tr>
     <tr>
-      <td style="padding:3px 0; color:#777;">KA Present</td><td style="padding:3px 0;">{{ doc.ka_present or "" }}</td>
-      <td style="padding:3px 0; color:#777;">Checklist Presented</td><td style="padding:3px 0;">{{ "Yes" if doc.checklist_presented else "No" }}</td>
+      <td style="padding:4px 0; color:#7b8794;">KA Present</td>
+      <td style="padding:4px 0; font-weight:600;">{{ doc.ka_present or "&mdash;" }}</td>
+      <td style="padding:4px 0; color:#7b8794;">Checklist Presented</td>
+      <td style="padding:4px 0; font-weight:600;">{{ "Yes" if doc.checklist_presented else "No" }}</td>
     </tr>
   </table>
 
+  <!-- ================= SUMMARY STRIP ================= -->
+  <table style="width:100%; border-collapse:separate; border-spacing:8px 0; margin:0 -8px 20px;">
+    <tr>
+      <td style="width:33%; background:#f5f7fa; border:1px solid #e4e7eb; border-radius:6px; padding:10px 14px; text-align:center;">
+        <div style="font-size:22px; font-weight:700; color:#1f2933;">{{ doc.units | length }}</div>
+        <div style="font-size:10px; letter-spacing:1px; color:#7b8794; text-transform:uppercase;">Units</div>
+      </td>
+      <td style="width:33%; background:#fff5f5; border:1px solid #f6d9d9; border-radius:6px; padding:10px 14px; text-align:center;">
+        <div style="font-size:22px; font-weight:700; color:#a61b1b;">{{ _open }}</div>
+        <div style="font-size:10px; letter-spacing:1px; color:#a67373; text-transform:uppercase;">Open Snags</div>
+      </td>
+      <td style="width:33%; background:#f0faf3; border:1px solid #cbe9d4; border-radius:6px; padding:10px 14px; text-align:center;">
+        <div style="font-size:22px; font-weight:700; color:#0b6b3a;">{{ _closed }}</div>
+        <div style="font-size:10px; letter-spacing:1px; color:#5a8a6e; text-transform:uppercase;">Closed Snags</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ================= UNITS ================= -->
   {% if doc.units %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:6px;">Units</div>
-  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
-    <thead><tr style="background:#FAFAF7; text-align:left;">
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Unit</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">QC Passed</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Remarks</th>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Units</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:20px;">
+    <thead><tr style="background:#1f2933; color:#fff; text-align:left;">
+      <th style="padding:7px 10px; font-weight:600;">Unit</th>
+      <th style="padding:7px 10px; font-weight:600; width:110px;">QC Passed</th>
+      <th style="padding:7px 10px; font-weight:600;">Remarks</th>
     </tr></thead>
     <tbody>
     {% for u in doc.units %}
-      <tr>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ u.unit_name or "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ "Yes" if u.qc_passed else "No" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ u.remarks or "" }}</td>
+      <tr style="background:{{ '#f7f9fb' if loop.index is odd else '#ffffff' }};">
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">{{ u.unit_name or "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">
+          {% if u.qc_passed %}<span style="background:#e3f9e5; color:#0b6b3a; padding:2px 10px; border-radius:12px; font-size:10.5px; font-weight:600;">Passed</span>
+          {% else %}<span style="background:#fde8e8; color:#a61b1b; padding:2px 10px; border-radius:12px; font-size:10.5px; font-weight:600;">Pending</span>{% endif %}
+        </td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb; color:#52606d;">{{ u.remarks or "" }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ================= CHECKLIST ================= -->
   {% if doc.checklist %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:6px;">QC Checklist</div>
-  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
-    <thead><tr style="background:#FAFAF7; text-align:left;">
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:55%;">Check Item</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:12%;">Result</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:33%;">Remark</th>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">QC Checklist</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:20px;">
+    <thead><tr style="background:#1f2933; color:#fff; text-align:left;">
+      <th style="padding:7px 10px; font-weight:600; width:55%;">Check Item</th>
+      <th style="padding:7px 10px; font-weight:600; width:100px;">Result</th>
+      <th style="padding:7px 10px; font-weight:600;">Remark</th>
     </tr></thead>
     <tbody>
     {% for c in doc.checklist %}
-      <tr>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ c.check_item or "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">
-          {% if c.result == "Defect" %}<span style="color:#B3261E;">Defect</span>
-          {% elif c.result == "OK" %}<span style="color:#0F6E56;">OK</span>
-          {% else %}{{ c.result or "" }}{% endif %}
+      <tr style="background:{{ '#f7f9fb' if loop.index is odd else '#ffffff' }};">
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">{{ c.check_item or "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">
+          {% if c.result == "Defect" %}<span style="background:#fde8e8; color:#a61b1b; padding:2px 10px; border-radius:12px; font-size:10.5px; font-weight:600;">Defect</span>
+          {% elif c.result == "OK" %}<span style="background:#e3f9e5; color:#0b6b3a; padding:2px 10px; border-radius:12px; font-size:10.5px; font-weight:600;">OK</span>
+          {% else %}<span style="color:#7b8794;">{{ c.result or "N/A" }}</span>{% endif %}
         </td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ c.remark or "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb; color:#52606d;">{{ c.remark or "" }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ================= SNAGS ================= -->
   {% if doc.snags %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:8px;">Snags</div>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Snags &amp; Defects</div>
   {% for s in doc.snags %}
-    <div style="border-bottom:0.5px solid #e5e5e5; padding:8px 2px; page-break-inside:avoid;">
-      <div style="font-weight:bold;">Snag {{ loop.index }} <span style="font-weight:normal; color:#999;">&middot; {{ s.unit or "" }} &middot; {{ s.category or "" }} &middot; Priority: {{ s.priority or "" }}</span></div>
-      <div style="color:#444; margin:3px 0 6px;">{{ s.description or "" }}</div>
-      <div>
-        {% for p in [s.photo_1, s.photo_2, s.photo_3] %}
-          {% if p %}<img src="{{ p }}" style="width:120px; height:120px; object-fit:cover; border-radius:3px; margin-right:6px; border:0.5px solid #ddd;">{% endif %}
-        {% endfor %}
-      </div>
-      <div style="font-size:10.5px; color:#9a7a1a; margin-top:5px;">
-        Status: {{ s.status or "Open" }}
-        {% if s.due_date %} &middot; Due: {{ frappe.utils.formatdate(s.due_date, "dd-MM-yyyy") }}{% endif %}
-        {% if s.actual_closure %} &middot; Closed: {{ frappe.utils.formatdate(s.actual_closure, "dd-MM-yyyy") }}{% endif %}
-        {% if s.created_by_name %} &middot; By: {{ s.created_by_name }}{% endif %}
-      </div>
-    </div>
+    <table style="width:100%; border-collapse:collapse; border:1px solid #e4e7eb; border-radius:6px; margin-bottom:12px; page-break-inside:avoid;">
+      <tr>
+        <td style="padding:10px 12px;">
+          <table style="width:100%; border-collapse:collapse; margin-bottom:6px;">
+            <tr>
+              <td style="padding:0; font-size:12.5px; font-weight:700; color:#1f2933;">
+                Snag {{ loop.index }}
+                <span style="font-weight:500; color:#7b8794; font-size:11px;">&nbsp;&middot;&nbsp; {{ s.unit or "" }} &nbsp;&middot;&nbsp; {{ s.category or "" }}</span>
+              </td>
+              <td style="padding:0; text-align:right; white-space:nowrap;">
+                {% if s.priority == "High" %}<span style="background:#fde8e8; color:#a61b1b; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600;">High</span>
+                {% elif s.priority == "Medium" %}<span style="background:#fdf3e0; color:#8a5a00; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600;">Medium</span>
+                {% elif s.priority %}<span style="background:#eef1f5; color:#52606d; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600;">Low</span>{% endif %}
+                {% if s.status == "Closed" %}<span style="background:#e3f9e5; color:#0b6b3a; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600;">Closed</span>
+                {% else %}<span style="background:#fde8e8; color:#a61b1b; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600;">Open</span>{% endif %}
+              </td>
+            </tr>
+          </table>
+          <div style="color:#3e4c59; margin-bottom:8px; font-size:12px;">{{ s.description or "" }}</div>
+          {% if s.photo_1 or s.photo_2 or s.photo_3 %}
+          <table style="border-collapse:collapse; margin-bottom:6px;"><tr>
+            {% for p in [s.photo_1, s.photo_2, s.photo_3] %}
+              {% if p %}<td style="padding:0 6px 0 0;"><img src="{{ p }}" style="width:118px; height:118px; object-fit:cover; border-radius:4px; border:1px solid #e4e7eb;"></td>{% endif %}
+            {% endfor %}
+          </tr></table>
+          {% endif %}
+          <div style="font-size:10.5px; color:#7b8794;">
+            {% if s.due_date %}Due {{ frappe.utils.formatdate(s.due_date, "dd-MM-yyyy") }} &nbsp;&middot;&nbsp; {% endif %}
+            {% if s.planned_closure %}Planned {{ frappe.utils.formatdate(s.planned_closure, "dd-MM-yyyy") }} &nbsp;&middot;&nbsp; {% endif %}
+            {% if s.actual_closure %}Closed {{ frappe.utils.formatdate(s.actual_closure, "dd-MM-yyyy") }} &nbsp;&middot;&nbsp; {% endif %}
+            {% if s.created_by_name %}By {{ s.created_by_name }}{% endif %}
+          </div>
+        </td>
+      </tr>
+    </table>
   {% endfor %}
   {% endif %}
 
+  <!-- ================= RE-INSPECTION LOG ================= -->
   {% if doc.reinspection_log %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:16px 0 6px;">Re-inspection Log</div>
-  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
-    <thead><tr style="background:#FAFAF7; text-align:left;">
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Round</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Date</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Inspector</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Outcome</th>
-      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Notes</th>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin:6px 0 8px;">Re-inspection Log</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:20px;">
+    <thead><tr style="background:#1f2933; color:#fff; text-align:left;">
+      <th style="padding:7px 10px; font-weight:600; width:70px;">Round</th>
+      <th style="padding:7px 10px; font-weight:600; width:110px;">Date</th>
+      <th style="padding:7px 10px; font-weight:600;">Inspector</th>
+      <th style="padding:7px 10px; font-weight:600; width:90px;">Outcome</th>
+      <th style="padding:7px 10px; font-weight:600;">Notes</th>
     </tr></thead>
     <tbody>
     {% for r in doc.reinspection_log %}
-      <tr>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.round_no or "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ frappe.utils.formatdate(r.date, "dd-MM-yyyy") if r.date else "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.inspector or "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.outcome or "" }}</td>
-        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.notes or "" }}</td>
+      <tr style="background:{{ '#f7f9fb' if loop.index is odd else '#ffffff' }};">
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">{{ r.round_no or "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">{{ frappe.utils.formatdate(r.date, "dd-MM-yyyy") if r.date else "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">{{ r.inspector or "" }}</td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb;">
+          {% if r.outcome == "Pass" %}<span style="color:#0b6b3a; font-weight:600;">Pass</span>
+          {% elif r.outcome == "Fail" %}<span style="color:#a61b1b; font-weight:600;">Fail</span>
+          {% else %}{{ r.outcome or "" }}{% endif %}
+        </td>
+        <td style="padding:7px 10px; border-bottom:1px solid #e4e7eb; color:#52606d;">{{ r.notes or "" }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
+  <!-- ================= OVERALL REMARKS ================= -->
   {% if doc.overall_remarks %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:16px 0 6px;">Overall Remarks</div>
-  <div style="font-size:11.5px; color:#444; margin-bottom:14px; white-space:pre-wrap;">{{ doc.overall_remarks }}</div>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Overall Remarks</div>
+  <div style="background:#f5f7fa; border:1px solid #e4e7eb; border-radius:6px; padding:11px 13px; font-size:12px; color:#3e4c59; margin-bottom:20px; white-space:pre-wrap;">{{ doc.overall_remarks }}</div>
   {% endif %}
 
+  <!-- ================= MEDIA SUMMARY ================= -->
   {% set photos = [] %}
   {% for s in doc.snags %}
     {% for p in [s.photo_1, s.photo_2, s.photo_3] %}
@@ -136,16 +202,30 @@
     {% endfor %}
   {% endfor %}
   {% if photos %}
-  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:18px 0 8px;">Media Summary</div>
-  <div>
+  <div style="border-left:3px solid #1f2933; padding-left:9px; font-size:13px; font-weight:700; color:#1f2933; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Media Summary</div>
+  <table style="border-collapse:collapse; margin-bottom:22px;"><tr>
     {% for p in photos %}
-      <img src="{{ p }}" style="width:150px; height:150px; object-fit:cover; border-radius:3px; margin:0 6px 6px 0; border:0.5px solid #ddd;">
+      <td style="padding:0 8px 8px 0;"><img src="{{ p }}" style="width:150px; height:150px; object-fit:cover; border-radius:5px; border:1px solid #e4e7eb;"></td>
+      {% if loop.index % 4 == 0 %}</tr><tr>{% endif %}
     {% endfor %}
-  </div>
+  </tr></table>
   {% endif %}
 
-  <div style="border-top:0.5px solid #e5e5e5; margin-top:18px; padding-top:8px; color:#999; font-size:10px; display:flex; justify-content:space-between;">
-    <span>Private &amp; confidential</span><span>{{ doc.company or "Tripod" }} &middot; QC Inspection</span>
-  </div>
+  <!-- ================= SIGNATURES ================= -->
+  <table style="width:100%; border-collapse:collapse; margin-top:34px;">
+    <tr>
+      <td style="width:33%; padding:0 14px;"><div style="border-top:1px solid #52606d; padding-top:6px; font-size:10.5px; color:#52606d; text-align:center;">Inspected by</div></td>
+      <td style="width:33%; padding:0 14px;"><div style="border-top:1px solid #52606d; padding-top:6px; font-size:10.5px; color:#52606d; text-align:center;">Reviewed by (QC Manager)</div></td>
+      <td style="width:33%; padding:0 14px;"><div style="border-top:1px solid #52606d; padding-top:6px; font-size:10.5px; color:#52606d; text-align:center;">Approved by</div></td>
+    </tr>
+  </table>
+
+  <!-- ================= FOOTER ================= -->
+  <table style="width:100%; border-collapse:collapse; border-top:1px solid #e4e7eb; margin-top:20px;">
+    <tr>
+      <td style="padding-top:8px; font-size:9.5px; color:#9aa5b1; text-align:left;">Private &amp; confidential</td>
+      <td style="padding-top:8px; font-size:9.5px; color:#9aa5b1; text-align:right;">{{ doc.company or "Tripod" }} &nbsp;&middot;&nbsp; {{ doc.name }}</td>
+    </tr>
+  </table>
 
 </div>
