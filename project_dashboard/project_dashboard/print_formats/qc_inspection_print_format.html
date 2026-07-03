@@ -55,6 +55,30 @@
   </table>
   {% endif %}
 
+  {% if doc.checklist %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:6px;">QC Checklist</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
+    <thead><tr style="background:#FAFAF7; text-align:left;">
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:55%;">Check Item</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:12%;">Result</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4; width:33%;">Remark</th>
+    </tr></thead>
+    <tbody>
+    {% for c in doc.checklist %}
+      <tr>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ c.check_item or "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">
+          {% if c.result == "Defect" %}<span style="color:#B3261E;">Defect</span>
+          {% elif c.result == "OK" %}<span style="color:#0F6E56;">OK</span>
+          {% else %}{{ c.result or "" }}{% endif %}
+        </td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ c.remark or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
   {% if doc.snags %}
   <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin-bottom:8px;">Snags</div>
   {% for s in doc.snags %}
@@ -74,6 +98,35 @@
       </div>
     </div>
   {% endfor %}
+  {% endif %}
+
+  {% if doc.reinspection_log %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:16px 0 6px;">Re-inspection Log</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">
+    <thead><tr style="background:#FAFAF7; text-align:left;">
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Round</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Date</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Inspector</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Outcome</th>
+      <th style="padding:5px 7px; border:0.5px solid #e0ddd4;">Notes</th>
+    </tr></thead>
+    <tbody>
+    {% for r in doc.reinspection_log %}
+      <tr>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.round_no or "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ frappe.utils.formatdate(r.date, "dd-MM-yyyy") if r.date else "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.inspector or "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.outcome or "" }}</td>
+        <td style="padding:5px 7px; border:0.5px solid #e0ddd4;">{{ r.notes or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if doc.overall_remarks %}
+  <div style="background:#F1EFE8; padding:6px 10px; border-radius:4px; font-weight:bold; margin:16px 0 6px;">Overall Remarks</div>
+  <div style="font-size:11.5px; color:#444; margin-bottom:14px; white-space:pre-wrap;">{{ doc.overall_remarks }}</div>
   {% endif %}
 
   {% set photos = [] %}
