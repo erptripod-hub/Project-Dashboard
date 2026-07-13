@@ -125,6 +125,16 @@ WANTED_PROJECT_LINKS = [
         "link_fieldname": "project",
         "group": "Production",
     },
+    {
+        "link_doctype": "QC Inspection",
+        "link_fieldname": "project",
+        "group": "Quality",
+    },
+    {
+        "link_doctype": "Packing List",
+        "link_fieldname": "project",
+        "group": "Quality",
+    },
 ]
 
 

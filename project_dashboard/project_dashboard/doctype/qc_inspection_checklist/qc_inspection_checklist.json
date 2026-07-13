@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "creation": "2026-07-03 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": [
+  "check_item",
+  "result",
+  "remark"
+ ],
+ "fields": [
+  {
+   "fieldname": "check_item",
+   "fieldtype": "Data",
+   "label": "Check Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 5
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "Select",
+   "label": "Result",
+   "options": "OK\nDefect\nN/A",
+   "default": "OK",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Remark",
+   "in_list_view": 1,
+   "columns": 4
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-03 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "QC Inspection Checklist",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

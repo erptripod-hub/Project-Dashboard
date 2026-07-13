@@ -117,19 +117,42 @@ def get_data(filters):
 			if pp.boq:
 				joinery_value = frappe.db.get_value("BOQ", pp.boq, "base_total_joinery_works") or 0
 
+		# Style status badge
+		if proj.status == "On Hold":
+			status_display = "<span style=\'background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;\'>On Hold</span>"
+		elif proj.status == "Open":
+			status_display = "<span style=\'background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;\'>Open</span>"
+		elif proj.status == "Completed":
+			status_display = "<span style=\'background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;\'>Completed</span>"
+		else:
+			status_display = proj.status
+
+		# Style dispatch status
+		dispatch_colors = {
+			"Dispatched": "background:#dcfce7;color:#15803d",
+			"Pending": "background:#fff7ed;color:#c2410c",
+			"Partial": "background:#fef3c7;color:#92400e",
+			"On Hold": "background:#fee2e2;color:#b91c1c",
+		}
+		ds = cf.get("dispatch_status") or ""
+		if ds and ds in dispatch_colors:
+			dispatch_display = "<span style=\'" + dispatch_colors[ds] + ";padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;\'>" + ds + "</span>"
+		else:
+			dispatch_display = ds
+
 		row = {
 			"project": proj.project,
 			"project_name": proj.project_name,
 			"customer": proj.customer or "",
 			"project_type": cf.get("project_type") or "",
-			"status": proj.status,
+			"status": status_display,
 			"start_date": proj.start_date,
 			"end_date": proj.end_date,
 			"total_value": float(total_value),
 			"fitout_value": float(fitout_value),
 			"joinery_value": float(joinery_value),
 			"dispatch_date": cf.get("dispatch_date") or "",
-			"dispatch_status": cf.get("dispatch_status") or "",
+			"dispatch_status": dispatch_display,
 			"hold_reason": cf.get("hold_reason") or "",
 		}
 		data.append(row)

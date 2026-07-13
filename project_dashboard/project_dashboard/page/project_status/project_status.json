@@ -1,0 +1,17 @@
+{
+ "creation": "2026-05-20 00:00:00.000000",
+ "doctype": "Page",
+ "modified": "2026-05-20 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "project-status",
+ "owner": "Administrator",
+ "page_name": "project-status",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Project Manager"},
+  {"role": "HR Manager"}
+ ],
+ "standard": "Yes",
+ "title": "Project Status Overview"
+}

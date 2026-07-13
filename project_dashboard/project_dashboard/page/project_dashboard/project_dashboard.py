@@ -15,7 +15,7 @@ def get_employee_hourly_rate(employee):
 	""", employee)
 	if result and result[0][0]:
 		monthly_salary = float(result[0][0])
-		return round(monthly_salary / 30 / 8, 4)
+		return round(monthly_salary / 30 / 9, 4)
 	return 0
 
 

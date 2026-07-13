@@ -10,6 +10,8 @@
   "section_top",
   "shipment_type",
   "direction",
+  "export_type",
+  "packing_list",
   "column_break_top",
   "status",
   "approval_indicator",
@@ -126,6 +128,21 @@
    "in_standard_filter": 1,
    "bold": 1,
    "description": "Affects section labels \u2014 Import shows 'Receiving Process', Export shows 'Delivery & Sign-off'"
+  },
+  {
+   "fieldname": "export_type",
+   "fieldtype": "Select",
+   "label": "Export Type",
+   "options": "\nMaterials\nFinished Goods",
+   "depends_on": "eval:doc.direction=='Export'",
+   "description": "Finished Goods require a passed QC Inspection + Packing List. Materials have no restriction."
+  },
+  {
+   "fieldname": "packing_list",
+   "fieldtype": "Link",
+   "label": "Packing List (QC)",
+   "options": "Packing List",
+   "depends_on": "eval:doc.direction=='Export' && doc.export_type=='Finished Goods'"
   },
   {
    "fieldname": "column_break_top",

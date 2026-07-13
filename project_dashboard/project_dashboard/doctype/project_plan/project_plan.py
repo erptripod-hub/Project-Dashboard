@@ -68,7 +68,7 @@ def get_project_labour_cost(project):
 			ORDER BY from_date DESC LIMIT 1
 		""", emp.employee)
 		if salary and salary[0][0]:
-			hourly_rate = float(salary[0][0]) / 30 / 8
+			hourly_rate = float(salary[0][0]) / 30 / 9
 			total_cost += float(emp.working_hours or 0) * hourly_rate
 			total_cost += float(emp.overtime_hours or 0) * 5
 	return round(total_cost, 2)

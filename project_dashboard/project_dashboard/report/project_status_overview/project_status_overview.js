@@ -33,9 +33,25 @@ frappe.query_reports["Project Status Overview"] = {
 
 	formatter: function(value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
+
 		if (data && data.status === "On Hold") {
-			value = "<span style='color:#b91c1c'>" + value + "</span>";
+			// Full row red background + red text
+			value = "<span style='color:#b91c1c;font-weight:600'>" + (value || "") + "</span>";
 		}
 		return value;
+	},
+
+	after_datatable_render: function(datatable) {
+		// Apply red background to entire On Hold rows
+		setTimeout(function() {
+			$(".dt-row").each(function() {
+				var statusCell = $(this).find(".dt-cell[data-col-index]").filter(function() {
+					return $(this).find(".dt-cell__content").text().trim() === "On Hold";
+				});
+				if (statusCell.length) {
+					$(this).find(".dt-cell").css("background-color", "#fff5f5");
+				}
+			});
+		}, 600);
 	}
 };
