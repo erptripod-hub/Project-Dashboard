@@ -15,9 +15,14 @@
   "planned_closure",
   "actual_closure",
   "created_by_name",
+  "sec_photos",
   "photo_1",
   "photo_2",
-  "photo_3"
+  "photo_3",
+  "col_after",
+  "after_photo_1",
+  "after_photo_2",
+  "after_photo_3"
  ],
  "fields": [
   {
@@ -83,19 +88,44 @@
    "label": "Created By"
   },
   {
+   "fieldname": "sec_photos",
+   "fieldtype": "Section Break",
+   "label": "1st Inspection Photos"
+  },
+  {
    "fieldname": "photo_1",
    "fieldtype": "Attach Image",
-   "label": "Photo 1"
+   "label": "1st Inspection Photo 1"
   },
   {
    "fieldname": "photo_2",
    "fieldtype": "Attach Image",
-   "label": "Photo 2"
+   "label": "1st Inspection Photo 2"
   },
   {
    "fieldname": "photo_3",
    "fieldtype": "Attach Image",
-   "label": "Photo 3"
+   "label": "1st Inspection Photo 3"
+  },
+  {
+   "fieldname": "col_after",
+   "fieldtype": "Column Break",
+   "label": "After Fixing Photos"
+  },
+  {
+   "fieldname": "after_photo_1",
+   "fieldtype": "Attach Image",
+   "label": "After Fixing Photo 1"
+  },
+  {
+   "fieldname": "after_photo_2",
+   "fieldtype": "Attach Image",
+   "label": "After Fixing Photo 2"
+  },
+  {
+   "fieldname": "after_photo_3",
+   "fieldtype": "Attach Image",
+   "label": "After Fixing Photo 3"
   }
  ],
  "links": [],
