@@ -132,6 +132,7 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
         if (s === 'In Production') cls = 'b-prod';
         else if (s === 'In QC') cls = 'b-qc';
         else if (s === 'Drawing Pending' || s === 'Awaiting Kickoff') cls = 'b-dwg';
+        else if (s === 'MR Raised' || s === 'Awaiting Material') cls = 'b-block';
         else if (s === 'Ready to Dispatch') cls = 'b-rdy';
         else if (s === 'Dispatched' || s === 'Installed' || s === 'Closed') cls = 'b-disp';
         return '<span class="badge ' + cls + '">' + esc(s) + '</span>';
@@ -167,18 +168,18 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
         d = d || {}; var k = d.kpis || {};
         var html = '';
 
-        // 7 KPIs
+        // 7 KPIs (Blocked replaced with Awaiting Material + Material Below 60%)
         html += '<div class="k7">' +
             kc('Open Plans', k.open_plans || 0, 'Active production', '#2563eb') +
             kc('Drawing Pending', k.drawing_pending || 0, 'Waiting for drawings', '#7c3aed') +
+            kc('Awaiting Material', k.awaiting_material || 0, 'MR raised, no material', '#d97706') +
             kc('In Production', k.in_production || 0, 'On the floor', '#3b82f6') +
-            kc('In QC', k.in_qc || 0, 'Under inspection', '#d97706') +
-            kc('Ready to Dispatch', k.ready_dispatch || 0, 'Packed', '#16a34a') +
-            kc('Blocked', k.blocked || 0, 'Material/rework issues', '#dc2626') +
-            kc('Avg Completion', (k.avg_completion || 0) + '%', 'Across active plans', '#0ea5e9') +
+            kc('In QC', k.in_qc || 0, 'Under inspection', '#16a34a') +
+            kc('Ready to Dispatch', k.ready_dispatch || 0, 'Packed', '#0ea5e9') +
+            kc('Material <60%', k.material_below_60 || 0, 'Material shortage', '#dc2626') +
             '</div>';
 
-        // Two-column layout: left = active plans table, right = alerts + inspections
+        // Two-column layout: left = active plans table, right = material summary + drawing changes + recent updates
         html += '<div class="g3">' +
             '<div>' +
                 '<div class="card">' +
@@ -188,10 +189,6 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
             '</div>' +
 
             '<div>' +
-                '<div class="card">' +
-                    '<div class="ch"><div><div class="ct">Inspections Due</div><div class="cs">' + (d.inspections_due || []).length + ' upcoming or overdue</div></div></div>' +
-                    render_inspections_due(d.inspections_due || []) +
-                '</div>' +
                 '<div class="card">' +
                     '<div class="ch"><div><div class="ct">Recent Drawing Changes</div><div class="cs">Last 14 days</div></div></div>' +
                     render_drawing_changes(d.drawing_changes_recent || []) +
@@ -213,28 +210,23 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
         if (!plans.length) return '<div style="padding:20px;text-align:center;color:#94a3b8">No active production plans</div>';
         var rows = plans.map(function(p) {
             var pct = parseFloat(p.overall_joinery_completion_pct || 0);
+            var mat = parseFloat(p.material_available_pct || 0);
             return '<tr>' +
                 '<td>' + open_project(p.project) + '</td>' +
                 '<td>' + status_badge(p.overall_status) + '</td>' +
                 '<td><span class="progress-mini"><span class="fill" style="width:' + pct + '%;background:' + (pct >= 70 ? '#16a34a' : (pct >= 30 ? '#3b82f6' : '#94a3b8')) + '"></span></span>' + pct.toFixed(0) + '%</td>' +
+                '<td><span class="progress-mini"><span class="fill" style="width:' + mat + '%;background:' + (mat >= 90 ? '#16a34a' : (mat >= 60 ? '#d97706' : '#dc2626')) + '"></span></span>' + mat.toFixed(0) + '%</td>' +
                 '<td>' + esc(p.production_manager || '—') + '</td>' +
                 '<td>' + esc(p.target_dispatch_date || '—') + '</td>' +
                 '<td>' + open_pp(p.name) + '</td>' +
             '</tr>';
         }).join('');
-        return '<table><thead><tr><th>Project</th><th>Status</th><th>Completion</th><th>Prod Mgr</th><th>Target</th><th>Plan</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        return '<table><thead><tr><th>Project</th><th>Status</th><th>Joinery %</th><th>Material %</th><th>Prod Mgr</th><th>Target</th><th>Plan</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
     function render_inspections_due(items) {
-        if (!items.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No upcoming inspections</div>';
-        return items.map(function(i) {
-            var sd = i.scheduled_date || '';
-            var overdue = sd && sd < (new Date().toISOString().slice(0,10));
-            return '<div class="alert-row ' + (overdue ? '' : 'warn') + '">' +
-                '<span><strong>' + esc(i.inspection_type) + '</strong> · ' + esc(i.project || '—') + '</span>' +
-                '<span style="color:' + (overdue ? '#b91c1c' : '#92400e') + ';font-weight:600">' + esc(sd) + (overdue ? ' · OVERDUE' : '') + '</span>' +
-            '</div>';
-        }).join('');
+        // Deprecated - kept for backwards compatibility (returns empty)
+        return '';
     }
 
     function render_drawing_changes(items) {
@@ -281,25 +273,70 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
         }
 
         var h = d.header || {};
+        var mat = d.material || {};
+        var linked = d.linked || {};
 
         // Project header card
         html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">' +
             '<div><div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:600">Project</div>' +
             '<div style="font-size:16px;font-weight:600;color:#0f172a">' + esc(meta.name) +
             (meta.project_name ? ' <span style="color:#64748b;font-weight:400">— ' + esc(meta.project_name) + '</span>' : '') +
-            '</div><div style="margin-top:6px">' + status_badge(h.overall_status) + '</div></div>' +
+            '</div><div style="margin-top:6px">' + status_badge(h.overall_status) +
+            (meta.company ? ' <span style="font-size:10px;color:#64748b;margin-left:6px">' + esc(meta.company) + '</span>' : '') +
+            '</div></div>' +
             '<div style="font-size:11px;color:#64748b">' +
                 'PM: <strong style="color:#0f172a">' + esc(h.project_manager || '—') + '</strong> · ' +
                 'Prod Mgr: <strong style="color:#0f172a">' + esc(h.production_manager || '—') + '</strong> · ' +
                 'QC: <strong style="color:#0f172a">' + esc(h.qc_lead || '—') + '</strong>' +
             '</div>' +
             '<div style="font-size:11px;color:#64748b;text-align:right">' +
-                'Kickoff: <strong style="color:#0f172a">' + esc(h.kickoff_date || '—') + '</strong><br>' +
+                'Prod Start: <strong style="color:#0f172a">' + esc(h.production_start_date || '—') + '</strong><br>' +
                 'Target: <strong style="color:#0f172a">' + esc(h.target_dispatch_date || '—') + '</strong>' +
                 (h.revised_dispatch_date ? ' · <strong style="color:#d97706">Revised: ' + esc(h.revised_dispatch_date) + '</strong>' : '') +
             '</div>' +
             '<div><a href="/app/project-production-plan/' + encodeURIComponent(h.plan_name) + '" target="_blank" style="background:#2563eb;color:#fff;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:11px">Open Plan</a></div>' +
         '</div></div>';
+
+        // Days strip
+        if (h.total_duration_days > 0) {
+            var d_elapsed = h.days_elapsed || 0;
+            var d_remaining = h.days_remaining || 0;
+            var d_total = h.total_duration_days || 0;
+            var d_pct = d_total ? Math.round((d_elapsed / d_total) * 100) : 0;
+            html += '<div class="card" style="padding:14px 18px">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+                    '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600">Duration</div>' +
+                    '<div style="font-size:11px;color:#64748b">' + d_elapsed + ' of ' + d_total + ' days elapsed (' + d_pct + '%)</div>' +
+                '</div>' +
+                '<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">' +
+                    '<div style="height:100%;background:' + (d_pct > 80 ? '#dc2626' : (d_pct > 50 ? '#d97706' : '#16a34a')) + ';width:' + Math.min(100, d_pct) + '%"></div>' +
+                '</div>' +
+                '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#94a3b8">' +
+                    '<span>Prod Start</span>' +
+                    '<span><strong style="color:#dc2626">' + d_remaining + ' days remaining</strong></span>' +
+                    '<span>Est. End</span>' +
+                '</div>' +
+            '</div>';
+        }
+
+        // Material bar
+        html += '<div class="card" style="padding:14px 18px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+                '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600">Material</div>' +
+                '<div style="font-size:11px;color:#64748b">' + esc(mat.summary_text || 'No MRs raised yet') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;height:22px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb">' +
+                (mat.available_pct > 0 ? '<div style="background:#16a34a;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.available_pct + '%" title="Available: ' + mat.available_pct + '%">' + (mat.available_pct > 8 ? mat.available_pct.toFixed(0) + '%' : '') + '</div>' : '') +
+                (mat.po_pct > 0 ? '<div style="background:#2563eb;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.po_pct + '%" title="PO placed: ' + mat.po_pct + '%">' + (mat.po_pct > 8 ? mat.po_pct.toFixed(0) + '%' : '') + '</div>' : '') +
+                (mat.mr_pct > 0 ? '<div style="background:#d97706;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.mr_pct + '%" title="MR only (no PO): ' + mat.mr_pct + '%">' + (mat.mr_pct > 8 ? mat.mr_pct.toFixed(0) + '%' : '') + '</div>' : '') +
+            '</div>' +
+            '<div style="display:flex;gap:14px;margin-top:8px;font-size:10px;color:#64748b">' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Available (Stock + GRN)</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle;margin-right:4px"></span>PO placed</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;vertical-align:middle;margin-right:4px"></span>MR awaiting PO</span>' +
+                (meta.name ? '<span style="margin-left:auto"><a href="/app/material-request?project=' + encodeURIComponent(meta.name) + '" target="_blank" style="color:#2563eb;text-decoration:none">View MRs →</a></span>' : '') +
+            '</div>' +
+        '</div>';
 
         // Overall completion banner
         var pct = parseFloat(h.overall_joinery_completion_pct || 0);
@@ -311,29 +348,28 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
             '</div>' +
             '<div class="meta">' +
                 '<div><strong>' + (d.stages || []).length + '</strong> stages defined</div>' +
-                '<div><strong>' + (d.fixtures || []).length + '</strong> fixtures tracked</div>' +
                 '<div><strong>' + (d.alerts || []).length + '</strong> alerts</div>' +
             '</div>' +
         '</div>';
 
-        // Stages + Inspections (two columns)
+        // Stages + Linked Docs (two columns)
         html += '<div class="g2">' +
             '<div class="card">' +
                 '<div class="ch"><div><div class="ct">Production Stages</div><div class="cs">' + (d.stages || []).length + ' stages · % manually entered</div></div></div>' +
                 render_stages(d.stages || []) +
             '</div>' +
             '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Stage Inspections</div><div class="cs">SOP — 4 checkpoints</div></div></div>' +
-                render_inspections(d.inspections || []) +
+                '<div class="ch"><div><div class="ct">Linked Documents</div><div class="cs">Auto-fetched from Project</div></div></div>' +
+                render_linked_docs(linked) +
             '</div>' +
         '</div>';
 
         // Alerts (if any)
         if ((d.alerts || []).length) {
             html += '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Alerts &amp; Blockers</div><div class="cs">Auto-detected from fixtures and inspections</div></div></div>' +
+                '<div class="ch"><div><div class="ct">Alerts &amp; Blockers</div><div class="cs">Auto-detected from data</div></div></div>' +
                 (d.alerts || []).map(function(a) {
-                    var cls = a.type === 'inspection_overdue' || a.type === 'rework' ? '' : 'warn';
+                    var cls = a.type === 'material' ? '' : 'warn';
                     return '<div class="alert-row ' + cls + '">' +
                         '<span><strong>' + esc(a.title) + '</strong></span>' +
                         '<span style="color:#64748b">' + esc(a.sub) + '</span>' +
@@ -354,15 +390,34 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
             '</div>' +
         '</div>';
 
-        // Fixtures table
-        if ((d.fixtures || []).length) {
-            html += '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Fixtures</div><div class="cs">' + (d.fixtures || []).length + ' items being produced</div></div></div>' +
-                render_fixtures(d.fixtures || []) +
+        document.getElementById('pt-body').innerHTML = html;
+    }
+
+    function render_linked_docs(linked) {
+        var html = '';
+        if (linked.qc_inspection) {
+            html += '<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9">' +
+                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">QC Inspection</div>' +
+                '<div><a href="/app/qc-inspection/' + encodeURIComponent(linked.qc_inspection) + '" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none">' + esc(linked.qc_inspection) + '</a></div>' +
+            '</div>';
+        } else {
+            html += '<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9">' +
+                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">QC Inspection</div>' +
+                '<div style="color:#94a3b8;font-size:11px">Not linked yet</div>' +
             '</div>';
         }
-
-        document.getElementById('pt-body').innerHTML = html;
+        if (linked.logistics_request) {
+            html += '<div style="padding:10px 12px">' +
+                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">Logistics Request</div>' +
+                '<div><a href="/app/logistics-request/' + encodeURIComponent(linked.logistics_request) + '" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none">' + esc(linked.logistics_request) + '</a></div>' +
+            '</div>';
+        } else {
+            html += '<div style="padding:10px 12px">' +
+                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">Logistics Request</div>' +
+                '<div style="color:#94a3b8;font-size:11px">Not linked yet</div>' +
+            '</div>';
+        }
+        return html;
     }
 
     function render_stages(stages) {
@@ -420,7 +475,6 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
                 '<div class="feed-content">' +
                     '<span class="badge ' + type_cls + '">' + esc(u.update_type) + '</span> ' +
                     esc(u.update_text) +
-                    (u.affected_fixtures ? '<div style="font-size:10px;color:#94a3b8;margin-top:2px">Fixtures: ' + esc(u.affected_fixtures) + '</div>' : '') +
                     '<div class="feed-author">— ' + esc(u.updated_by || 'system') + '</div>' +
                 '</div>' +
             '</div>';
@@ -441,23 +495,8 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
     }
 
     function render_fixtures(fixtures) {
-        var rows = fixtures.map(function(f) {
-            var mat_badge = '';
-            if (f.material_status === 'Blocked') mat_badge = '<span class="badge b-block">Blocked</span>';
-            else if (f.material_status === 'Pending') mat_badge = '<span class="badge b-qc">Pending</span>';
-            else mat_badge = '<span class="badge b-rdy">OK</span>';
-            return '<tr>' +
-                '<td><strong>' + esc(f.fixture_name) + '</strong></td>' +
-                '<td>' + esc(f.quantity_required || 0) + '</td>' +
-                '<td>' + esc(f.quantity_completed || 0) + '</td>' +
-                '<td>' + esc(f.current_stage || '—') + '</td>' +
-                '<td>' + mat_badge + '</td>' +
-                '<td>' + esc(f.drawing_revision || '—') + '</td>' +
-                '<td>' + (f.rework_required ? '<span class="badge b-block">Yes</span>' : '<span style="color:#94a3b8">—</span>') + '</td>' +
-                '<td style="color:#64748b">' + esc(f.notes || '') + '</td>' +
-            '</tr>';
-        }).join('');
-        return '<table><thead><tr><th>Fixture</th><th>Qty Req</th><th>Qty Done</th><th>Stage</th><th>Material</th><th>Drawing</th><th>Rework</th><th>Notes</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        // Deprecated - fixtures no longer tracked. Kept for backwards compatibility, returns empty.
+        return '';
     }
 
     // Initial load - all projects

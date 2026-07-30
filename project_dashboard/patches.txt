@@ -3,3 +3,4 @@ project_dashboard.project_dashboard.patches.v1_1.migrate_daily_log_to_request
 project_dashboard.project_dashboard.patches.v1_2.cleanup_v3_doctypes
 project_dashboard.project_dashboard.patches.v1_3.v6_setup
 project_dashboard.project_dashboard.patches.v1_4.setup_production_plan_connection
+project_dashboard.project_dashboard.patches.v1_5.simplify_production_plan

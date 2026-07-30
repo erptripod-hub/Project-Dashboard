@@ -9,8 +9,9 @@
  "field_order": [
   "overview_section",
   "project",
+  "company",
+  "column_break_overview_1",
   "overall_status",
-  "column_break_overview",
   "overall_joinery_completion_pct",
   "team_section",
   "project_manager",
@@ -21,10 +22,24 @@
   "dates_section",
   "kickoff_date",
   "target_dispatch_date",
-  "column_break_dates",
+  "column_break_dates_1",
   "revised_dispatch_date",
   "actual_dispatch_date",
-  "actual_completion_date",
+  "column_break_dates_2",
+  "production_start_date",
+  "production_end_date",
+  "duration_section",
+  "total_duration_days",
+  "days_elapsed",
+  "column_break_duration",
+  "days_remaining",
+  "days_progress_pct",
+  "material_section",
+  "material_available_pct",
+  "material_po_pct",
+  "column_break_material",
+  "material_mr_pct",
+  "material_summary_text",
   "samples_section",
   "sample_log",
   "kickoff_section",
@@ -44,18 +59,40 @@
   "drawing_change_log",
   "stages_section",
   "production_stages",
-  "fixtures_section",
-  "fixtures",
-  "inspections_section",
-  "inspections",
   "packing_section",
-  "packing_list_shared_date",
+  "linked_qc_inspection",
   "linked_logistics_request",
-  "column_break_packing",
-  "item_checklist_in_box",
-  "drawing_printout_in_box",
+  "column_break_packing_1",
+  "packing_list_shared_date",
   "pre_packing_photos",
+  "column_break_packing_2",
+  "item_checklist_in_box",
+  "item_checklist_image",
+  "drawing_printout_in_box",
   "installation_section",
+  "material_delay_flag",
+  "installation_start_date",
+  "installation_end_date",
+  "column_break_install_1",
+  "snag_start_date",
+  "snag_end_date",
+  "column_break_install_2",
+  "site_address",
+  "site_supervisor",
+  "installation_team_lead",
+  "column_break_install_3",
+  "total_snags_raised",
+  "snags_cleared",
+  "client_signoff_date",
+  "actual_completion_date",
+  "final_images_section",
+  "final_image_1",
+  "final_image_2",
+  "final_image_3",
+  "column_break_final_images",
+  "final_image_4",
+  "final_image_5",
+  "additional_final_images",
   "installation_notes",
   "daily_log_section",
   "daily_updates"
@@ -77,17 +114,29 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "fetch_from": "project.company",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Auto-fetched from Project. Drives Employee dropdown filters."
+  },
+  {
+   "fieldname": "column_break_overview_1",
+   "fieldtype": "Column Break"
+  },
+  {
    "fieldname": "overall_status",
    "fieldtype": "Select",
    "label": "Overall Status",
-   "options": "Drawing Pending\nAwaiting Kickoff\nIn Production\nIn QC\nReady to Dispatch\nDispatched\nInstalled\nClosed",
+   "options": "Drawing Pending\nAwaiting Kickoff\nMR Raised\nAwaiting Material\nIn Production\nIn QC\nReady to Dispatch\nDispatched\nInstalled\nClosed",
    "default": "Drawing Pending",
    "in_list_view": 1,
    "in_standard_filter": 1
-  },
-  {
-   "fieldname": "column_break_overview",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "overall_joinery_completion_pct",
@@ -95,7 +144,7 @@
    "label": "Overall Joinery Completion %",
    "read_only": 1,
    "in_list_view": 1,
-   "description": "Auto-calculated as the average of % Complete across all Production Stages. This single value is what feeds the main Project Dashboard."
+   "description": "Auto-calculated from Production Stages"
   },
   {
    "fieldname": "team_section",
@@ -148,14 +197,14 @@
    "label": "Target Dispatch Date"
   },
   {
-   "fieldname": "column_break_dates",
+   "fieldname": "column_break_dates_1",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "revised_dispatch_date",
    "fieldtype": "Date",
    "label": "Revised Dispatch Date",
-   "description": "Auto-flagged if a drawing change occurs"
+   "description": "Auto-flagged if drawing change occurs"
   },
   {
    "fieldname": "actual_dispatch_date",
@@ -163,16 +212,96 @@
    "label": "Actual Dispatch Date"
   },
   {
-   "fieldname": "actual_completion_date",
+   "fieldname": "column_break_dates_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "production_start_date",
    "fieldtype": "Date",
-   "label": "Actual Completion Date"
+   "label": "Production Start Date",
+   "description": "When 90% material received"
+  },
+  {
+   "fieldname": "production_end_date",
+   "fieldtype": "Date",
+   "label": "Production End Date"
+  },
+  {
+   "fieldname": "duration_section",
+   "fieldtype": "Section Break",
+   "label": "Duration (auto-calculated)",
+   "collapsible": 1,
+   "description": "Production Start → Production End (or Revised Dispatch fallback)"
+  },
+  {
+   "fieldname": "total_duration_days",
+   "fieldtype": "Int",
+   "label": "Total Duration (days)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "days_elapsed",
+   "fieldtype": "Int",
+   "label": "Days Elapsed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_duration",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "days_remaining",
+   "fieldtype": "Int",
+   "label": "Days Remaining",
+   "read_only": 1
+  },
+  {
+   "fieldname": "days_progress_pct",
+   "fieldtype": "Percent",
+   "label": "Time Elapsed %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "material_section",
+   "fieldtype": "Section Break",
+   "label": "Material Procurement (auto-calculated)",
+   "collapsible": 1,
+   "description": "Reads Stock Entries + Purchase Receipts + POs + MRs linked to this project"
+  },
+  {
+   "fieldname": "material_available_pct",
+   "fieldtype": "Percent",
+   "label": "Available % (Stock + GRN)",
+   "read_only": 1,
+   "description": "Items already in warehouse or received"
+  },
+  {
+   "fieldname": "material_po_pct",
+   "fieldtype": "Percent",
+   "label": "PO Placed % (not yet received)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_material",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "material_mr_pct",
+   "fieldtype": "Percent",
+   "label": "MR Only % (no PO yet)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "material_summary_text",
+   "fieldtype": "Small Text",
+   "label": "Summary",
+   "read_only": 1
   },
   {
    "fieldname": "samples_section",
    "fieldtype": "Section Break",
    "label": "Samples",
-   "collapsible": 1,
-   "description": "Owners: Raju / Kalu / Nazneen + Procurement + QC + PM"
+   "collapsible": 1
   },
   {
    "fieldname": "sample_log",
@@ -184,8 +313,7 @@
    "fieldname": "kickoff_section",
    "fieldtype": "Section Break",
    "label": "Project Kickoff",
-   "collapsible": 1,
-   "description": "Owners: Nazneen / Kalu + Procurement + Designer + PM + QC"
+   "collapsible": 1
   },
   {
    "fieldname": "drawings_stamped",
@@ -249,8 +377,7 @@
    "fieldname": "timeline_section",
    "fieldtype": "Section Break",
    "label": "Production Timeline - Weekly Photos",
-   "collapsible": 1,
-   "description": "SOP: weekly progress photos shared"
+   "collapsible": 1
   },
   {
    "fieldname": "weekly_photos",
@@ -274,7 +401,7 @@
    "fieldname": "stages_section",
    "fieldtype": "Section Break",
    "label": "Production Stages",
-   "description": "Define the stages unique to this project (Carpentry, Paint, etc.). The % Complete field on each stage feeds the Overall Joinery Completion %."
+   "description": "Define the stages unique to this project. % Complete feeds Overall Joinery Completion."
   },
   {
    "fieldname": "production_stages",
@@ -283,36 +410,28 @@
    "options": "Project Production Plan Stage"
   },
   {
-   "fieldname": "fixtures_section",
-   "fieldtype": "Section Break",
-   "label": "Fixtures",
-   "collapsible": 1
-  },
-  {
-   "fieldname": "fixtures",
-   "fieldtype": "Table",
-   "label": "Fixtures",
-   "options": "Project Production Plan Fixture"
-  },
-  {
-   "fieldname": "inspections_section",
-   "fieldtype": "Section Break",
-   "label": "Stage Inspections",
-   "collapsible": 1,
-   "description": "SOP: 1st (Joinery), 2nd (Paint), Pre-Final (PM+QC), Final (with Client)"
-  },
-  {
-   "fieldname": "inspections",
-   "fieldtype": "Table",
-   "label": "Inspections",
-   "options": "Project Production Plan Inspection"
-  },
-  {
    "fieldname": "packing_section",
    "fieldtype": "Section Break",
    "label": "Packing & Logistics",
-   "collapsible": 1,
-   "description": "Owners: Nay / Rubel / Firoz"
+   "collapsible": 1
+  },
+  {
+   "fieldname": "linked_qc_inspection",
+   "fieldtype": "Link",
+   "label": "Linked QC Inspection",
+   "options": "QC Inspection",
+   "description": "Auto-fetched from Project if available"
+  },
+  {
+   "fieldname": "linked_logistics_request",
+   "fieldtype": "Link",
+   "label": "Linked Logistics Request",
+   "options": "Logistics Request",
+   "description": "Auto-fetched from Project if available"
+  },
+  {
+   "fieldname": "column_break_packing_1",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "packing_list_shared_date",
@@ -320,13 +439,12 @@
    "label": "Packing List Shared with Logistics"
   },
   {
-   "fieldname": "linked_logistics_request",
-   "fieldtype": "Data",
-   "label": "Linked Logistics Request",
-   "description": "Will be made a Link field once Logistics Request doctype is confirmed"
+   "fieldname": "pre_packing_photos",
+   "fieldtype": "Attach",
+   "label": "Pre-packing Photos"
   },
   {
-   "fieldname": "column_break_packing",
+   "fieldname": "column_break_packing_2",
    "fieldtype": "Column Break"
   },
   {
@@ -336,22 +454,143 @@
    "default": "0"
   },
   {
+   "fieldname": "item_checklist_image",
+   "fieldtype": "Attach Image",
+   "label": "Item Checklist Image",
+   "depends_on": "eval:doc.item_checklist_in_box"
+  },
+  {
    "fieldname": "drawing_printout_in_box",
    "fieldtype": "Check",
    "label": "Drawing printout in box (dismantled units)",
    "default": "0"
   },
   {
-   "fieldname": "pre_packing_photos",
-   "fieldtype": "Attach",
-   "label": "Pre-packing Photos"
-  },
-  {
    "fieldname": "installation_section",
    "fieldtype": "Section Break",
    "label": "Installation",
    "collapsible": 1,
-   "description": "To be defined - SOP section was blank"
+   "description": "All installation-related tracking"
+  },
+  {
+   "fieldname": "material_delay_flag",
+   "fieldtype": "Small Text",
+   "label": "Material Delay Alert",
+   "read_only": 1,
+   "description": "Auto-populated red flag if any material issue may impact installation"
+  },
+  {
+   "fieldname": "installation_start_date",
+   "fieldtype": "Date",
+   "label": "Installation Start Date"
+  },
+  {
+   "fieldname": "installation_end_date",
+   "fieldtype": "Date",
+   "label": "Installation End Date"
+  },
+  {
+   "fieldname": "column_break_install_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "snag_start_date",
+   "fieldtype": "Date",
+   "label": "Snag Start Date"
+  },
+  {
+   "fieldname": "snag_end_date",
+   "fieldtype": "Date",
+   "label": "Snag End Date"
+  },
+  {
+   "fieldname": "column_break_install_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "site_address",
+   "fieldtype": "Small Text",
+   "label": "Site Address"
+  },
+  {
+   "fieldname": "site_supervisor",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Site Supervisor"
+  },
+  {
+   "fieldname": "installation_team_lead",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Installation Team Lead"
+  },
+  {
+   "fieldname": "column_break_install_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_snags_raised",
+   "fieldtype": "Int",
+   "label": "Total Snags Raised",
+   "default": "0"
+  },
+  {
+   "fieldname": "snags_cleared",
+   "fieldtype": "Int",
+   "label": "Snags Cleared",
+   "default": "0"
+  },
+  {
+   "fieldname": "client_signoff_date",
+   "fieldtype": "Date",
+   "label": "Client Sign-off Date"
+  },
+  {
+   "fieldname": "actual_completion_date",
+   "fieldtype": "Date",
+   "label": "Actual Completion Date",
+   "description": "Final project close date"
+  },
+  {
+   "fieldname": "final_images_section",
+   "fieldtype": "Section Break",
+   "label": "Final Images (min 5 required)",
+   "description": "Cannot mark project 'Installed' until at least 5 images are attached"
+  },
+  {
+   "fieldname": "final_image_1",
+   "fieldtype": "Attach Image",
+   "label": "Image 1"
+  },
+  {
+   "fieldname": "final_image_2",
+   "fieldtype": "Attach Image",
+   "label": "Image 2"
+  },
+  {
+   "fieldname": "final_image_3",
+   "fieldtype": "Attach Image",
+   "label": "Image 3"
+  },
+  {
+   "fieldname": "column_break_final_images",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "final_image_4",
+   "fieldtype": "Attach Image",
+   "label": "Image 4"
+  },
+  {
+   "fieldname": "final_image_5",
+   "fieldtype": "Attach Image",
+   "label": "Image 5"
+  },
+  {
+   "fieldname": "additional_final_images",
+   "fieldtype": "Attach",
+   "label": "Additional Images (optional)",
+   "description": "Upload any extras beyond the 5 required"
   },
   {
    "fieldname": "installation_notes",
@@ -372,7 +611,7 @@
   }
  ],
  "links": [],
- "modified": "2026-05-18 12:00:00.000000",
+ "modified": "2026-07-30 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Project Dashboard",
  "name": "Project Production Plan",
