@@ -40,7 +40,7 @@
   {
    "fieldname": "verified_by",
    "fieldtype": "Link",
-   "options": "User",
+   "options": "Employee",
    "in_list_view": 1,
    "label": "Verified By",
    "columns": 2
