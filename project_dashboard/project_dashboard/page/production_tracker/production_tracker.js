@@ -1,504 +1,437 @@
 frappe.pages['production-tracker'].on_page_load = function(wrapper) {
-    var page = frappe.ui.make_app_page({
-        parent: wrapper,
-        title: 'Production Tracker Dashboard',
-        single_column: true
-    });
+	var page = frappe.ui.make_app_page({
+		parent: wrapper,
+		title: 'Production Tracker',
+		single_column: true
+	});
 
-    if (!document.getElementById('pt-style')) {
-        var s = document.createElement('style');
-        s.id = 'pt-style';
-        s.textContent =
-            '.pt{padding:16px;background:#f0f4f8;min-height:100vh;margin:-15px}' +
-            '.pt .head{background:#0f1623;border-radius:10px;padding:14px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}' +
-            '.pt .head h2{font-size:15px;font-weight:600;color:#fff;margin:0}' +
-            '.pt .head h2 .accent{color:#fbbf24}' +
-            '.pt .head p{font-size:11px;color:#94a3b8;margin:2px 0 0}' +
-            '.pt .ctrls input{background:#1e2a3b;border:1px solid #334155;color:#e2e8f0;padding:6px 12px;border-radius:6px;font-size:12px;min-width:240px}' +
-            '.pt .ctrls a{background:#2563eb;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;text-decoration:none;font-weight:500;margin-left:6px}' +
-            '.pt .k7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px}' +
-            '.pt .kc{background:#fff;border:1px solid #e4e4e7;border-top:3px solid #2563eb;border-radius:8px;padding:10px;cursor:pointer;transition:transform .1s}' +
-            '.pt .kc:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.05)}' +
-            '.pt .kc .t{font-size:8px;text-transform:uppercase;color:#71717a;font-weight:600;margin-bottom:4px}' +
-            '.pt .kc .v{font-size:18px;font-weight:700;color:#0f172a;line-height:1}' +
-            '.pt .kc .s{font-size:9px;color:#94a3b8;margin-top:3px}' +
-            '.pt .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}' +
-            '.pt .g3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-bottom:12px}' +
-            '.pt .card{background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:14px;margin-bottom:10px}' +
-            '.pt .card .ch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9}' +
-            '.pt .card .ct{font-size:13px;font-weight:600;color:#0f172a}' +
-            '.pt .card .cs{font-size:11px;color:#94a3b8}' +
-            '.pt .completion-banner{background:linear-gradient(135deg,#1e3a8a,#1e40af);color:#fff;border-radius:10px;padding:18px 22px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center}' +
-            '.pt .completion-banner .lab{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.7);font-weight:500;margin-bottom:4px}' +
-            '.pt .completion-banner .pct{font-size:36px;font-weight:700;line-height:1;letter-spacing:-.02em}' +
-            '.pt .completion-banner .bar{width:100%;margin-top:12px;height:6px;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden}' +
-            '.pt .completion-banner .fill{height:100%;background:#fbbf24;border-radius:3px}' +
-            '.pt .completion-banner .meta{text-align:right;font-size:12px;color:rgba(255,255,255,.85);line-height:1.7}' +
-            '.pt .completion-banner .meta strong{color:#fff;font-weight:600}' +
-            '.pt .stage-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:6px 0}' +
-            '.pt .stage-row .lab{width:120px;font-size:12px;color:#475569;font-weight:500}' +
-            '.pt .stage-row .bar{flex:1;height:18px;background:#f1f5f9;border-radius:4px;overflow:hidden}' +
-            '.pt .stage-row .bar .fill{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-weight:600;font-size:10px}' +
-            '.pt .stage-row .bar .fill.lo{background:#94a3b8}' +
-            '.pt .stage-row .bar .fill.mid{background:#3b82f6}' +
-            '.pt .stage-row .bar .fill.hi{background:#16a34a}' +
-            '.pt .stage-row .num{width:42px;text-align:right;font-weight:700;font-size:12px;font-family:monospace}' +
-            '.pt .stage-row .dept{font-size:10px;color:#94a3b8;width:120px}' +
-            '.pt .insp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}' +
-            '.pt .insp{border:1px solid #e4e4e7;border-radius:6px;padding:10px 12px;background:#fff}' +
-            '.pt .insp.pass{border-color:#16a34a;background:#f0fdf4}' +
-            '.pt .insp.sched{border-color:#d97706;background:#fffbeb}' +
-            '.pt .insp.fail{border-color:#dc2626;background:#fef2f2}' +
-            '.pt .insp.pend{background:#f3f4f6}' +
-            '.pt .insp .ititle{font-size:10px;font-weight:600;text-transform:uppercase;color:#64748b;margin-bottom:4px}' +
-            '.pt .insp .istat{font-size:13px;font-weight:600;margin-bottom:2px}' +
-            '.pt .insp.pass .istat{color:#16a34a}' +
-            '.pt .insp.sched .istat{color:#d97706}' +
-            '.pt .insp.fail .istat{color:#dc2626}' +
-            '.pt .insp.pend .istat{color:#94a3b8}' +
-            '.pt .insp .imeta{font-size:10px;color:#94a3b8}' +
-            '.pt .alert-row{display:flex;justify-content:space-between;padding:8px 10px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:4px;margin-bottom:4px;font-size:11px}' +
-            '.pt .alert-row.warn{background:#fffbeb;border-left-color:#d97706}' +
-            '.pt .alert-row.info{background:#eff6ff;border-left-color:#3b82f6}' +
-            '.pt .feed-item{padding:10px 0;border-bottom:1px solid #f1f5f9;display:grid;grid-template-columns:80px 1fr;gap:12px}' +
-            '.pt .feed-item:last-child{border-bottom:none}' +
-            '.pt .feed-date{font-size:10px;color:#94a3b8;font-weight:500}' +
-            '.pt .feed-date strong{display:block;font-size:11px;color:#0f172a;font-weight:600}' +
-            '.pt .feed-content{font-size:12px;color:#334155;line-height:1.5}' +
-            '.pt .feed-author{font-size:10px;color:#94a3b8;margin-top:3px}' +
-            '.pt table{width:100%;border-collapse:collapse;font-size:11px}' +
-            '.pt th{font-size:9px;text-transform:uppercase;color:#94a3b8;font-weight:600;padding:5px 6px;text-align:left;border-bottom:1px solid #f4f4f5}' +
-            '.pt td{padding:6px;border-bottom:1px solid #fafaf9;vertical-align:top;font-size:11px}' +
-            '.pt .progress-mini{display:inline-block;width:80px;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:6px}' +
-            '.pt .progress-mini .fill{height:100%;background:#3b82f6;border-radius:4px}' +
-            '.pt .badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600}' +
-            '.pt .b-prod{background:#dbeafe;color:#1d4ed8}' +
-            '.pt .b-qc{background:#fef3c7;color:#92400e}' +
-            '.pt .b-block{background:#fee2e2;color:#b91c1c}' +
-            '.pt .b-dwg{background:#ede9fe;color:#6d28d9}' +
-            '.pt .b-rdy{background:#dcfce7;color:#15803d}' +
-            '.pt .b-pend{background:#f3f4f6;color:#64748b}' +
-            '.pt .b-disp{background:#cffafe;color:#0e7490}';
-        document.head.appendChild(s);
-    }
+	var $container = $('<div class="pt-root"></div>').appendTo(page.body);
+	inject_styles();
 
-    $(wrapper).find('.page-content').html(
-        '<div class="pt">' +
-        '<div class="head">' +
-        '<div><h2>TRIPOD MENA · <span class="accent">Production tracker</span></h2>' +
-        '<p>Live joinery production progress across all projects</p></div>' +
-        '<div class="ctrls"><input id="pt-inp" list="pt-dl" placeholder="Filter by project (or pick All)..." autocomplete="off">' +
-        '<datalist id="pt-dl"></datalist>' +
-        '<a href="/app/project-production-plan/new">+ New Plan</a></div>' +
-        '</div>' +
-        '<div id="pt-body" style="text-align:center;padding:40px;color:#94a3b8;font-size:13px">Loading...</div>' +
-        '</div>'
-    );
+	var state = { company: '', project: '__ALL__', sort: 'issues' };
 
-    var ALL = '★ All projects';
-    window._pt_map = {}; window._pt_map[ALL] = '__ALL__';
-    var dl = document.getElementById('pt-dl');
-    var allOpt = document.createElement('option'); allOpt.value = ALL; dl.appendChild(allOpt);
-    frappe.db.get_list('Project', {fields: ['name', 'project_name'], limit: 500, filters: {status: ['!=', 'Cancelled']}, order_by: 'modified desc'}).then(function(ps) {
-        ps.forEach(function(p) {
-            var o = document.createElement('option');
-            o.value = p.name + ' — ' + (p.project_name || '');
-            dl.appendChild(o);
-            window._pt_map[o.value] = p.name;
-        });
-    });
-    document.getElementById('pt-inp').addEventListener('change', function() {
-        var v = window._pt_map[this.value];
-        if (v) load(v);
-    });
+	function load() {
+		$container.html('<div class="pt-loading">Loading production data…</div>');
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.production_tracker.production_tracker.get_dashboard_data',
+			args: { project: state.project, company: state.company },
+			callback: function(r) {
+				if (!r.message) { $container.html('<div class="pt-loading">No data.</div>'); return; }
+				if (r.message.scope === 'all') render_all(r.message);
+				else render_project(r.message);
+			}
+		});
+	}
 
-    function load(project) {
-        document.getElementById('pt-body').innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">Loading...</div>';
-        frappe.call({
-            method: 'project_dashboard.project_dashboard.page.production_tracker.production_tracker.get_dashboard_data',
-            args: {project: project},
-            callback: function(r) { if (r.message) render(r.message); }
-        });
-    }
+	// ============ AGGREGATE VIEW ============
+	function render_all(d) {
+		d = d || {}; var k = d.kpis || {};
+		var companies = d.companies || [];
+		var html = '';
 
-    function esc(v) {
-        if (v === null || v === undefined) return '';
-        return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+		// ---- Header ----
+		html += '<div class="pt-head">';
+		html += '<div class="pt-head-title"><h1>Production tracker</h1>' +
+			'<p>Full pipeline view — every stage, every date, every project</p></div>';
+		html += '<div class="pt-filters">';
+		html += '<div class="pt-company-tabs">';
+		html += '<a class="' + (!state.company ? 'active' : '') + '" data-company="">All Companies</a>';
+		companies.forEach(function(c) {
+			html += '<a class="' + (state.company === c.name ? 'active' : '') + '" data-company="' + esc(c.name) + '">' + esc(c.name) + '</a>';
+		});
+		html += '</div>';
+		html += '<input class="pt-search" placeholder="Search project...">';
+		html += '</div></div>';
 
-    function status_badge(s) {
-        s = s || '';
-        var cls = 'b-pend';
-        if (s === 'In Production') cls = 'b-prod';
-        else if (s === 'In QC') cls = 'b-qc';
-        else if (s === 'Drawing Pending' || s === 'Awaiting Kickoff') cls = 'b-dwg';
-        else if (s === 'MR Raised' || s === 'Awaiting Material') cls = 'b-block';
-        else if (s === 'Ready to Dispatch') cls = 'b-rdy';
-        else if (s === 'Dispatched' || s === 'Installed' || s === 'Closed') cls = 'b-disp';
-        return '<span class="badge ' + cls + '">' + esc(s) + '</span>';
-    }
+		// ---- KPI strip ----
+		html += '<div class="pt-kpi-strip">' +
+			kpi('Open Plans', k.open_plans || 0, '') +
+			'<div class="pt-kpi-sep"></div>' +
+			kpi('Drawing Pending', k.drawing_pending || 0, 'a') +
+			kpi('Awaiting Material', k.awaiting_material || 0, 'r') +
+			kpi('In Production', k.in_production || 0, '') +
+			kpi('In QC', k.in_qc || 0, '') +
+			kpi('Dispatched', k.dispatched || 0, 'g') +
+			'<div class="pt-kpi-sep"></div>' +
+			kpi('Overdue', k.overdue || 0, 'r') +
+			kpi('Material <60%', k.material_below_60 || 0, 'r') +
+			'</div>';
 
-    function pct_class(pct) {
-        if (pct >= 70) return 'hi';
-        if (pct >= 30) return 'mid';
-        return 'lo';
-    }
+		// ---- Legend ----
+		html += '<div class="pt-legend">' +
+			legend('#dcfce7', '#16a34a', 'Done (100%)') +
+			legend('#dbeafe', '#2563eb', 'In Progress') +
+			legend('#fef3c7', '#d97706', 'Warning / behind') +
+			legend('#fee2e2', '#dc2626', 'Blocked') +
+			legend('#f1f5f9', '#e5e7eb', 'Not started') +
+			'<span class="pt-legend-note">Fixed sections have grey left-border · custom production stages have no border</span>' +
+			'</div>';
 
-    function kc(t, v, sub, color, href) {
-        var click = href ? ' onclick="window.location=\'' + href + '\'"' : '';
-        return '<div class="kc" style="border-top-color:' + color + '"' + click + '>' +
-            '<div class="t">' + esc(t) + '</div><div class="v">' + esc(v) + '</div><div class="s">' + esc(sub) + '</div></div>';
-    }
+		// ---- List header ----
+		html += '<div class="pt-list-head">' +
+			'<div><h2>Active Projects <span class="dim">· ' + (d.active_plans || []).length + ' open plans</span></h2>' +
+			'<p>Sorted by issues first · click any project to open its full plan</p></div>' +
+			'<div class="pt-sort">' +
+				'<span class="pt-sort-btn active">🚩 Issues first</span>' +
+				'<span class="pt-sort-btn" data-sort="progress">Progress</span>' +
+				'<span class="pt-sort-btn" data-sort="target">Target date</span>' +
+			'</div>' +
+			'</div>';
 
-    function open_pp(name) {
-        return '<a href="/app/project-production-plan/' + encodeURIComponent(name) + '" target="_blank" style="color:#2563eb">' + esc(name) + '</a>';
-    }
+		// ---- Column headers ----
+		html += '<div class="pt-col-headers">' +
+			'<div>Project</div><div>Status</div><div style="text-align:center">Flags</div>' +
+			'<div>Joinery</div><div>Material</div><div>Days Left</div><div></div>' +
+			'</div>';
 
-    function open_project(name) {
-        return '<a href="/app/project/' + encodeURIComponent(name) + '" target="_blank" style="color:#2563eb">' + esc(name) + '</a>';
-    }
+		// ---- Rows ----
+		(d.active_plans || []).forEach(function(p) {
+			html += render_row(p);
+		});
 
-    function render(d) {
-        if (d.scope === 'all') return render_all(d);
-        return render_project(d);
-    }
+		if (!(d.active_plans || []).length) {
+			html += '<div class="pt-empty">No active production plans' + (state.company ? ' for ' + esc(state.company) : '') + '</div>';
+		}
 
-    // ----- ALL-PROJECTS VIEW -----
-    function render_all(d) {
-        d = d || {}; var k = d.kpis || {};
-        var html = '';
+		$container.html(html);
+		bind_aggregate_events();
+	}
 
-        // 7 KPIs (Blocked replaced with Awaiting Material + Material Below 60%)
-        html += '<div class="k7">' +
-            kc('Open Plans', k.open_plans || 0, 'Active production', '#2563eb') +
-            kc('Drawing Pending', k.drawing_pending || 0, 'Waiting for drawings', '#7c3aed') +
-            kc('Awaiting Material', k.awaiting_material || 0, 'MR raised, no material', '#d97706') +
-            kc('In Production', k.in_production || 0, 'On the floor', '#3b82f6') +
-            kc('In QC', k.in_qc || 0, 'Under inspection', '#16a34a') +
-            kc('Ready to Dispatch', k.ready_dispatch || 0, 'Packed', '#0ea5e9') +
-            kc('Material <60%', k.material_below_60 || 0, 'Material shortage', '#dc2626') +
-            '</div>';
+	function render_row(p) {
+		var health = p.health || 'idle';
+		var h = '<div class="pt-row ' + health + '" data-project="' + esc(p.project) + '">';
 
-        // Two-column layout: left = active plans table, right = material summary + drawing changes + recent updates
-        html += '<div class="g3">' +
-            '<div>' +
-                '<div class="card">' +
-                    '<div class="ch"><div><div class="ct">Active Projects</div><div class="cs">' + (d.active_plans || []).length + ' open plans · sorted by progress</div></div></div>' +
-                    render_active_plans_table(d.active_plans || []) +
-                '</div>' +
-            '</div>' +
+		// Summary strip
+		h += '<div class="pt-summary">';
 
-            '<div>' +
-                '<div class="card">' +
-                    '<div class="ch"><div><div class="ct">Recent Drawing Changes</div><div class="cs">Last 14 days</div></div></div>' +
-                    render_drawing_changes(d.drawing_changes_recent || []) +
-                '</div>' +
-            '</div>' +
+		// Project
+		var comp_chip = company_chip(p.company);
+		h += '<div class="pt-proj">' +
+			'<a class="pt-proj-link" data-plan="' + esc(p.name) + '">' + esc(p.project) + '</a>' +
+			'<div class="pt-proj-sub">' + comp_chip + ' ' +
+			(p.kickoff_date ? 'Kickoff ' + fmt_date(p.kickoff_date) : 'Kickoff pending') +
+			(p.production_manager ? ' · ' + esc(p.production_manager) : '') + '</div>' +
+			'</div>';
 
-            '<div>' +
-                '<div class="card">' +
-                    '<div class="ch"><div><div class="ct">Recent Updates</div><div class="cs">Last 7 days · all projects</div></div></div>' +
-                    render_recent_updates(d.recent_updates || []) +
-                '</div>' +
-            '</div>' +
-        '</div>';
+		// Status
+		h += '<div>' + status_badge(p.status) + '</div>';
 
-        document.getElementById('pt-body').innerHTML = html;
-    }
+		// Flags
+		h += '<div style="text-align:center">' + flag_chip(p) + '</div>';
 
-    function render_active_plans_table(plans) {
-        if (!plans.length) return '<div style="padding:20px;text-align:center;color:#94a3b8">No active production plans</div>';
-        var rows = plans.map(function(p) {
-            var pct = parseFloat(p.overall_joinery_completion_pct || 0);
-            var mat = parseFloat(p.material_available_pct || 0);
-            return '<tr>' +
-                '<td>' + open_project(p.project) + '</td>' +
-                '<td>' + status_badge(p.overall_status) + '</td>' +
-                '<td><span class="progress-mini"><span class="fill" style="width:' + pct + '%;background:' + (pct >= 70 ? '#16a34a' : (pct >= 30 ? '#3b82f6' : '#94a3b8')) + '"></span></span>' + pct.toFixed(0) + '%</td>' +
-                '<td><span class="progress-mini"><span class="fill" style="width:' + mat + '%;background:' + (mat >= 90 ? '#16a34a' : (mat >= 60 ? '#d97706' : '#dc2626')) + '"></span></span>' + mat.toFixed(0) + '%</td>' +
-                '<td>' + esc(p.production_manager || '—') + '</td>' +
-                '<td>' + esc(p.target_dispatch_date || '—') + '</td>' +
-                '<td>' + open_pp(p.name) + '</td>' +
-            '</tr>';
-        }).join('');
-        return '<table><thead><tr><th>Project</th><th>Status</th><th>Joinery %</th><th>Material %</th><th>Prod Mgr</th><th>Target</th><th>Plan</th></tr></thead><tbody>' + rows + '</tbody></table>';
-    }
+		// Joinery
+		var jc = pct_color(p.joinery_pct, 'joinery');
+		h += '<div><div class="pt-bignum ' + jc + '">' + Math.round(p.joinery_pct) + '%</div>' +
+			'<div class="pt-subnum">joinery</div></div>';
 
-    function render_inspections_due(items) {
-        // Deprecated - kept for backwards compatibility (returns empty)
-        return '';
-    }
+		// Material (number + segmented bar)
+		var mc = pct_color(p.material_available_pct, 'material');
+		h += '<div><div class="pt-bignum ' + mc + '">' + Math.round(p.material_available_pct) + '%</div>' +
+			'<div class="pt-matbar">' +
+				seg(p.material_available_pct, 'avail') +
+				seg(p.material_po_pct, 'po') +
+				seg(p.material_mr_pct, 'mr') +
+			'</div></div>';
 
-    function render_drawing_changes(items) {
-        if (!items.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No recent drawing changes</div>';
-        return items.map(function(c) {
-            return '<div class="alert-row info">' +
-                '<span><strong>' + esc(c.item_changed || 'Drawing') + '</strong> · ' + esc(c.project || '—') + ' · ' + esc(c.what_changed || '') + '</span>' +
-                '<span style="color:#1d4ed8;font-weight:600">' + esc(c.change_date) + '</span>' +
-            '</div>';
-        }).join('');
-    }
+		// Days left
+		if (p.days_left === null || p.days_left === undefined) {
+			h += '<div><div class="pt-bignum gray">—</div><div class="pt-subnum">not started</div></div>';
+		} else {
+			var dc = p.days_left < 0 ? 'r' : (p.days_left <= 7 ? 'a' : 'g');
+			h += '<div><div class="pt-bignum ' + dc + '">' + p.days_left + '</div>' +
+				'<div class="pt-subnum ' + (p.days_left < 0 ? 'r' : '') + '">' + esc(p.days_left_label) + '</div></div>';
+		}
 
-    function render_recent_updates(items) {
-        if (!items.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No recent updates</div>';
-        return items.map(function(u) {
-            var type_cls = 'b-prod';
-            if (u.update_type === 'QC') type_cls = 'b-qc';
-            else if (u.update_type === 'Blocker') type_cls = 'b-block';
-            else if (u.update_type === 'Drawing Change') type_cls = 'b-dwg';
-            return '<div class="feed-item">' +
-                '<div class="feed-date"><strong>' + esc(u.update_date) + '</strong>' + esc(u.project || '—') + '</div>' +
-                '<div class="feed-content">' +
-                    '<span class="badge ' + type_cls + '">' + esc(u.update_type) + '</span> ' +
-                    esc(u.update_text) +
-                    '<div class="feed-author">— ' + esc(u.updated_by || 'system') + '</div>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-    }
+		// Open link
+		h += '<div style="text-align:right"><a class="pt-open" data-plan="' + esc(p.name) + '">Open →</a></div>';
 
-    // ----- PROJECT DRILL-IN VIEW -----
-    function render_project(d) {
-        d = d || {}; var meta = d.project_meta || {};
-        var html = '';
+		h += '</div>'; // end summary
 
-        if (!d.plan_exists) {
-            html += '<div class="card" style="text-align:center;padding:40px">' +
-                '<div style="font-size:14px;color:#0f172a;font-weight:600;margin-bottom:8px">No Production Plan for this project yet</div>' +
-                '<div style="font-size:12px;color:#64748b;margin-bottom:14px">A plan should auto-create on Project insert. If you don\'t see one, create manually.</div>' +
-                '<a href="/app/project-production-plan/new?project=' + encodeURIComponent(meta.name) + '" style="background:#2563eb;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none;font-size:12px">+ Create Plan</a>' +
-            '</div>';
-            document.getElementById('pt-body').innerHTML = html;
-            return;
-        }
+		// Pipeline strip
+		if (p.status === 'Drawing Pending' || p.status === 'Awaiting Kickoff') {
+			h += '<div class="pt-pipeline-empty">Waiting for drawings · pipeline not yet defined</div>';
+		} else {
+			h += '<div class="pt-pipeline">';
+			(p.pipeline || []).forEach(function(t) {
+				h += render_tile(t, p.name);
+			});
+			h += '</div>';
+		}
 
-        var h = d.header || {};
-        var mat = d.material || {};
-        var linked = d.linked || {};
+		h += '</div>'; // end row
+		return h;
+	}
 
-        // Project header card
-        html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">' +
-            '<div><div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:600">Project</div>' +
-            '<div style="font-size:16px;font-weight:600;color:#0f172a">' + esc(meta.name) +
-            (meta.project_name ? ' <span style="color:#64748b;font-weight:400">— ' + esc(meta.project_name) + '</span>' : '') +
-            '</div><div style="margin-top:6px">' + status_badge(h.overall_status) +
-            (meta.company ? ' <span style="font-size:10px;color:#64748b;margin-left:6px">' + esc(meta.company) + '</span>' : '') +
-            '</div></div>' +
-            '<div style="font-size:11px;color:#64748b">' +
-                'PM: <strong style="color:#0f172a">' + esc(h.project_manager || '—') + '</strong> · ' +
-                'Prod Mgr: <strong style="color:#0f172a">' + esc(h.production_manager || '—') + '</strong> · ' +
-                'QC: <strong style="color:#0f172a">' + esc(h.qc_lead || '—') + '</strong>' +
-            '</div>' +
-            '<div style="font-size:11px;color:#64748b;text-align:right">' +
-                'Prod Start: <strong style="color:#0f172a">' + esc(h.production_start_date || '—') + '</strong><br>' +
-                'Target: <strong style="color:#0f172a">' + esc(h.target_dispatch_date || '—') + '</strong>' +
-                (h.revised_dispatch_date ? ' · <strong style="color:#d97706">Revised: ' + esc(h.revised_dispatch_date) + '</strong>' : '') +
-            '</div>' +
-            '<div><a href="/app/project-production-plan/' + encodeURIComponent(h.plan_name) + '" target="_blank" style="background:#2563eb;color:#fff;padding:6px 12px;border-radius:6px;text-decoration:none;font-size:11px">Open Plan</a></div>' +
-        '</div></div>';
+	function render_tile(t, plan_name) {
+		var cls = 'pt-tile ' + (t.state || 'idle') + (t.is_fixed ? ' fixed' : '');
+		var h = '<div class="' + cls + '" data-plan="' + esc(plan_name) + '" data-section="' + esc(t.key) + '">';
 
-        // Days strip
-        if (h.total_duration_days > 0) {
-            var d_elapsed = h.days_elapsed || 0;
-            var d_remaining = h.days_remaining || 0;
-            var d_total = h.total_duration_days || 0;
-            var d_pct = d_total ? Math.round((d_elapsed / d_total) * 100) : 0;
-            html += '<div class="card" style="padding:14px 18px">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-                    '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600">Duration</div>' +
-                    '<div style="font-size:11px;color:#64748b">' + d_elapsed + ' of ' + d_total + ' days elapsed (' + d_pct + '%)</div>' +
-                '</div>' +
-                '<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">' +
-                    '<div style="height:100%;background:' + (d_pct > 80 ? '#dc2626' : (d_pct > 50 ? '#d97706' : '#16a34a')) + ';width:' + Math.min(100, d_pct) + '%"></div>' +
-                '</div>' +
-                '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#94a3b8">' +
-                    '<span>Prod Start</span>' +
-                    '<span><strong style="color:#dc2626">' + d_remaining + ' days remaining</strong></span>' +
-                    '<span>Est. End</span>' +
-                '</div>' +
-            '</div>';
-        }
+		// Name (with optional tag)
+		h += '<div class="pt-tile-name">';
+		if (t.tag) h += '<span class="pt-tile-tag">' + esc(t.tag) + '</span>';
+		h += esc(t.label) + '</div>';
 
-        // Material bar
-        html += '<div class="card" style="padding:14px 18px">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-                '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600">Material</div>' +
-                '<div style="font-size:11px;color:#64748b">' + esc(mat.summary_text || 'No MRs raised yet') + '</div>' +
-            '</div>' +
-            '<div style="display:flex;height:22px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb">' +
-                (mat.available_pct > 0 ? '<div style="background:#16a34a;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.available_pct + '%" title="Available: ' + mat.available_pct + '%">' + (mat.available_pct > 8 ? mat.available_pct.toFixed(0) + '%' : '') + '</div>' : '') +
-                (mat.po_pct > 0 ? '<div style="background:#2563eb;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.po_pct + '%" title="PO placed: ' + mat.po_pct + '%">' + (mat.po_pct > 8 ? mat.po_pct.toFixed(0) + '%' : '') + '</div>' : '') +
-                (mat.mr_pct > 0 ? '<div style="background:#d97706;color:#fff;font-size:10px;font-weight:600;padding:0 6px;display:flex;align-items:center;justify-content:center;width:' + mat.mr_pct + '%" title="MR only (no PO): ' + mat.mr_pct + '%">' + (mat.mr_pct > 8 ? mat.mr_pct.toFixed(0) + '%' : '') + '</div>' : '') +
-            '</div>' +
-            '<div style="display:flex;gap:14px;margin-top:8px;font-size:10px;color:#64748b">' +
-                '<span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Available (Stock + GRN)</span>' +
-                '<span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle;margin-right:4px"></span>PO placed</span>' +
-                '<span><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;vertical-align:middle;margin-right:4px"></span>MR awaiting PO</span>' +
-                (meta.name ? '<span style="margin-left:auto"><a href="/app/material-request?project=' + encodeURIComponent(meta.name) + '" target="_blank" style="color:#2563eb;text-decoration:none">View MRs →</a></span>' : '') +
-            '</div>' +
-        '</div>';
+		// Value: date-based tiles show date, else %
+		if (t.date_display) {
+			h += '<div class="pt-tile-date">' + esc(t.date_display) + '</div>';
+		} else if (t.pct !== null && t.pct !== undefined) {
+			var pcls = t.state === 'done' ? 'done-t' : (t.state === 'progress' ? 'prog-t' : (t.state === 'warn' || t.state === 'blocked' ? 'warn-t' : 'gray-t'));
+			h += '<div class="pt-tile-pct ' + pcls + '">' + Math.round(t.pct) + '%</div>';
+			h += '<div class="pt-tile-bar"><div class="pt-tile-fill ' + tile_fill_class(t.state) + '" style="width:' + Math.max(0, Math.min(100, t.pct)) + '%"></div></div>';
+		} else {
+			h += '<div class="pt-tile-pct gray-t">—</div>';
+		}
 
-        // Overall completion banner
-        var pct = parseFloat(h.overall_joinery_completion_pct || 0);
-        html += '<div class="completion-banner">' +
-            '<div>' +
-                '<div class="lab">Overall Joinery Completion</div>' +
-                '<div class="pct">' + pct.toFixed(0) + '%</div>' +
-                '<div class="bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
-            '</div>' +
-            '<div class="meta">' +
-                '<div><strong>' + (d.stages || []).length + '</strong> stages defined</div>' +
-                '<div><strong>' + (d.alerts || []).length + '</strong> alerts</div>' +
-            '</div>' +
-        '</div>';
+		// Meta line
+		if (t.meta) {
+			var meta_cls = (t.state === 'blocked') ? 'style="color:#dc2626"' : '';
+			h += '<div class="pt-tile-meta" ' + meta_cls + '>' + esc(t.meta) + '</div>';
+		}
 
-        // Stages + Linked Docs (two columns)
-        html += '<div class="g2">' +
-            '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Production Stages</div><div class="cs">' + (d.stages || []).length + ' stages · % manually entered</div></div></div>' +
-                render_stages(d.stages || []) +
-            '</div>' +
-            '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Linked Documents</div><div class="cs">Auto-fetched from Project</div></div></div>' +
-                render_linked_docs(linked) +
-            '</div>' +
-        '</div>';
+		h += '</div>';
+		return h;
+	}
 
-        // Alerts (if any)
-        if ((d.alerts || []).length) {
-            html += '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Alerts &amp; Blockers</div><div class="cs">Auto-detected from data</div></div></div>' +
-                (d.alerts || []).map(function(a) {
-                    var cls = a.type === 'material' ? '' : 'warn';
-                    return '<div class="alert-row ' + cls + '">' +
-                        '<span><strong>' + esc(a.title) + '</strong></span>' +
-                        '<span style="color:#64748b">' + esc(a.sub) + '</span>' +
-                    '</div>';
-                }).join('') +
-            '</div>';
-        }
+	function bind_aggregate_events() {
+		// Company tabs
+		$container.find('.pt-company-tabs a').on('click', function() {
+			state.company = $(this).data('company') || '';
+			load();
+		});
+		// Search
+		$container.find('.pt-search').on('keyup', function() {
+			var q = $(this).val().toLowerCase();
+			$container.find('.pt-row').each(function() {
+				var proj = ($(this).data('project') || '').toString().toLowerCase();
+				$(this).toggle(proj.indexOf(q) !== -1);
+			});
+		});
+		// Open plan (project link, open link, tiles)
+		$container.find('.pt-proj-link, .pt-open').on('click', function() {
+			var plan = $(this).data('plan');
+			if (plan) frappe.set_route('Form', 'Project Production Plan', plan);
+		});
+		// Tile click → open plan (scroll handled by Frappe form)
+		$container.find('.pt-tile').on('click', function() {
+			var plan = $(this).data('plan');
+			if (plan) frappe.set_route('Form', 'Project Production Plan', plan);
+		});
+		// Row click (but not on links) → open
+		$container.find('.pt-row').on('click', function(e) {
+			if ($(e.target).closest('a, .pt-tile').length) return;
+			var proj = $(this).data('project');
+			if (proj) frappe.set_route('Form', 'Project Production Plan', 'PPP-' + proj);
+		});
+	}
 
-        // Two columns: Daily Updates + Drawing Changes
-        html += '<div class="g2">' +
-            '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Daily Updates</div><div class="cs">Last 30 days</div></div></div>' +
-                render_daily_updates(d.daily_updates || []) +
-            '</div>' +
-            '<div class="card">' +
-                '<div class="ch"><div><div class="ct">Drawing Changes</div><div class="cs">All revisions logged</div></div></div>' +
-                render_drawing_change_log(d.drawing_changes || []) +
-            '</div>' +
-        '</div>';
+	// ============ DRILL-IN VIEW (simple, opens the form instead) ============
+	function render_project(d) {
+		// For the approved design, clicking a project opens the actual Frappe form.
+		// This drill-in fallback just shows a link.
+		var meta = d.project_meta || {};
+		var html = '<div class="pt-head"><div class="pt-head-title"><h1>' + esc(meta.name || 'Project') + '</h1></div></div>';
+		html += '<div style="padding:40px;text-align:center">';
+		if (d.plan_exists && d.header) {
+			html += '<a class="btn btn-primary" href="/app/project-production-plan/' + encodeURIComponent(d.header.plan_name) + '">Open Production Plan</a>';
+		} else {
+			html += '<p>No production plan for this project.</p>';
+		}
+		html += '<div style="margin-top:16px"><a href="#" class="pt-back">← Back to all projects</a></div></div>';
+		$container.html(html);
+		$container.find('.pt-back').on('click', function(e) { e.preventDefault(); state.project = '__ALL__'; load(); });
+	}
 
-        document.getElementById('pt-body').innerHTML = html;
-    }
+	// ============ HELPERS ============
+	function kpi(label, val, cls) {
+		return '<div class="pt-kpi"><div class="lab">' + esc(label) + '</div>' +
+			'<div class="val ' + (cls || '') + '">' + val + '</div></div>';
+	}
+	function legend(bg, border, label) {
+		return '<span class="pt-legend-chip"><span class="box" style="background:' + bg + ';border:1px solid ' + border + '"></span>' + esc(label) + '</span>';
+	}
+	function seg(pct, cls) {
+		if (!pct || pct <= 0) return '';
+		return '<div class="pt-mat-seg ' + cls + '" style="width:' + Math.min(100, pct) + '%"></div>';
+	}
+	function status_badge(s) {
+		s = s || '';
+		var cls = 'drawing';
+		if (s === 'In Production') cls = 'production';
+		else if (s === 'In QC') cls = 'qc';
+		else if (s === 'MR Raised' || s === 'Awaiting Material') cls = 'awaiting';
+		else if (s === 'Ready to Dispatch') cls = 'dispatch';
+		else if (s === 'Dispatched' || s === 'Installed' || s === 'Closed') cls = 'installed';
+		return '<span class="pt-badge ' + cls + '">' + esc(s) + '</span>';
+	}
+	function flag_chip(p) {
+		var flags = p.flags || [];
+		if (!flags.length) {
+			if (p.status === 'Drawing Pending' || p.status === 'Awaiting Kickoff')
+				return '<span class="pt-flag-none">—</span>';
+			return '<span class="pt-flag g">✓</span>';
+		}
+		var hasCrit = flags.some(function(f) { return f.level === 'critical'; });
+		var cls = hasCrit ? 'r' : 'a';
+		var icon = hasCrit ? '🚩' : '⚠';
+		var tip = '<div class="pt-flag-tip"><div class="tip-head">' + flags.length + ' issue' + (flags.length > 1 ? 's' : '') + ' need attention</div><ul>';
+		flags.forEach(function(f) {
+			tip += '<li><span class="bullet">•</span>' + esc(f.text) + '</li>';
+		});
+		tip += '</ul><div class="tip-footer">Click to open the plan</div></div>';
+		return '<span class="pt-flag ' + cls + '">' + icon + ' ' + flags.length + tip + '</span>';
+	}
+	function company_chip(company) {
+		if (!company) return '';
+		var lc = company.toLowerCase();
+		var cls = 'uae', label = 'UAE';
+		if (lc.indexOf('ksa') !== -1 || lc.indexOf('saudi') !== -1 || lc.indexOf('global') !== -1) {
+			cls = 'ksa'; label = 'KSA';
+		}
+		return '<span class="pt-comp-chip ' + cls + '">' + label + '</span>';
+	}
+	function pct_color(pct, type) {
+		if (type === 'material') {
+			if (pct >= 90) return 'g';
+			if (pct >= 60) return 'a';
+			return 'r';
+		}
+		// joinery
+		if (pct >= 70) return 'g';
+		if (pct >= 30) return 'b';
+		if (pct > 0) return 'a';
+		return 'gray';
+	}
+	function tile_fill_class(state) {
+		if (state === 'done') return 'g';
+		if (state === 'progress') return 'b';
+		if (state === 'warn') return 'a';
+		if (state === 'blocked') return 'r';
+		return 'gray';
+	}
+	function fmt_date(d) {
+		if (!d) return '';
+		try {
+			var dt = new Date(d);
+			return dt.getDate().toString().padStart(2,'0') + ' ' + dt.toLocaleString('en', {month:'short'});
+		} catch(e) { return d; }
+	}
+	function esc(s) {
+		if (s === null || s === undefined) return '';
+		return (s + '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+	}
 
-    function render_linked_docs(linked) {
-        var html = '';
-        if (linked.qc_inspection) {
-            html += '<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9">' +
-                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">QC Inspection</div>' +
-                '<div><a href="/app/qc-inspection/' + encodeURIComponent(linked.qc_inspection) + '" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none">' + esc(linked.qc_inspection) + '</a></div>' +
-            '</div>';
-        } else {
-            html += '<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9">' +
-                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">QC Inspection</div>' +
-                '<div style="color:#94a3b8;font-size:11px">Not linked yet</div>' +
-            '</div>';
-        }
-        if (linked.logistics_request) {
-            html += '<div style="padding:10px 12px">' +
-                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">Logistics Request</div>' +
-                '<div><a href="/app/logistics-request/' + encodeURIComponent(linked.logistics_request) + '" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none">' + esc(linked.logistics_request) + '</a></div>' +
-            '</div>';
-        } else {
-            html += '<div style="padding:10px 12px">' +
-                '<div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;margin-bottom:2px">Logistics Request</div>' +
-                '<div style="color:#94a3b8;font-size:11px">Not linked yet</div>' +
-            '</div>';
-        }
-        return html;
-    }
-
-    function render_stages(stages) {
-        if (!stages.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No stages defined yet. Open the plan and add stages.</div>';
-        return stages.map(function(s) {
-            var pct = parseFloat(s.completion_percentage || 0);
-            return '<div class="stage-row">' +
-                '<div class="lab">' + esc(s.stage_name) + '</div>' +
-                '<div class="bar"><div class="fill ' + pct_class(pct) + '" style="width:' + Math.max(pct, 1) + '%">' + (pct > 8 ? pct.toFixed(0) + '%' : '') + '</div></div>' +
-                '<div class="num">' + pct.toFixed(0) + '%</div>' +
-            '</div>';
-        }).join('');
-    }
-
-    function render_inspections(items) {
-        // Order them by SOP sequence regardless of input order
-        var order = {'1st - Joinery': 1, '2nd - Paint': 2, 'Pre-Final (Internal)': 3, 'Final (with Client)': 4};
-        items = items.slice().sort(function(a, b) {
-            return (order[a.inspection_type] || 99) - (order[b.inspection_type] || 99);
-        });
-        // Fill missing SOP slots so user always sees 4 boxes
-        var by_type = {};
-        items.forEach(function(i) { by_type[i.inspection_type] = i; });
-        var slots = ['1st - Joinery', '2nd - Paint', 'Pre-Final (Internal)', 'Final (with Client)'];
-        var html = '<div class="insp-grid">';
-        slots.forEach(function(t) {
-            var i = by_type[t];
-            var cls = 'pend';
-            var stat = 'Pending';
-            if (i) {
-                if (i.result === 'Pass') { cls = 'pass'; stat = 'Passed'; }
-                else if (i.result === 'Pass with Issues') { cls = 'pass'; stat = 'Pass w/ Issues'; }
-                else if (i.result === 'Fail') { cls = 'fail'; stat = 'Failed'; }
-                else if (i.result === 'Scheduled') { cls = 'sched'; stat = 'Scheduled'; }
-            }
-            html += '<div class="insp ' + cls + '">' +
-                '<div class="ititle">' + esc(t) + '</div>' +
-                '<div class="istat">' + esc(stat) + '</div>' +
-                '<div class="imeta">' + (i ? (esc(i.scheduled_date || '—') + ' · ' + esc(i.inspector || '—')) : 'Not scheduled') + '</div>' +
-            '</div>';
-        });
-        html += '</div>';
-        return html;
-    }
-
-    function render_daily_updates(items) {
-        if (!items.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No updates yet</div>';
-        return items.map(function(u) {
-            var type_cls = 'b-prod';
-            if (u.update_type === 'QC') type_cls = 'b-qc';
-            else if (u.update_type === 'Blocker') type_cls = 'b-block';
-            else if (u.update_type === 'Drawing Change') type_cls = 'b-dwg';
-            return '<div class="feed-item">' +
-                '<div class="feed-date"><strong>' + esc(u.update_date) + '</strong></div>' +
-                '<div class="feed-content">' +
-                    '<span class="badge ' + type_cls + '">' + esc(u.update_type) + '</span> ' +
-                    esc(u.update_text) +
-                    '<div class="feed-author">— ' + esc(u.updated_by || 'system') + '</div>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-    }
-
-    function render_drawing_change_log(items) {
-        if (!items.length) return '<div style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">No drawing changes logged</div>';
-        return items.map(function(c) {
-            return '<div class="feed-item">' +
-                '<div class="feed-date"><strong>' + esc(c.change_date) + '</strong>' + (c.pm_notified ? '<span style="color:#16a34a">✓ PM</span>' : '<span style="color:#dc2626">PM not notified</span>') + '</div>' +
-                '<div class="feed-content">' +
-                    '<strong>' + esc(c.item_changed || '—') + '</strong>: ' + esc(c.what_changed || '') +
-                    (c.revised_completion_date ? '<div style="font-size:10px;color:#d97706;margin-top:2px">→ Revised completion: ' + esc(c.revised_completion_date) + '</div>' : '') +
-                '</div>' +
-            '</div>';
-        }).join('');
-    }
-
-    function render_fixtures(fixtures) {
-        // Deprecated - fixtures no longer tracked. Kept for backwards compatibility, returns empty.
-        return '';
-    }
-
-    // Initial load - all projects
-    load('__ALL__');
+	// initial load
+	load();
+	page.set_primary_action('Refresh', function() { load(); }, 'refresh');
 };
+
+function inject_styles() {
+	if (document.getElementById('pt-styles')) return;
+	var css = `
+	.pt-root { font-family: 'Inter', -apple-system, sans-serif; color: #0f172a; font-size: 13px; }
+	.pt-loading, .pt-empty { padding: 40px; text-align: center; color: #94a3b8; }
+
+	.pt-head { background: linear-gradient(180deg,#eff6ff,#f0f9ff); padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border-bottom: 1px solid #dbeafe; border-radius: 8px 8px 0 0; }
+	.pt-head-title h1 { margin: 0; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.015em; }
+	.pt-head-title p { margin: 3px 0 0; font-size: 12px; color: #475569; }
+	.pt-filters { display: flex; gap: 10px; align-items: center; }
+	.pt-company-tabs { display: flex; background: #fff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px; gap: 2px; }
+	.pt-company-tabs a { padding: 6px 14px; border-radius: 4px; font-size: 12px; color: #64748b; text-decoration: none; font-weight: 500; cursor: pointer; white-space: nowrap; }
+	.pt-company-tabs a.active { background: #dbeafe; color: #0c4a6e; font-weight: 600; }
+	.pt-search { padding: 7px 12px; border-radius: 5px; border: 1px solid #cbd5e1; background: #fff; font-size: 12px; width: 200px; }
+	.pt-search:focus { outline: none; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,0.3); }
+
+	.pt-kpi-strip { display: flex; padding: 12px 22px; gap: 24px; background: #fff; border-bottom: 1px solid #e5e7eb; overflow-x: auto; }
+	.pt-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 80px; }
+	.pt-kpi .lab { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; font-weight: 500; }
+	.pt-kpi .val { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+	.pt-kpi .val.r { color: #dc2626; } .pt-kpi .val.a { color: #d97706; } .pt-kpi .val.g { color: #16a34a; }
+	.pt-kpi-sep { border-left: 1px solid #e5e7eb; }
+
+	.pt-legend { display: flex; gap: 12px; padding: 8px 22px; font-size: 10px; color: #64748b; background: #fafbfc; align-items: center; }
+	.pt-legend-chip { display: inline-flex; align-items: center; gap: 4px; }
+	.pt-legend-chip .box { width: 10px; height: 10px; border-radius: 2px; }
+	.pt-legend-note { margin-left: auto; color: #94a3b8; }
+
+	.pt-list-head { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 22px 4px; }
+	.pt-list-head h2 { margin: 0; font-size: 13px; font-weight: 600; color: #0f172a; }
+	.pt-list-head h2 .dim { color: #94a3b8; font-weight: 400; }
+	.pt-list-head p { margin: 2px 0 0; font-size: 11px; color: #64748b; }
+	.pt-sort { display: flex; gap: 6px; font-size: 11px; color: #64748b; }
+	.pt-sort-btn { padding: 4px 10px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+	.pt-sort-btn.active { background: #fff; border-color: #e5e7eb; color: #0f172a; font-weight: 600; }
+
+	.pt-col-headers { display: grid; grid-template-columns: 260px 130px 60px 90px 130px 90px 80px; gap: 16px; padding: 6px 22px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600; }
+
+	.pt-row { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin: 0 22px 6px; overflow: hidden; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+	.pt-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+	.pt-row.critical { border-left: 3px solid #dc2626; }
+	.pt-row.warn { border-left: 3px solid #d97706; }
+	.pt-row.healthy { border-left: 3px solid #16a34a; }
+	.pt-row.idle { border-left: 3px solid #e5e7eb; }
+
+	.pt-summary { display: grid; grid-template-columns: 260px 130px 60px 90px 130px 90px 80px; gap: 16px; padding: 12px 16px 8px; align-items: center; }
+	.pt-proj-link { font-size: 13px; font-weight: 600; color: #0f172a; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.pt-proj-link:hover { color: #2563eb; }
+	.pt-proj-sub { font-size: 10px; color: #64748b; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+	.pt-comp-chip { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9.5px; font-weight: 600; }
+	.pt-comp-chip.uae { background: #f0f9ff; color: #075985; }
+	.pt-comp-chip.ksa { background: #fefce8; color: #854d0e; }
+
+	.pt-badge { display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+	.pt-badge.drawing { background: #f5f3ff; color: #6d28d9; }
+	.pt-badge.awaiting { background: #fef2f2; color: #b91c1c; }
+	.pt-badge.production { background: #eff6ff; color: #1d4ed8; }
+	.pt-badge.qc { background: #fffbeb; color: #92400e; }
+	.pt-badge.dispatch { background: #f0fdf4; color: #15803d; }
+	.pt-badge.installed { background: #ecfeff; color: #0e7490; }
+
+	.pt-flag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: 'SF Mono', monospace; cursor: pointer; position: relative; }
+	.pt-flag.r { background: #fef2f2; color: #b91c1c; }
+	.pt-flag.a { background: #fffbeb; color: #92400e; }
+	.pt-flag.g { background: #f0fdf4; color: #15803d; }
+	.pt-flag-none { color: #94a3b8; font-size: 11px; }
+	.pt-flag-tip { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; min-width: 240px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 100; display: none; text-align: left; font-weight: 400; font-size: 11.5px; color: #0f172a; }
+	.pt-flag:hover .pt-flag-tip { display: block; }
+	.pt-flag-tip .tip-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; margin-bottom: 6px; padding-bottom: 5px; border-bottom: 1px solid #f1f5f9; }
+	.pt-flag-tip ul { margin: 0; padding: 0; list-style: none; }
+	.pt-flag-tip li { display: flex; gap: 6px; padding: 4px 0; color: #475569; }
+	.pt-flag-tip li .bullet { color: #dc2626; font-weight: 700; }
+	.pt-flag-tip .tip-footer { margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; font-size: 10px; color: #94a3b8; }
+
+	.pt-bignum { font-family: 'SF Mono', monospace; font-size: 15px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+	.pt-bignum.g { color: #16a34a; } .pt-bignum.a { color: #d97706; } .pt-bignum.r { color: #dc2626; } .pt-bignum.b { color: #2563eb; } .pt-bignum.gray { color: #94a3b8; }
+	.pt-subnum { font-size: 9.5px; color: #64748b; margin-top: 2px; }
+	.pt-subnum.r { color: #dc2626; }
+
+	.pt-matbar { height: 6px; background: #f1f5f9; border-radius: 2px; overflow: hidden; display: flex; margin-top: 4px; }
+	.pt-mat-seg { height: 100%; } .pt-mat-seg.avail { background: #16a34a; } .pt-mat-seg.po { background: #2563eb; } .pt-mat-seg.mr { background: #d97706; }
+
+	.pt-open { color: #64748b; font-size: 11px; font-weight: 500; text-decoration: none; }
+	.pt-open:hover { color: #2563eb; }
+
+	.pt-pipeline { display: flex; gap: 4px; padding: 4px 16px 12px; overflow-x: auto; }
+	.pt-pipeline-empty { padding: 8px 16px 14px; font-size: 11px; color: #64748b; font-style: italic; }
+
+	.pt-tile { min-width: 105px; flex: 1 1 105px; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+	.pt-tile.done { background: #dcfce7; border-color: #16a34a; }
+	.pt-tile.progress { background: #dbeafe; border-color: #2563eb; }
+	.pt-tile.warn { background: #fef3c7; border-color: #d97706; }
+	.pt-tile.blocked { background: #fee2e2; border-color: #dc2626; }
+	.pt-tile.fixed { border-left: 3px solid #64748b; }
+	.pt-tile-name { font-size: 10px; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.pt-tile-tag { font-size: 8px; font-weight: 700; padding: 0 4px; background: #94a3b8; color: #fff; border-radius: 2px; margin-right: 4px; letter-spacing: 0.05em; }
+	.pt-tile.done .pt-tile-tag { background: #16a34a; } .pt-tile.progress .pt-tile-tag { background: #2563eb; } .pt-tile.warn .pt-tile-tag { background: #d97706; }
+	.pt-tile-pct { font-family: 'SF Mono', monospace; font-size: 12px; font-weight: 700; line-height: 1; }
+	.pt-tile-pct.done-t { color: #16a34a; } .pt-tile-pct.prog-t { color: #2563eb; } .pt-tile-pct.warn-t { color: #d97706; } .pt-tile-pct.gray-t { color: #94a3b8; }
+	.pt-tile-date { font-family: 'SF Mono', monospace; font-size: 11px; font-weight: 600; color: #0f172a; }
+	.pt-tile-bar { height: 3px; background: rgba(0,0,0,0.06); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+	.pt-tile-fill { height: 100%; } .pt-tile-fill.g { background: #16a34a; } .pt-tile-fill.b { background: #2563eb; } .pt-tile-fill.a { background: #d97706; } .pt-tile-fill.r { background: #dc2626; } .pt-tile-fill.gray { background: #94a3b8; }
+	.pt-tile-meta { font-size: 9px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+	`;
+	var style = document.createElement('style');
+	style.id = 'pt-styles';
+	style.textContent = css;
+	document.head.appendChild(style);
+}
