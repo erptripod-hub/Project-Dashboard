@@ -357,7 +357,7 @@ def _tile(key, label, tag, pct, meta="", is_fixed=False, date_display=None, forc
     elif pct < 20:
         state = "warn"
     else:
-        state = "progress"
+        state = "inprog"
 
     return {
         "key": key,
