@@ -148,6 +148,21 @@ class ProjectProductionPlan(Document):
 				return
 
 			mr_names = [m["name"] for m in mrs]
+			mr_count = len(mr_names)
+
+			# Count PO docs raised for this project (distinct, not cancelled)
+			po_count_rows = frappe.db.sql(
+				"""
+				SELECT COUNT(DISTINCT po.name) as cnt
+				FROM `tabPurchase Order` po
+				INNER JOIN `tabPurchase Order Item` poi ON poi.parent = po.name
+				WHERE poi.project = %(project)s
+				  AND po.docstatus != 2
+				""",
+				{"project": self.project},
+				as_dict=True,
+			)
+			po_count = int(po_count_rows[0]["cnt"] if po_count_rows else 0)
 
 			# Sum required qty across MR items
 			required_rows = frappe.db.sql(
@@ -211,23 +226,29 @@ class ProjectProductionPlan(Document):
 			)
 			po_qty = flt(po_rows[0]["qty"] if po_rows else 0)
 
-			# Compute segments (all clamped to be non-negative)
-			available_qty = min(required_qty, received_qty + transferred_qty)
-			po_only_qty = min(required_qty - available_qty, max(0, po_qty - received_qty))
-			mr_only_qty = max(0, required_qty - available_qty - po_only_qty)
+			# Received = Stock Entry transferred + GRN received, clamped to required
+			received_total = min(required_qty, received_qty + transferred_qty)
+			pending_qty = max(0, required_qty - received_total)
 
 			def pct(n):
-				return round((n / required_qty) * 100, 2) if required_qty else 0
+				return round((n / required_qty) * 100) if required_qty else 0
 
-			self.material_available_pct = pct(available_qty)
-			self.material_po_pct = pct(po_only_qty)
-			self.material_mr_pct = pct(mr_only_qty)
+			received_pct = pct(received_total)
+			pending_pct = 100 - received_pct
 
+			# Bar is now 2 segments: available (received, green) + pending (grey).
+			# material_available_pct drives the green segment; keep po/mr fields at 0
+			# so any old bar rendering stays consistent.
+			self.material_available_pct = received_pct
+			self.material_po_pct = 0
+			self.material_mr_pct = 0
+
+			# Plain-language line the team can read at a glance:
+			# MR: 10 · PO: 5 · Received: 60% (12 of 20 qty) · Pending: 40%
 			self.material_summary_text = (
-				f"{int(available_qty)} of {int(required_qty)} qty available "
-				f"({self.material_available_pct}%) · "
-				f"{int(po_only_qty)} in PO pipeline · "
-				f"{int(mr_only_qty)} awaiting PO"
+				f"MR: {mr_count} · PO: {po_count} · "
+				f"Received: {received_pct}% ({int(received_total)} of {int(required_qty)} qty) · "
+				f"Pending: {pending_pct}%"
 			)
 		except Exception:
 			frappe.log_error(
@@ -339,28 +360,9 @@ class ProjectProductionPlan(Document):
 	# Guard: cannot mark Installed without 5 final images
 	# -------------------------------------------------------------------
 	def validate_installed_status(self):
-		if self.overall_status != "Installed":
-			return
-
-		filled = sum(
-			1
-			for f in (
-				self.final_image_1,
-				self.final_image_2,
-				self.final_image_3,
-				self.final_image_4,
-				self.final_image_5,
-			)
-			if f
-		)
-		if filled < 5:
-			frappe.throw(
-				_(
-					"Cannot mark project as 'Installed' — only {0} of 5 required "
-					"final images are attached. Please upload the remaining images "
-					"in the Final Images section."
-				).format(filled)
-			)
+		# No image count requirement. Users attach as many final images as
+		# they want (0 to 5). Kept as a method so the validate() call stays valid.
+		return
 
 
 # ---------------------------------------------------------------------------
