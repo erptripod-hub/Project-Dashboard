@@ -10,7 +10,8 @@
   "stage_name",
   "department",
   "completion_percentage",
-  "notes"
+  "notes",
+  "approved_by"
  ],
  "fields": [
   {
@@ -50,6 +51,14 @@
    "in_list_view": 1,
    "label": "Notes",
    "columns": 3
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Approved By",
+   "in_list_view": 1,
+   "columns": 2
   }
  ],
  "istable": 1,

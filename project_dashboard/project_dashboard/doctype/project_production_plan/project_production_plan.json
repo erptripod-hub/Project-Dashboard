@@ -19,6 +19,7 @@
   "column_break_team",
   "designer",
   "qc_lead",
+  "supervisor",
   "dates_section",
   "kickoff_date",
   "target_dispatch_date",
@@ -48,6 +49,11 @@
   "completion_timeline_shared",
   "approved_mr_raised",
   "approved_mr_link",
+  "mr_1",
+  "mr_2",
+  "mr_3",
+  "mr_4",
+  "mr_5",
   "column_break_kickoff",
   "kickoff_notes",
   "drawing_checklist",
@@ -231,7 +237,7 @@
    "fieldtype": "Section Break",
    "label": "Duration (auto-calculated)",
    "collapsible": 1,
-   "description": "Production Start → Production End (or Revised Dispatch fallback)"
+   "description": "Production Start \u2192 Production End (or Revised Dispatch fallback)"
   },
   {
    "fieldname": "total_duration_days",
@@ -554,8 +560,8 @@
   {
    "fieldname": "final_images_section",
    "fieldtype": "Section Break",
-   "label": "Final Images (min 5 required)",
-   "description": "Cannot mark project 'Installed' until at least 5 images are attached"
+   "label": "Final Images",
+   "description": "Attach final installation images (up to 5). None are mandatory."
   },
   {
    "fieldname": "final_image_1",
@@ -608,6 +614,42 @@
    "fieldtype": "Table",
    "label": "Daily Updates",
    "options": "Project Production Plan Daily Update"
+  },
+  {
+   "fieldname": "supervisor",
+   "fieldtype": "Link",
+   "label": "Supervisor",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "mr_1",
+   "fieldtype": "Link",
+   "label": "MR 1",
+   "options": "Material Request"
+  },
+  {
+   "fieldname": "mr_2",
+   "fieldtype": "Link",
+   "label": "MR 2",
+   "options": "Material Request"
+  },
+  {
+   "fieldname": "mr_3",
+   "fieldtype": "Link",
+   "label": "MR 3",
+   "options": "Material Request"
+  },
+  {
+   "fieldname": "mr_4",
+   "fieldtype": "Link",
+   "label": "MR 4",
+   "options": "Material Request"
+  },
+  {
+   "fieldname": "mr_5",
+   "fieldtype": "Link",
+   "label": "MR 5",
+   "options": "Material Request"
   }
  ],
  "links": [],
