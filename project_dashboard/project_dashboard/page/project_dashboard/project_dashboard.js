@@ -149,6 +149,13 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		var mp = d.manpower || {};
 		var po = d.purchase_orders || {};
 		var pot = d.po_by_type || {};
+		var so = d.so_data || {};
+
+		// Fallback values when no Project Plan
+		var contract_value = hp ? (plan.boq_grand_total || 0) : (so.so_grand_total || 0);
+		var budget_value = hp ? (plan.total_project_cost || 0) : (so.auto_budget || 0);
+		var budget_label = hp ? "Adjusted + overhead" : "33% of SO value (ex VAT)";
+		var contract_label = hp ? "BOQ incl. VAT" : (so.so_count > 1 ? so.so_count + " Sales Orders" : "Sales Order");
 
 		var dur = plan.project_duration || 0;
 		var tl_pct = dur > 0 ? Math.min(Math.round((plan.days_passed || 0) / dur * 100), 100) : 0;
@@ -178,10 +185,10 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 
 		// Financial Cards
 		html += '<div class="k4">';
-		html += kc('Contract Value', fmt(hp ? plan.boq_grand_total : 0), 'BOQ incl. VAT', '#2563eb');
-		html += kc('Project Budget', fmt(hp ? plan.total_project_cost : 0), 'Adjusted + overhead', '#7c3aed');
+		html += kc('Contract Value', fmt(contract_value), contract_label, '#2563eb');
+		html += kc('Project Budget', fmt(budget_value), budget_label, '#7c3aed');
 		html += kc('Total Spent', fmt(d.total_spent || 0), 'POs + expenses', '#0d9488');
-		html += kc('Remaining', fmt((hp ? plan.total_project_cost : 0) - (d.total_spent || 0)), 'Budget − spent', '#d97706');
+		html += kc('Remaining', fmt(budget_value - (d.total_spent || 0)), 'Budget − spent', '#d97706');
 		html += '</div>';
 
 		// Row 1: Manpower + PO

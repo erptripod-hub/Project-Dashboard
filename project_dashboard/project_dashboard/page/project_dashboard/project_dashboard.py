@@ -37,6 +37,28 @@ def get_dashboard_data(project):
 	data["has_plan"] = bool(pp_name)
 	data["plan"] = {}
 
+	# Sales Orders fallback (used when no Project Plan)
+	so_result = frappe.db.sql("""
+		SELECT
+			COALESCE(SUM(base_net_total), 0) as total_net,
+			COALESCE(SUM(base_grand_total), 0) as total_grand,
+			COUNT(*) as so_count
+		FROM `tabSales Order`
+		WHERE project = %s
+		AND docstatus = 1
+		AND status != 'Cancelled'
+	""", project, as_dict=1)
+	so_net_total = float(so_result[0].total_net or 0) if so_result else 0
+	so_grand_total = float(so_result[0].total_grand or 0) if so_result else 0
+	so_count = int(so_result[0].so_count or 0) if so_result else 0
+	auto_budget = round(so_net_total * 0.33, 2)  # 33% of ex-VAT value
+	data["so_data"] = {
+		"so_net_total": so_net_total,
+		"so_grand_total": so_grand_total,
+		"so_count": so_count,
+		"auto_budget": auto_budget,
+	}
+
 	if pp_name:
 		plan = frappe.get_doc("Project Plan", pp_name)
 
