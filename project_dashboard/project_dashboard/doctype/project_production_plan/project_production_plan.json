@@ -9,6 +9,7 @@
  "field_order": [
   "overview_section",
   "project",
+  "project_name",
   "company",
   "column_break_overview_1",
   "overall_status",
@@ -650,6 +651,14 @@
    "fieldtype": "Link",
    "label": "MR 5",
    "options": "Material Request"
+  },
+  {
+   "fieldname": "project_name",
+   "fieldtype": "Data",
+   "label": "Project Name",
+   "fetch_from": "project.project_name",
+   "read_only": 1,
+   "description": "Auto-fetched from Project."
   }
  ],
  "links": [],

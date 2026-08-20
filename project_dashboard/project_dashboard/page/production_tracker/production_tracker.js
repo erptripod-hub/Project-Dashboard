@@ -99,7 +99,7 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
 
 	function render_row(p) {
 		var health = p.health || 'idle';
-		var h = '<div class="pt-row ' + health + '" data-project="' + esc(p.project) + '">';
+		var h = '<div class="pt-row ' + health + '" data-project="' + esc((p.project_label || p.project)) + '">';
 
 		// Summary strip
 		h += '<div class="pt-summary">';
@@ -107,7 +107,7 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
 		// Project
 		var comp_chip = company_chip(p.company);
 		h += '<div class="pt-proj">' +
-			'<a class="pt-proj-link" data-plan="' + esc(p.name) + '">' + esc(p.project) + '</a>' +
+			'<a class="pt-proj-link" data-plan="' + esc(p.name) + '">' + esc(p.project_label || p.project) + '</a>' +
 			'<div class="pt-proj-sub">' + comp_chip + ' ' +
 			(p.kickoff_date ? 'Kickoff ' + fmt_date(p.kickoff_date) : 'Kickoff pending') +
 			(p.production_manager ? ' · ' + esc(p.production_manager) : '') + '</div>' +
@@ -219,8 +219,8 @@ frappe.pages['production-tracker'].on_page_load = function(wrapper) {
 		// Row click (but not on links) → open
 		$container.find('.pt-row').on('click', function(e) {
 			if ($(e.target).closest('a, .pt-tile').length) return;
-			var proj = $(this).data('project');
-			if (proj) frappe.set_route('Form', 'Project Production Plan', 'PPP-' + proj);
+			var plan = $(this).find('.pt-proj-link').data('plan');
+			if (plan) frappe.set_route('Form', 'Project Production Plan', plan);
 		});
 	}
 

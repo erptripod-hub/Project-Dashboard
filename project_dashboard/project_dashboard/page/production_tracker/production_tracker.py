@@ -62,7 +62,7 @@ def _get_all_projects_view(company=None):
         "Project Production Plan",
         filters=filters,
         fields=[
-            "name", "project", "company", "overall_status",
+            "name", "project", "project_name", "company", "overall_status",
             "overall_joinery_completion_pct",
             "material_available_pct", "material_po_pct", "material_mr_pct",
             "material_summary_text",
@@ -148,9 +148,15 @@ def _get_all_projects_view(company=None):
         # Health level for row border
         health = _row_health(p, flags, is_overdue, mat_pct, s)
 
+        proj_id = p["project"]
+        proj_nm = p.get("project_name") or ""
+        proj_label = f"{proj_id} — {proj_nm}" if proj_nm else proj_id
+
         active_plans.append({
             "name": p["name"],
-            "project": p["project"],
+            "project": proj_id,
+            "project_name": proj_nm,
+            "project_label": proj_label,
             "company": p["company"],
             "status": s,
             "joinery_pct": flt(p.get("overall_joinery_completion_pct") or 0),
