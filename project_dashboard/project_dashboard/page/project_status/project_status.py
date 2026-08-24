@@ -5,6 +5,9 @@ import frappe
 def get_status_data(filters=None):
 	if not filters:
 		filters = {}
+	if isinstance(filters, str):
+		import json
+		filters = json.loads(filters)
 
 	status_filter = filters.get("status", "Open")
 	company_filter = filters.get("company")
