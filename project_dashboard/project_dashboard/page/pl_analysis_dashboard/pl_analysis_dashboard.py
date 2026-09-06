@@ -257,23 +257,49 @@ def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
 
 
 def _account_family(company, root_account):
-    """Root account plus every descendant leaf, using the nested set."""
+    """Root account plus every descendant leaf.
+
+    Walks parent_account rather than the lft/rgt nested set. The nested
+    set can hold stale or duplicated bounds when accounts are re-parented
+    without a tree rebuild, which silently files an account under the
+    wrong head. parent_account is what finance actually edits, so it is
+    the trustworthy source.
+    """
     if not root_account:
         return set()
-    bounds = frappe.db.get_value("Account", root_account, ["lft", "rgt"], as_dict=True)
-    if not bounds:
-        return set()
+
     rows = frappe.get_all(
         "Account",
-        filters={
-            "company": company,
-            "is_group": 0,
-            "lft": [">=", bounds.lft],
-            "rgt": ["<=", bounds.rgt],
-        },
-        pluck="name",
+        filters={"company": company},
+        fields=["name", "parent_account", "is_group"],
     )
-    return set(rows)
+
+    children = {}
+    is_group = {}
+    for r in rows:
+        is_group[r.name] = r.is_group
+        children.setdefault(r.parent_account, []).append(r.name)
+
+    if root_account not in is_group:
+        return set()
+
+    leaves = set()
+    seen = set()
+    stack = [root_account]
+    while stack:
+        node = stack.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        kids = children.get(node, [])
+        if not kids and not is_group.get(node):
+            leaves.add(node)
+        for k in kids:
+            if not is_group.get(k):
+                leaves.add(k)
+            else:
+                stack.append(k)
+    return leaves
 
 
 def _named_family(company, account_name_fragment):
