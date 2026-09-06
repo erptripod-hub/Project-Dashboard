@@ -541,6 +541,86 @@ def _finish_split(rows, unit=""):
     return {"rows": out, "total": total, "unit": unit}
 
 
+@frappe.whitelist()
+def get_head_split(company, from_date, to_date, head="direct", mode="cost_center"):
+    """Any expense head split by cost center, account or month."""
+    _check_permission()
+    company = _validate_company(company)
+    from_date, to_date = _validate_dates(from_date, to_date)
+
+    if head not in ("direct", "indirect"):
+        frappe.throw(_("Invalid head"))
+    if mode not in ("cost_center", "account", "month"):
+        frappe.throw(_("Invalid mode"))
+
+    meta = _company_meta(company)
+    cogs_family = _account_family(company, meta["cogs_account"])
+    direct_family = _named_family(company, "Direct Expenses")
+    indirect_family = _named_family(company, "Indirect Expenses")
+
+    if head == "indirect":
+        accounts = sorted(indirect_family - cogs_family)
+    else:
+        all_expense = set(frappe.get_all(
+            "Account",
+            filters={"company": company, "is_group": 0, "root_type": "Expense"},
+            pluck="name",
+        ))
+        accounts = sorted((direct_family or (all_expense - indirect_family)) - cogs_family)
+
+    if not accounts:
+        return {"rows": [], "total": 0.0, "unit": "",
+                "message": _("No accounts found under this head.")}
+
+    base = {
+        "company": company,
+        "from_date": from_date,
+        "to_date": to_date,
+        "accounts": accounts,
+    }
+
+    if mode == "month":
+        rows = frappe.db.sql(
+            """
+            SELECT DATE_FORMAT(gl.posting_date, '%%Y-%%m') AS label,
+                   SUM(gl.debit - gl.credit) AS amount
+            FROM `tabGL Entry` gl
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+            GROUP BY label ORDER BY label
+            """,
+            base,
+            as_dict=True,
+        )
+        return _finish_split(rows, unit="")
+
+    label_field = {
+        "cost_center": "IFNULL(NULLIF(gl.cost_center, ''), 'Unallocated')",
+        "account": "gl.account",
+    }[mode]
+
+    rows = frappe.db.sql(
+        """
+        SELECT {label_field} AS label,
+               SUM(gl.debit - gl.credit) AS amount
+        FROM `tabGL Entry` gl
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.account IN %(accounts)s
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY label
+        ORDER BY amount DESC
+        """.format(label_field=label_field),
+        base,
+        as_dict=True,
+    )
+    for r in rows:
+        if r.get("label") == "Unallocated":
+            r["warn"] = 1
+
+    return _finish_split(rows, unit="")
+
+
 # ---------------------------------------------------------------- order book
 
 @frappe.whitelist()
@@ -578,8 +658,40 @@ def get_order_book(company, from_date, to_date):
             open_value += flt(r.order_value)
             open_billed += flt(r.billed_value)
 
+    monthly = frappe.db.sql(
+        """
+        SELECT DATE_FORMAT(so.transaction_date, '%%Y-%%m') AS mkey,
+               COUNT(so.name) AS orders,
+               SUM(so.base_grand_total) AS value
+        FROM `tabSales Order` so
+        WHERE so.company = %(company)s
+          AND so.docstatus = 1
+          AND so.status != 'Closed'
+          AND so.transaction_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY mkey
+        ORDER BY mkey
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+        as_dict=True,
+    )
+
+    months = _month_keys(from_date, to_date)
+    by_key = {}
+    for m in monthly:
+        by_key[m.mkey] = m
+
+    series = []
+    for m in months:
+        hit = by_key.get(m["key"])
+        series.append({
+            "label": m["label"],
+            "orders": int(hit.orders) if hit else 0,
+            "value": flt(hit.value) if hit else 0.0,
+        })
+
     return {
         "currency": _company_meta(company)["currency"],
+        "monthly": series,
         "open": {
             "orders": int(open_orders),
             "value": open_value,

@@ -88,6 +88,16 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 			'.pla-obf .v{font-size:18px;font-weight:600;margin-top:2px}',
 			'.pla-obf .p{font-size:10.5px;color:#8c9199}',
 			'.pla-note{background:#faeeda;color:#854f0b;border-radius:8px;padding:11px 14px;font-size:11.5px;margin-bottom:14px}',
+			'.pla-pad{padding:14px 15px}',
+			'.pla-bars{display:flex;align-items:flex-end;gap:7px;height:118px}',
+			'.pla-bcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:4px;min-width:0}',
+			'.pla-bval{font-size:9.5px;color:#8c9199;text-align:center}',
+			'.pla-dual{display:flex;gap:2px;align-items:flex-end;height:100%}',
+			'.pla-dual i{flex:1;border-radius:2px 2px 0 0;display:block}',
+			'.pla-bxl{display:flex;gap:7px;margin-top:5px}',
+			'.pla-bxl span{flex:1;text-align:center;font-size:10px;color:#8c9199;min-width:0}',
+			'.pla-kpi .cur{font-size:12px;font-weight:500;color:#8c9199;margin-right:3px}',
+			'.pla-cbody{display:flex;align-items:center;gap:13px}',
 			'.pla-empty{padding:26px;text-align:center;color:#8c9199;font-size:12.5px}',
 			'.pla-prow{display:flex;padding:7px 0;border-top:1px solid #e3e6ea;font-size:12.5px;align-items:baseline}',
 			'.pla-prow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -116,6 +126,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += '<div class="pla-f"><label>From date</label><input type="date" id="pla-from"></div>';
 		h += '<div class="pla-f"><label>To date</label><input type="date" id="pla-to"></div>';
 		h += '<div class="pla-f"><label>Cost center</label><select id="pla-cc"><option value="">All</option></select></div>';
+		h += '<div class="pla-f"><label>Project</label><select id="pla-prj"><option value="">All</option></select></div>';
 		h += '<div class="pla-f"><label>&nbsp;</label><button class="btn btn-primary btn-sm" id="pla-go" style="height:32px">Show</button></div>';
 		h += '</div>';
 		h += '<div id="pla-body"><div class="pla-empty">Select a company and date range, then choose Show.</div></div>';
@@ -129,6 +140,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 		$(wrapper).find('#pla-company').on('change', function() {
 			load_cost_centers();
+			load_projects();
 		});
 	}
 
@@ -153,6 +165,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 						$(wrapper).find('#pla-company').val(def);
 					}
 					load_cost_centers();
+					load_projects();
 				}
 			}
 		});
@@ -181,6 +194,30 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 	}
 
+	function load_projects() {
+		var company = $(wrapper).find('#pla-company').val();
+		if (!company) return;
+		frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+				doctype: 'Project',
+				filters: { company: company },
+				fields: ['name', 'project_name'],
+				limit_page_length: 0,
+				order_by: 'name desc'
+			},
+			callback: function(r) {
+				var list = (r && r.message) ? r.message : [];
+				var opts = '<option value="">All</option>';
+				for (var i = 0; i < list.length; i++) {
+					var lbl = list[i].project_name ? (list[i].name + ' - ' + list[i].project_name) : list[i].name;
+					opts += '<option value="' + esc(list[i].name) + '">' + esc(lbl) + '</option>';
+				}
+				$(wrapper).find('#pla-prj').html(opts);
+			}
+		});
+	}
+
 	// ------------------------------------------------------------ load
 
 	function load() {
@@ -188,6 +225,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		state.from_date = $(wrapper).find('#pla-from').val();
 		state.to_date = $(wrapper).find('#pla-to').val();
 		var cc = $(wrapper).find('#pla-cc').val();
+		var prj = $(wrapper).find('#pla-prj').val();
 
 		if (!state.company) {
 			frappe.msgprint(__('Select a company'));
@@ -210,7 +248,8 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				company: state.company,
 				from_date: state.from_date,
 				to_date: state.to_date,
-				cost_center: cc || null
+				cost_center: cc || null,
+				project: prj || null
 			},
 			callback: function(r) {
 				if (!r || !r.message) {
@@ -265,14 +304,22 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += kpi('Net profit', t.net_profit.total, fmt_pct(m.net) + ' margin', t.net_profit.total < 0);
 		h += '</div>';
 
+		h += '<div class="pla-panel">';
+		h += '<div class="pla-pt"><h2>Income and expense by month</h2>';
+		h += '<span class="pla-cm"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#0f6e56"></i> income &nbsp; <i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#993c1d"></i> expense</span></div>';
+		h += '<div class="pla-pad">' + bar_chart(t.income.months, t.total_expense.months, ['#0f6e56', '#993c1d']) + '</div>';
+		h += '</div>';
+
 		h += '<div id="pla-obwrap"></div>';
 
 		h += '<div class="pla-cards">';
 		h += card('income', 'Income', '#0f6e56', head_by_key('income'), true);
 		h += card('cogs', 'Cost of goods sold', '#534ab7', head_by_key('cogs'), true);
 		h += card('direct', 'Direct expenses', '#993c1d', head_by_key('direct'), true);
-		h += card('indirect', 'Indirect expenses', '#5f5e5a', head_by_key('indirect'), false);
+		h += card('indirect', 'Indirect expenses', '#5f5e5a', head_by_key('indirect'), true);
 		h += '</div>';
+
+		h += summary_panel();
 
 		h += '<div class="pla-panel">';
 		h += '<div class="pla-pt"><h2>All ledgers</h2><span class="pla-tgl" id="pla-tgl">Expand all</span></div>';
@@ -288,6 +335,93 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		bind_body();
 	}
 
+	function bar_chart(seriesA, seriesB, colours) {
+		var months = state.data.months || [];
+		var max = 0, i;
+		for (i = 0; i < seriesA.length; i++) {
+			if (seriesA[i] > max) max = seriesA[i];
+			if (seriesB && seriesB[i] > max) max = seriesB[i];
+		}
+		var h = '<div class="pla-bars">';
+		for (i = 0; i < months.length; i++) {
+			h += '<div class="pla-bcol"><div class="pla-bval">' + short_num(seriesA[i]) + '</div>';
+			h += '<div class="pla-dual">';
+			h += '<i style="height:' + bar_h(seriesA[i], max) + '%;background:' + colours[0] + '"></i>';
+			if (seriesB) {
+				h += '<i style="height:' + bar_h(seriesB[i], max) + '%;background:' + colours[1] + '"></i>';
+			}
+			h += '</div></div>';
+		}
+		h += '</div><div class="pla-bxl">';
+		for (i = 0; i < months.length; i++) {
+			h += '<span>' + esc(months[i].label.split(' ')[0]) + '</span>';
+		}
+		h += '</div>';
+		return h;
+	}
+
+	function bar_h(v, max) {
+		if (!max || v <= 0) return 0;
+		return Math.max(1, (v / max * 100)).toFixed(1);
+	}
+
+	function short_num(v) {
+		var n = flt(v), a = Math.abs(n);
+		if (a >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+		if (a >= 1000) return Math.round(n / 1000) + 'K';
+		if (!n) return '0';
+		return String(Math.round(n));
+	}
+
+	function donut(values, colours) {
+		var total = 0, i;
+		for (i = 0; i < values.length; i++) total += Math.abs(flt(values[i]));
+		var h = '<svg viewBox="0 0 42 42" width="72" height="72" role="img" aria-label="Composition">';
+		h += '<circle cx="21" cy="21" r="15.9" fill="none" stroke="#e3e6ea" stroke-width="6"></circle>';
+		if (!total) return h + '</svg>';
+		var offset = 25;
+		for (i = 0; i < values.length; i++) {
+			var pct = Math.abs(flt(values[i])) / total * 100;
+			if (pct <= 0) continue;
+			h += '<circle cx="21" cy="21" r="15.9" fill="none" stroke="' + colours[i] + '" stroke-width="6"';
+			h += ' stroke-dasharray="' + pct.toFixed(2) + ' ' + (100 - pct).toFixed(2) + '"';
+			h += ' stroke-dashoffset="' + offset.toFixed(2) + '"></circle>';
+			offset = offset - pct;
+			if (offset < 0) offset += 100;
+		}
+		h += '</svg>';
+		return h;
+	}
+
+	function summary_panel() {
+		var d = state.data, t = d.totals;
+		var inc = t.income.total || 0;
+		function pct(v) { return inc ? (v / inc * 100).toFixed(1) + '%' : '0.0%'; }
+		function row(cls, label, value, split, open_key) {
+			var h = '<tr class="' + cls + '"' + (open_key ? ' data-summary="' + open_key + '"' : '') + '>';
+			h += '<td class="l">' + esc(label) + '</td>';
+			h += '<td' + (value < 0 ? ' class="pla-neg"' : '') + '>' + fmt(value) + '</td>';
+			h += '<td' + (value < 0 ? ' class="pla-neg"' : '') + '>' + pct(value) + '</td>';
+			h += '<td class="l" style="color:#8c9199">' + esc(split || '') + '</td></tr>';
+			return h;
+		}
+		var h = '<div class="pla-panel"><div class="pla-pt"><h2>Summary by head</h2>';
+		h += '<span class="pla-cm">share of income</span></div><div class="pla-scroll">';
+		h += '<table class="pla-tbl" style="min-width:520px"><thead><tr>';
+		h += '<th class="l">Head</th><th>Total</th><th>% of income</th><th class="l">Split by</th>';
+		h += '</tr></thead><tbody>';
+		h += row('leaf drill', 'Income', t.income.total, 'customer group', 'income');
+		h += row('leaf drill', 'Cost of goods sold', head_by_key('cogs').total, 'supplier group', 'cogs');
+		h += row('leaf drill', 'Direct expenses', head_by_key('direct').total, 'cost center', 'direct');
+		h += row('sum', 'Gross profit', t.gross_profit.total, '');
+		h += row('leaf drill', 'Indirect expenses', head_by_key('indirect').total, 'cost center', 'indirect');
+		h += row('sum', 'Total expense', t.total_expense.total, '');
+		h += row('sum', 'Net profit', t.net_profit.total, '');
+		h += '</tbody></table></div>';
+		h += '<div class="pla-foot">Income less cost of goods sold and direct expenses gives gross profit. Less indirect expenses gives net profit.</div></div>';
+		return h;
+	}
+
 	function head_by_key(key) {
 		var heads = state.data.heads || [];
 		for (var i = 0; i < heads.length; i++) {
@@ -298,7 +432,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 
 	function kpi(label, value, sub, neg) {
 		var h = '<div class="pla-kpi"><div class="l">' + esc(label) + '</div>';
-		h += '<div class="v' + (neg ? ' neg' : '') + '">' + fmt_m(value) + '</div>';
+		h += '<div class="v' + (neg ? ' neg' : '') + '"><span class="cur">' + esc(state.currency) + '</span>' + fmt_m(value) + '</div>';
 		if (sub) h += '<div class="p">' + esc(sub) + '</div>';
 		h += '</div>';
 		return h;
@@ -317,10 +451,16 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		var rest = 0;
 		for (var i = 3; i < accounts.length; i++) rest += flt(accounts[i].total);
 
+		var vals = [];
+		for (var v = 0; v < top.length; v++) vals.push(top[v].total);
+		if (rest) vals.push(rest);
+
 		var h = '<div class="pla-card' + (clickable ? ' klik' : '') + '" data-card="' + esc(key) + '">';
 		h += '<div class="pla-ch"><div class="pla-ct"><span class="pla-dot" style="background:' + colour + '"></span>' + esc(label) + '</div>';
 		h += clickable ? '<span class="pla-cl">View in detail</span>' : '<span class="pla-cm">' + fmt_m(head.total) + '</span>';
-		h += '</div><div class="pla-lg">';
+		h += '</div><div class="pla-cbody">';
+		h += donut(vals, pal);
+		h += '<div class="pla-lg" style="flex:1;min-width:0">';
 
 		if (!accounts.length) {
 			h += '<div class="row" style="color:#8c9199"><span>No entries in this period</span><span>0</span></div>';
@@ -332,7 +472,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				h += '<div class="row" style="color:#5c6066"><span><i class="pla-sw" style="background:' + pal[3] + '"></i>Other accounts</span><b>' + fmt_m(rest) + '</b></div>';
 			}
 		}
-		h += '</div></div>';
+		h += '</div></div></div>';
 		return h;
 	}
 
@@ -420,6 +560,22 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 			h += c.orders + ' closed orders excluded, value ' + fmt(c.value) + ', of which ' + fmt(c.unbilled) + ' was never billed.';
 			h += '</div>';
 		}
+		if (ob.monthly && ob.monthly.length) {
+			var vals = [], i;
+			for (i = 0; i < ob.monthly.length; i++) vals.push(flt(ob.monthly[i].value));
+			var mx = 0;
+			for (i = 0; i < vals.length; i++) if (vals[i] > mx) mx = vals[i];
+			h += '<div class="pla-bars" style="margin-top:4px">';
+			for (i = 0; i < vals.length; i++) {
+				h += '<div class="pla-bcol"><div class="pla-bval">' + short_num(vals[i]) + '</div>';
+				h += '<div class="pla-dual"><i style="height:' + bar_h(vals[i], mx) + '%;background:#185fa5"></i></div></div>';
+			}
+			h += '</div><div class="pla-bxl">';
+			for (i = 0; i < ob.monthly.length; i++) {
+				h += '<span>' + esc(ob.monthly[i].label.split(' ')[0]) + '</span>';
+			}
+			h += '</div>';
+		}
 		h += '<div class="pla-foot" style="padding:9px 0 0 0;border:none">Order value is not income. An order becomes income only when it is invoiced.</div>';
 		h += '</div>';
 		$(wrapper).find('#pla-obwrap').html(h);
@@ -455,10 +611,11 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 
 		$(wrapper).find('.pla-card.klik').on('click', function() {
-			var key = $(this).attr('data-card');
-			if (key === 'income') open_drill('customer_group', null);
-			else if (key === 'cogs') open_drill('supplier_group', null);
-			else if (key === 'direct') open_drill('cost_center', null);
+			open_drill(card_route($(this).attr('data-card')), null);
+		});
+
+		$(wrapper).find('tr[data-summary]').on('click', function() {
+			open_drill(card_route($(this).attr('data-summary')), null);
 		});
 	}
 
@@ -480,6 +637,13 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 	}
 
 	// ------------------------------------------------------------ drills
+
+	function card_route(key) {
+		if (key === 'income') return 'customer_group';
+		if (key === 'cogs') return 'supplier_group';
+		if (key === 'direct') return 'head_direct';
+		return 'head_indirect';
+	}
 
 	function drill_label(kind) {
 		if (kind === 'customer_group') return 'customer group';
@@ -514,6 +678,19 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				]
 			};
 		}
+		if (kind === 'head_direct' || kind === 'head_indirect') {
+			return {
+				title: kind === 'head_direct' ? 'Direct expenses' : 'Indirect expenses',
+				method: 'get_head_split',
+				head: kind === 'head_direct' ? 'direct' : 'indirect',
+				colour: kind === 'head_direct' ? '#993c1d' : '#5f5e5a',
+				tabs: [
+					{ k: 'cost_center', label: 'Cost center' },
+					{ k: 'account', label: 'Account' },
+					{ k: 'month', label: 'Month' }
+				]
+			};
+		}
 		return {
 			title: 'Salary and payroll',
 			method: 'get_salary_split',
@@ -540,14 +717,19 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		var box = dialog.$wrapper.find('#pla-drill');
 		box.html('<div class="pla-empty">Loading...</div>');
 
+		var call_args = {
+			company: state.company,
+			from_date: state.from_date,
+			to_date: state.to_date,
+			mode: mode
+		};
+		if (cfg.head) {
+			call_args.head = cfg.head;
+		}
+
 		frappe.call({
 			method: 'project_dashboard.project_dashboard.page.pl_analysis_dashboard.pl_analysis_dashboard.' + cfg.method,
-			args: {
-				company: state.company,
-				from_date: state.from_date,
-				to_date: state.to_date,
-				mode: mode
-			},
+			args: call_args,
 			callback: function(r) {
 				var res = (r && r.message) ? r.message : { rows: [], total: 0 };
 				var h = '';
