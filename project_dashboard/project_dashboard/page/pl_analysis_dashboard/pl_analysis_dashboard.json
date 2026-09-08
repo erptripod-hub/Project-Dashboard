@@ -1,0 +1,15 @@
+{
+ "creation": "2026-09-03 00:00:00.000000",
+ "doctype": "Page",
+ "modified": "2026-09-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Dashboard",
+ "name": "pl-analysis-dashboard",
+ "owner": "Administrator",
+ "page_name": "pl-analysis-dashboard",
+ "roles": [
+  {"role": "System Manager"}
+ ],
+ "standard": "Yes",
+ "title": "P&L Analysis Dashboard"
+}
