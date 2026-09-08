@@ -661,7 +661,10 @@ def get_order_book(company, from_date, to_date):
         SELECT so.status,
                COUNT(so.name) AS orders,
                SUM(so.base_grand_total) AS order_value,
-               SUM(so.base_grand_total * IFNULL(so.per_billed, 0) / 100) AS billed_value
+               SUM(LEAST(
+                   so.base_grand_total * IFNULL(so.per_billed, 0) / 100,
+                   so.base_grand_total
+               )) AS billed_value
         FROM `tabSales Order` so
         WHERE so.company = %(company)s
           AND so.docstatus = 1
@@ -688,11 +691,13 @@ def get_order_book(company, from_date, to_date):
         """
         SELECT DATE_FORMAT(so.transaction_date, '%%Y-%%m') AS mkey,
                COUNT(so.name) AS orders,
-               SUM(so.base_grand_total) AS value
+               SUM(CASE WHEN so.status = 'Closed'
+                        THEN LEAST(so.base_grand_total * IFNULL(so.per_billed, 0) / 100,
+                                   so.base_grand_total)
+                        ELSE so.base_grand_total END) AS value
         FROM `tabSales Order` so
         WHERE so.company = %(company)s
           AND so.docstatus = 1
-          AND so.status != 'Closed'
           AND so.transaction_date BETWEEN %(from_date)s AND %(to_date)s
         GROUP BY mkey
         ORDER BY mkey
@@ -715,9 +720,27 @@ def get_order_book(company, from_date, to_date):
             "value": flt(hit.value) if hit else 0.0,
         })
 
+    # A closed order counts at what was billed, because nothing further will
+    # ever be invoiced against it. Its unbilled balance is dead and is left
+    # out of "not yet invoiced" on purpose.
+    book_value = open_value + closed_billed
+    book_billed = open_billed + closed_billed
+
     return {
         "currency": _company_meta(company)["currency"],
         "monthly": series,
+        "book": {
+            "orders": int(open_orders + closed_orders),
+            "open_orders": int(open_orders),
+            "closed_orders": int(closed_orders),
+            "value": book_value,
+            "billed": book_billed,
+            "unbilled": open_value - open_billed,
+            "pct_billed": (book_billed / book_value * 100.0) if book_value else 0.0,
+            "average_open": (open_value / open_orders) if open_orders else 0.0,
+            "closed_billed": closed_billed,
+            "closed_dead": closed_value - closed_billed,
+        },
         "open": {
             "orders": int(open_orders),
             "value": open_value,
@@ -733,6 +756,134 @@ def get_order_book(company, from_date, to_date):
             "unbilled": closed_value - closed_billed,
         },
     }
+
+
+@frappe.whitelist()
+def get_income_bridge(company, from_date, to_date):
+    """Reconcile order-linked billing to total income.
+
+    Answers the obvious question: why is the order book billed figure
+    lower than income? Because some invoices are raised with no sales
+    order behind them, and a little income is posted by journal entry.
+    The three lines always add up to the income shown on the page.
+    """
+    _check_permission()
+    company = _validate_company(company)
+    from_date, to_date = _validate_dates(from_date, to_date)
+
+    total_income = flt(frappe.db.sql(
+        """
+        SELECT SUM(gl.credit - gl.debit)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND IFNULL(gl.is_opening, 'No') = 'No'
+          AND gl.voucher_type != 'Period Closing Voucher'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0)
+
+    non_invoice = flt(frappe.db.sql(
+        """
+        SELECT SUM(gl.credit - gl.debit)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type != 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0)
+
+    non_invoice_count = frappe.db.sql(
+        """
+        SELECT COUNT(DISTINCT gl.voucher_no)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type != 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0
+
+    no_order = frappe.db.sql(
+        """
+        SELECT COUNT(DISTINCT gl.voucher_no) AS cnt,
+               SUM(gl.credit - gl.debit) AS amount
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        INNER JOIN `tabSales Invoice` si ON si.name = gl.voucher_no
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type = 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND NOT EXISTS (
+              SELECT 1 FROM `tabSales Invoice Item` sii
+              WHERE sii.parent = si.name
+                AND IFNULL(sii.sales_order, '') != ''
+          )
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+        as_dict=True,
+    )
+    no_order_amount = flt(no_order[0].amount) if no_order else 0.0
+    no_order_count = (no_order[0].cnt or 0) if no_order else 0
+
+    with_order = total_income - non_invoice - no_order_amount
+
+    return {
+        "currency": _company_meta(company)["currency"],
+        "with_order": with_order,
+        "no_order": no_order_amount,
+        "no_order_count": no_order_count,
+        "non_invoice": non_invoice,
+        "non_invoice_count": non_invoice_count,
+        "total_income": total_income,
+    }
+
+
+@frappe.whitelist()
+def get_no_order_invoices(company, from_date, to_date, limit=200):
+    """Sales invoices raised without any sales order, for the drill list."""
+    _check_permission()
+    company = _validate_company(company)
+    from_date, to_date = _validate_dates(from_date, to_date)
+    limit = min(int(limit or 200), 500)
+
+    return frappe.db.sql(
+        """
+        SELECT si.name AS invoice,
+               si.posting_date,
+               si.customer,
+               IFNULL(si.project, '') AS project,
+               si.base_net_total AS amount,
+               si.is_return,
+               si.owner
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s
+          AND si.docstatus = 1
+          AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND NOT EXISTS (
+              SELECT 1 FROM `tabSales Invoice Item` sii
+              WHERE sii.parent = si.name
+                AND IFNULL(sii.sales_order, '') != ''
+          )
+        ORDER BY si.base_net_total DESC
+        LIMIT %(limit)s
+        """,
+        {
+            "company": company,
+            "from_date": from_date,
+            "to_date": to_date,
+            "limit": limit,
+        },
+        as_dict=True,
+    )
 
 
 @frappe.whitelist()

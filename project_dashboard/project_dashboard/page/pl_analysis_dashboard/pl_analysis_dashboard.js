@@ -98,6 +98,15 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 			'.pla-bxl span{flex:1;text-align:center;font-size:10px;color:#8c9199;min-width:0}',
 			'.pla-kpi .cur{font-size:12px;font-weight:500;color:#8c9199;margin-right:3px}',
 			'.pla-cbody{display:flex;align-items:center;gap:13px}',
+			'.pla-br{display:flex;padding:9px 0;border-top:1px solid #e3e6ea;align-items:baseline;font-size:13px}',
+			'.pla-br .n{flex:1;min-width:0}',
+			'.pla-br .k{width:190px;text-align:right;font-size:11px;color:#8c9199}',
+			'.pla-br .v{width:112px;text-align:right}',
+			'.pla-br.klik{background:#e6f1fb;cursor:pointer;padding-left:9px;padding-right:9px;border-radius:4px;margin-top:4px}',
+			'.pla-br.klik .n,.pla-br.klik .v{color:#0c447c}',
+			'.pla-br.klik .k{color:#185fa5}',
+			'.pla-br.klik:hover{background:#d9e9f9}',
+			'.pla-br.tot{border-top:1px solid #ccd2d9;font-weight:600;margin-top:3px}',
 			'.pla-empty{padding:26px;text-align:center;color:#8c9199;font-size:12.5px}',
 			'.pla-prow{display:flex;padding:7px 0;border-top:1px solid #e3e6ea;font-size:12.5px;align-items:baseline}',
 			'.pla-prow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -262,9 +271,108 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				state.all_open = false;
 				render_body();
 				load_order_book();
+				load_bridge();
 			},
 			error: function() {
 				$(wrapper).find('#pla-body').html('<div class="pla-empty">Could not load data.</div>');
+			}
+		});
+	}
+
+	function load_bridge() {
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.pl_analysis_dashboard.pl_analysis_dashboard.get_income_bridge',
+			args: {
+				company: state.company,
+				from_date: state.from_date,
+				to_date: state.to_date
+			},
+			callback: function(r) {
+				if (!r || !r.message) return;
+				render_bridge(r.message);
+			}
+		});
+	}
+
+	function render_bridge(b) {
+		var h = '<div class="pla-panel">';
+		h += '<div class="pla-pt"><h2>From orders to income</h2><span class="pla-cm">why the two figures differ</span></div>';
+		h += '<div class="pla-pad" style="padding-top:4px">';
+
+		h += '<div class="pla-br"><span class="n">Invoiced against sales orders</span>';
+		h += '<span class="k">from the order book above</span>';
+		h += '<span class="v">' + fmt(b.with_order) + '</span></div>';
+
+		h += '<div class="pla-br klik" id="pla-noorder"><span class="n">Invoiced without a sales order</span>';
+		h += '<span class="k">' + b.no_order_count + ' invoices, click for the list</span>';
+		h += '<span class="v">' + fmt(b.no_order) + '</span></div>';
+
+		if (flt(b.non_invoice)) {
+			h += '<div class="pla-br"><span class="n">Income posted without an invoice</span>';
+			h += '<span class="k">' + b.non_invoice_count + ' vouchers, no customer</span>';
+			h += '<span class="v">' + fmt(b.non_invoice) + '</span></div>';
+		}
+
+		h += '<div class="pla-br tot"><span class="n">Total income</span>';
+		h += '<span class="k">matches the figure above</span>';
+		h += '<span class="v">' + fmt(b.total_income) + '</span></div>';
+
+		h += '</div>';
+		h += '<div class="pla-foot">Order value is not income. An order becomes income only when it is invoiced, and some invoices are raised with no order at all.</div>';
+		h += '</div>';
+
+		$(wrapper).find('#pla-brwrap').html(h);
+		$(wrapper).find('#pla-noorder').on('click', function() {
+			open_no_order();
+		});
+	}
+
+	function open_no_order() {
+		var d = new frappe.ui.Dialog({ title: 'Invoices raised without a sales order', size: 'large' });
+		d.show();
+		d.$wrapper.find('.modal-body').html('<div class="pla"><div id="pla-no" style="margin:0;padding:0"></div></div>');
+		var box = d.$wrapper.find('#pla-no');
+		box.html('<div class="pla-empty">Loading...</div>');
+
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.pl_analysis_dashboard.pl_analysis_dashboard.get_no_order_invoices',
+			args: {
+				company: state.company,
+				from_date: state.from_date,
+				to_date: state.to_date,
+				limit: 200
+			},
+			callback: function(r) {
+				var rows = (r && r.message) ? r.message : [];
+				if (!rows.length) {
+					box.html('<div class="pla-empty">Every invoice in this period has a sales order behind it.</div>');
+					return;
+				}
+				var total = 0, i;
+				for (i = 0; i < rows.length; i++) total += flt(rows[i].amount);
+
+				var h = '<div style="font-size:11.5px;color:#5c6066;margin-bottom:10px">';
+				h += esc(state.company) + ' &middot; ' + esc(state.from_date) + ' to ' + esc(state.to_date);
+				h += ' &middot; ' + rows.length + ' invoices &middot; ' + esc(state.currency) + ' ' + fmt(total) + '</div>';
+				h += '<div class="pla-scroll"><table class="pla-tbl" style="min-width:620px"><thead><tr>';
+				h += '<th class="l">Invoice</th><th class="l">Date</th><th class="l">Customer</th>';
+				h += '<th class="l">Project</th><th>Amount</th><th class="l">Raised by</th>';
+				h += '</tr></thead><tbody>';
+				for (i = 0; i < rows.length; i++) {
+					var e = rows[i];
+					h += '<tr><td class="l">' + esc(e.invoice) + '</td>';
+					h += '<td class="l">' + esc(frappe.datetime.str_to_user(e.posting_date)) + '</td>';
+					h += '<td class="l">' + esc(e.customer) + '</td>';
+					h += '<td class="l">' + (e.project ? esc(e.project) : '<span style="color:#854f0b">none</span>') + '</td>';
+					h += '<td>' + fmt(e.amount) + '</td>';
+					h += '<td class="l">' + esc(e.owner) + '</td></tr>';
+				}
+				h += '</tbody></table></div>';
+				h += '<div style="margin-top:10px;font-size:11.5px;color:#8c9199">Raising the order before invoicing closes this gap and corrects the order book.</div>';
+				box.html(h);
+			},
+			error: function() {
+				box.html('<div class="pla-empty">Could not load the list.</div>');
 			}
 		});
 	}
@@ -311,6 +419,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += '</div>';
 
 		h += '<div id="pla-obwrap"></div>';
+		h += '<div id="pla-brwrap"></div>';
 
 		h += '<div class="pla-cards">';
 		h += card('income', 'Income', '#0f6e56', head_by_key('income'), true);
@@ -544,22 +653,22 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 	}
 
 	function render_order_book(ob) {
-		var o = ob.open || {};
+		var b = ob.book || {};
 		var c = ob.closed || {};
 		var h = '<div class="pla-ob">';
 		h += '<div class="pla-pt" style="padding:0 0 10px 0;border:none"><h2>Sales orders &mdash; order book</h2>';
-		h += '<span class="pla-cm">' + o.orders + ' open orders, closed excluded</span></div>';
+		h += '<span class="pla-cm">' + (b.orders || 0) + ' submitted orders, closed counted at billed value</span></div>';
 		h += '<div class="pla-obf">';
-		h += '<div><div class="l">Order book</div><div class="v">' + fmt_m(o.value) + '</div><div class="p">' + o.orders + ' orders</div></div>';
-		h += '<div><div class="l">Invoiced against orders</div><div class="v">' + fmt_m(o.billed) + '</div><div class="p">' + fmt_pct(o.pct_billed) + ' billed</div></div>';
-		h += '<div><div class="l">Not yet invoiced</div><div class="v">' + fmt_m(o.unbilled) + '</div><div class="p">work sold, still to bill</div></div>';
-		h += '<div><div class="l">Average order</div><div class="v">' + fmt_m(o.average) + '</div><div class="p">across open orders</div></div>';
+		h += '<div><div class="l">Order book</div><div class="v">' + fmt_m(b.value) + '</div>';
+		h += '<div class="p">' + (b.orders || 0) + ' orders, ' + (b.closed_orders || 0) + ' closed</div></div>';
+		h += '<div><div class="l">Invoiced against orders</div><div class="v">' + fmt_m(b.billed) + '</div>';
+		h += '<div class="p">' + fmt_pct(b.pct_billed) + ' billed</div></div>';
+		h += '<div><div class="l">Not yet invoiced</div><div class="v">' + fmt_m(b.unbilled) + '</div>';
+		h += '<div class="p">from ' + (b.open_orders || 0) + ' open orders</div></div>';
+		h += '<div><div class="l">Average open order</div><div class="v">' + fmt_m(b.average_open) + '</div>';
+		h += '<div class="p">across open orders only</div></div>';
 		h += '</div>';
-		if (c.orders) {
-			h += '<div class="pla-foot" style="border-top:1px solid #e3e6ea;margin-top:12px;padding:9px 0 0 0">';
-			h += c.orders + ' closed orders excluded, value ' + fmt(c.value) + ', of which ' + fmt(c.unbilled) + ' was never billed.';
-			h += '</div>';
-		}
+
 		if (ob.monthly && ob.monthly.length) {
 			var vals = [], i;
 			for (i = 0; i < ob.monthly.length; i++) vals.push(flt(ob.monthly[i].value));
@@ -576,8 +685,16 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 			}
 			h += '</div>';
 		}
-		h += '<div class="pla-foot" style="padding:9px 0 0 0;border:none">Order value is not income. An order becomes income only when it is invoiced.</div>';
-		h += '</div>';
+
+		h += '<div class="pla-foot" style="padding:10px 0 0 0">';
+		if (b.closed_orders) {
+			h += (b.closed_orders) + ' closed orders are counted at what was billed, ' + fmt(b.closed_billed);
+			h += ', because nothing further will be invoiced against them. Their unbilled balance of ';
+			h += fmt(b.closed_dead) + ' is left out of not yet invoiced. ';
+		}
+		h += 'Billed value is capped at order value, so a closed order never exceeds its contract. ';
+		h += 'Order value is not income &mdash; an order becomes income only when it is invoiced.';
+		h += '</div></div>';
 		$(wrapper).find('#pla-obwrap').html(h);
 	}
 
