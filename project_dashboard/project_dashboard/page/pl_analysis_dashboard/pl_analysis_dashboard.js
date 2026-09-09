@@ -135,7 +135,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += '<div class="pla-f"><label>From date</label><input type="date" id="pla-from"></div>';
 		h += '<div class="pla-f"><label>To date</label><input type="date" id="pla-to"></div>';
 		h += '<div class="pla-f"><label>Cost center</label><select id="pla-cc"><option value="">All</option></select></div>';
-		h += '<div class="pla-f"><label>Project</label><select id="pla-prj"><option value="">All</option></select></div>';
 		h += '<div class="pla-f"><label>&nbsp;</label><button class="btn btn-primary btn-sm" id="pla-go" style="height:32px">Show</button></div>';
 		h += '</div>';
 		h += '<div id="pla-body"><div class="pla-empty">Select a company and date range, then choose Show.</div></div>';
@@ -149,7 +148,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 		$(wrapper).find('#pla-company').on('change', function() {
 			load_cost_centers();
-			load_projects();
 		});
 	}
 
@@ -174,7 +172,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 						$(wrapper).find('#pla-company').val(def);
 					}
 					load_cost_centers();
-					load_projects();
 				}
 			}
 		});
@@ -203,30 +200,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 	}
 
-	function load_projects() {
-		var company = $(wrapper).find('#pla-company').val();
-		if (!company) return;
-		frappe.call({
-			method: 'frappe.client.get_list',
-			args: {
-				doctype: 'Project',
-				filters: { company: company },
-				fields: ['name', 'project_name'],
-				limit_page_length: 0,
-				order_by: 'name desc'
-			},
-			callback: function(r) {
-				var list = (r && r.message) ? r.message : [];
-				var opts = '<option value="">All</option>';
-				for (var i = 0; i < list.length; i++) {
-					var lbl = list[i].project_name ? (list[i].name + ' - ' + list[i].project_name) : list[i].name;
-					opts += '<option value="' + esc(list[i].name) + '">' + esc(lbl) + '</option>';
-				}
-				$(wrapper).find('#pla-prj').html(opts);
-			}
-		});
-	}
-
 	// ------------------------------------------------------------ load
 
 	function load() {
@@ -234,7 +207,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		state.from_date = $(wrapper).find('#pla-from').val();
 		state.to_date = $(wrapper).find('#pla-to').val();
 		var cc = $(wrapper).find('#pla-cc').val();
-		var prj = $(wrapper).find('#pla-prj').val();
 
 		if (!state.company) {
 			frappe.msgprint(__('Select a company'));
@@ -257,8 +229,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				company: state.company,
 				from_date: state.from_date,
 				to_date: state.to_date,
-				cost_center: cc || null,
-				project: prj || null
+				cost_center: cc || null
 			},
 			callback: function(r) {
 				if (!r || !r.message) {

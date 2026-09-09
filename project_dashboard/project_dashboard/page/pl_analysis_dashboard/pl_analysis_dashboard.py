@@ -109,7 +109,7 @@ def get_companies():
 
 
 @frappe.whitelist()
-def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
+def get_pl_data(company, from_date, to_date, cost_center=None):
     """Full page payload: heads, monthly columns, ledger tree, drill flags."""
     _check_permission()
     company = _validate_company(company)
@@ -124,9 +124,6 @@ def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
     if cost_center:
         conditions += " AND gl.cost_center = %(cost_center)s"
         params["cost_center"] = cost_center
-    if project:
-        conditions += " AND gl.project = %(project)s"
-        params["project"] = project
 
     rows = frappe.db.sql(
         """
@@ -357,7 +354,9 @@ def get_income_split(company, from_date, to_date, mode="customer_group"):
     group_field = {
         "customer_group": "IFNULL(NULLIF(c.customer_group, ''), 'Ungrouped')",
         "customer": "si.customer",
-        "project": "IFNULL(NULLIF(si.project, ''), 'No project')",
+        "project": ("CASE WHEN IFNULL(si.project, '') = '' THEN 'No project' "
+                    "ELSE CONCAT(si.project, IFNULL(CONCAT(' - ', NULLIF(pr.project_name, si.project)), '')) "
+                    "END"),
     }[mode]
 
     rows = frappe.db.sql(
@@ -369,6 +368,7 @@ def get_income_split(company, from_date, to_date, mode="customer_group"):
         INNER JOIN `tabAccount` a ON a.name = gl.account
         INNER JOIN `tabSales Invoice` si ON si.name = gl.voucher_no
         LEFT JOIN `tabCustomer` c ON c.name = si.customer
+        LEFT JOIN `tabProject` pr ON pr.name = si.project
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.voucher_type = 'Sales Invoice'
           AND a.root_type = 'Income'
