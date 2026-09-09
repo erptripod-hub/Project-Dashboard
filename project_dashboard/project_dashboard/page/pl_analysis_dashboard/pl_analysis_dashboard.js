@@ -733,6 +733,10 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		return 'head_indirect';
 	}
 
+	function drill_row_style(row) {
+		return row.drill ? ' style="cursor:pointer"' : '';
+	}
+
 	function drill_label(kind) {
 		if (kind === 'customer_group') return 'customer group';
 		if (kind === 'supplier_group') return 'supplier group';
@@ -783,8 +787,11 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 			title: 'Salary and payroll',
 			method: 'get_salary_split',
 			colour: '#993c1d',
+			salary: 1,
 			tabs: [
 				{ k: 'cost_center', label: 'Cost center' },
+				{ k: 'employment_type', label: 'Labour vs office' },
+				{ k: 'account', label: 'Component account' },
 				{ k: 'month', label: 'Month' }
 			]
 		};
@@ -798,10 +805,10 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		});
 		d.show();
 		d.$wrapper.find('.modal-body').html('<div class="pla"><div id="pla-drill" style="margin:0;padding:0"></div></div>');
-		draw_drill(d, cfg, cfg.tabs[0].k, account);
+		draw_drill(d, cfg, cfg.tabs[0].k, account, null);
 	}
 
-	function draw_drill(dialog, cfg, mode, account) {
+	function draw_drill(dialog, cfg, mode, account, scope) {
 		var box = dialog.$wrapper.find('#pla-drill');
 		box.html('<div class="pla-empty">Loading...</div>');
 
@@ -813,6 +820,9 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		};
 		if (cfg.head) {
 			call_args.head = cfg.head;
+		}
+		if (cfg.salary && scope) {
+			call_args.cost_center = scope;
 		}
 
 		frappe.call({
@@ -827,6 +837,13 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				if (account) h += ' &middot; ' + esc(short_acc(account));
 				h += ' &middot; ' + esc(state.currency) + ' ' + fmt(res.total);
 				h += '</div>';
+
+				if (scope) {
+					h += '<div style="font-size:12px;margin-bottom:10px">';
+					h += '<span class="pla-tab on" style="cursor:default">' + esc(short_acc(scope)) + '</span> ';
+					h += '<span class="pla-tab" id="pla-clear">Back to all cost centers</span>';
+					h += '</div>';
+				}
 
 				h += '<div class="pla-tabs">';
 				for (var i = 0; i < cfg.tabs.length; i++) {
@@ -843,8 +860,11 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				} else {
 					for (var j = 0; j < res.rows.length; j++) {
 						var row = res.rows[j];
-						h += '<div class="pla-prow' + (row.warn ? ' warn' : '') + '">';
-						h += '<span class="n">' + esc(row.label) + '</span>';
+						var can = (row.drill && !scope) ? 1 : 0;
+						h += '<div class="pla-prow' + (row.warn ? ' warn' : '') + '"';
+						if (can) h += ' data-cc="' + esc(row.drill) + '" style="cursor:pointer"';
+						h += '>';
+						h += '<span class="n">' + esc(row.label) + (can ? ' <span style="color:#185fa5;font-size:11px">&rsaquo;</span>' : '') + '</span>';
 						h += '<span class="c">' + (row.count ? row.count + ' ' + esc(res.unit || '') : '') + '</span>';
 						h += '<span class="v"' + (row.amount < 0 ? ' style="color:#a32d2d"' : '') + '>' + fmt(row.amount) + '</span>';
 						h += '<span class="p">' + fmt_pct(row.pct) + '</span>';
@@ -858,8 +878,14 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				}
 
 				box.html(h);
-				box.find('.pla-tab').on('click', function() {
-					draw_drill(dialog, cfg, $(this).attr('data-mode'), account);
+				box.find('.pla-tab[data-mode]').on('click', function() {
+					draw_drill(dialog, cfg, $(this).attr('data-mode'), account, scope);
+				});
+				box.find('#pla-clear').on('click', function() {
+					draw_drill(dialog, cfg, mode, account, null);
+				});
+				box.find('.pla-prow[data-cc]').on('click', function() {
+					draw_drill(dialog, cfg, mode, account, $(this).attr('data-cc'));
 				});
 			},
 			error: function() {

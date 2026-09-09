@@ -494,13 +494,21 @@ def get_cogs_split(company, from_date, to_date, mode="supplier_group"):
 
 
 @frappe.whitelist()
-def get_salary_split(company, from_date, to_date, mode="cost_center"):
-    """Payroll cost by cost center or month, read from GL."""
+def get_salary_split(company, from_date, to_date, mode="cost_center", cost_center=None):
+    """Payroll cost by cost centre, employment type, account or month.
+
+    Employment type is held on the Payroll Entry, not on the ledger line,
+    so it is reached through the accrual journal: the payable line of the
+    journal carries reference_type 'Payroll Entry' pointing at the run.
+    Anything posted to the salary accounts by a manual journal has no
+    payroll entry behind it and is reported separately rather than
+    silently dropped.
+    """
     _check_permission()
     company = _validate_company(company)
     from_date, to_date = _validate_dates(from_date, to_date)
 
-    if mode not in ("cost_center", "month"):
+    if mode not in ("cost_center", "employment_type", "account", "month"):
         frappe.throw(_("Invalid mode"))
 
     accounts = _payroll_accounts(company)
@@ -515,6 +523,11 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
         "accounts": accounts,
     }
 
+    cc_filter = ""
+    if cost_center:
+        cc_filter = " AND gl.cost_center = %(cost_center)s"
+        base["cost_center"] = cost_center
+
     if mode == "month":
         rows = frappe.db.sql(
             """
@@ -524,12 +537,57 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
             WHERE gl.company = %(company)s AND gl.is_cancelled = 0
               AND gl.account IN %(accounts)s
               AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
             GROUP BY label ORDER BY label
-            """,
+            """.format(cc_filter=cc_filter),
             base,
             as_dict=True,
         )
         return _finish_split(rows, unit="")
+
+    if mode == "account":
+        rows = frappe.db.sql(
+            """
+            SELECT gl.account AS label,
+                   SUM(gl.debit - gl.credit) AS amount
+            FROM `tabGL Entry` gl
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        return _finish_split(rows, unit="")
+
+    if mode == "employment_type":
+        rows = frappe.db.sql(
+            """
+            SELECT IFNULL(NULLIF(pe.employment_type, ''), 'Not from a payroll run') AS label,
+                   SUM(gl.debit - gl.credit) AS amount,
+                   COUNT(DISTINCT gl.voucher_no) AS cnt
+            FROM `tabGL Entry` gl
+            LEFT JOIN `tabJournal Entry Account` jea
+                   ON jea.parent = gl.voucher_no
+                  AND jea.reference_type = 'Payroll Entry'
+            LEFT JOIN `tabPayroll Entry` pe
+                   ON pe.name = jea.reference_name
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label
+            ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        for r in rows:
+            if r.get("label") == "Not from a payroll run":
+                r["warn"] = 1
+        return _finish_split(rows, unit="vch")
 
     rows = frappe.db.sql(
         """
@@ -539,15 +597,18 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.account IN %(accounts)s
           AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          {cc_filter}
         GROUP BY label
         ORDER BY amount DESC
-        """,
+        """.format(cc_filter=cc_filter),
         base,
         as_dict=True,
     )
     for r in rows:
         if r.get("label") == "Unallocated":
             r["warn"] = 1
+        else:
+            r["drill"] = r.get("label")
 
     return _finish_split(rows, unit="")
 
@@ -563,6 +624,7 @@ def _finish_split(rows, unit=""):
             "count": r.get("cnt") or 0,
             "pct": (amount / total * 100.0) if total else 0.0,
             "warn": 1 if r.get("warn") else 0,
+            "drill": r.get("drill") or "",
         })
     return {"rows": out, "total": total, "unit": unit}
 
