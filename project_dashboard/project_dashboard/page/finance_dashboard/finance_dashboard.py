@@ -283,6 +283,7 @@ def get_all_projects_summary():
             p.expected_end_date
         FROM `tabProject` p
         WHERE p.status NOT IN ('Cancelled', 'Completed')
+        AND (p.project_type IS NULL OR p.project_type NOT IN ('Operational', 'Stock'))
         ORDER BY p.expected_start_date DESC
     """, as_dict=1)
     
