@@ -24,6 +24,17 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.fd-header-right{display:flex;align-items:center;gap:12px}
 			.fd-header select{background:#475569;border:1px solid #64748b;color:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;min-width:260px;cursor:pointer}
 			.fd-header select:focus{outline:none;border-color:#fbbf24}
+			.project-search-wrap{position:relative}
+			.project-search-input{background:#475569;border:1px solid #64748b;color:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;min-width:320px;cursor:text}
+			.project-search-input::placeholder{color:#94a3b8}
+			.project-search-input:focus{outline:none;border-color:#fbbf24}
+			.project-dropdown{position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #475569;border-radius:8px;max-height:300px;overflow-y:auto;display:none;z-index:100;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+			.project-dropdown.active{display:block}
+			.project-dropdown-item{padding:10px 14px;cursor:pointer;font-size:13px;color:#f1f5f9;border-bottom:1px solid #334155}
+			.project-dropdown-item:last-child{border-bottom:none}
+			.project-dropdown-item:hover,.project-dropdown-item.selected{background:#334155}
+			.project-dropdown-item .proj-id{font-weight:700;color:#fbbf24}
+			.project-dropdown-item .proj-name{color:#94a3b8;margin-left:8px}
 			.summary-btn{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%);border:none;color:#1e293b;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(251,191,36,0.3)}
 			.summary-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(251,191,36,0.4)}
 			.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin:20px 0 12px 0;display:flex;align-items:center;gap:8px}
@@ -168,9 +179,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 				</div>
 				<div class="fd-header-right">
 					<button class="summary-btn" onclick="openProjectSummary()">📊 Project Summary</button>
-					<select id="fd-project-select">
-						<option value="">Select a project...</option>
-					</select>
+					<div class="project-search-wrap">
+						<input type="text" id="fd-project-search" class="project-search-input" placeholder="Search project..." autocomplete="off">
+						<div id="fd-project-dropdown" class="project-dropdown"></div>
+					</div>
 				</div>
 			</div>
 			<div id="fd-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">
@@ -190,26 +202,92 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		</div>
 	`);
 
-	// Load projects list
+	// Load projects list for search
+	var allProjects = [];
 	frappe.db.get_list('Project', {
 		fields: ['name', 'project_name'],
 		limit: 500,
 		filters: {status: ['!=', 'Cancelled']},
 		order_by: 'modified desc'
 	}).then(function(projects) {
-		var sel = document.getElementById('fd-project-select');
-		projects.forEach(function(p) {
-			var opt = document.createElement('option');
-			opt.value = p.name;
-			opt.textContent = p.name + ' — ' + p.project_name;
-			sel.appendChild(opt);
-		});
+		allProjects = projects;
 	});
 
-	document.getElementById('fd-project-select').addEventListener('change', function() {
-		if (this.value) {
-			cur_project = this.value;
+	var searchInput = document.getElementById('fd-project-search');
+	var dropdown = document.getElementById('fd-project-dropdown');
+	var selectedIndex = -1;
+
+	searchInput.addEventListener('focus', function() {
+		showDropdown(this.value);
+	});
+
+	searchInput.addEventListener('input', function() {
+		showDropdown(this.value);
+		selectedIndex = -1;
+	});
+
+	searchInput.addEventListener('keydown', function(e) {
+		var items = dropdown.querySelectorAll('.project-dropdown-item');
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+			updateSelection(items);
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			selectedIndex = Math.max(selectedIndex - 1, 0);
+			updateSelection(items);
+		} else if (e.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+			e.preventDefault();
+			selectProject(items[selectedIndex].dataset.project);
+		} else if (e.key === 'Escape') {
+			dropdown.classList.remove('active');
+		}
+	});
+
+	function updateSelection(items) {
+		items.forEach((item, i) => {
+			item.classList.toggle('selected', i === selectedIndex);
+			if (i === selectedIndex) item.scrollIntoView({block: 'nearest'});
+		});
+	}
+
+	function showDropdown(query) {
+		query = (query || '').toLowerCase();
+		var filtered = allProjects.filter(function(p) {
+			return p.name.toLowerCase().includes(query) || (p.project_name || '').toLowerCase().includes(query);
+		}).slice(0, 20);
+
+		if (filtered.length === 0) {
+			dropdown.innerHTML = '<div style="padding:14px;color:#64748b;text-align:center;font-size:12px">No projects found</div>';
+		} else {
+			dropdown.innerHTML = filtered.map(function(p) {
+				return '<div class="project-dropdown-item" data-project="' + p.name + '">' +
+					'<span class="proj-id">' + p.name + '</span>' +
+					'<span class="proj-name">' + (p.project_name || '') + '</span></div>';
+			}).join('');
+		}
+		dropdown.classList.add('active');
+
+		dropdown.querySelectorAll('.project-dropdown-item').forEach(function(item) {
+			item.addEventListener('click', function() {
+				selectProject(this.dataset.project);
+			});
+		});
+	}
+
+	function selectProject(projectName) {
+		var proj = allProjects.find(function(p) { return p.name === projectName; });
+		if (proj) {
+			searchInput.value = proj.name + ' — ' + (proj.project_name || '');
+			cur_project = proj.name;
+			dropdown.classList.remove('active');
 			load_dashboard(cur_project);
+		}
+	}
+
+	document.addEventListener('click', function(e) {
+		if (!e.target.closest('.project-search-wrap')) {
+			dropdown.classList.remove('active');
 		}
 	});
 
@@ -646,7 +724,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 				</div>
 				<div class="divider-v"></div>
 				<div class="summary-item">
-					<div class="si-label">Net ${prof.is_profit ? 'Profit' : 'Loss'}</div>
+					<div class="si-label">Gross ${prof.is_profit ? 'Profit' : 'Loss'}</div>
 					<div class="si-value ${prof.is_profit ? 'green' : 'red'}">${fmt(Math.abs(prof.profit))}</div>
 				</div>
 				<div class="divider-v"></div>
