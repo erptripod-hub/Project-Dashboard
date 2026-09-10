@@ -99,6 +99,15 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600}
 			.tag.saved{background:#ecfdf5;color:#059669}
 			.tag.exceeded{background:#fef2f2;color:#dc2626}
+			.data-row-simple{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9}
+			.data-row-simple:last-child{border-bottom:none}
+			.data-row-simple .drs-label{font-size:13px;color:#64748b;font-weight:500}
+			.data-row-simple .drs-value{font-size:15px;font-weight:700;color:#1e293b}
+			.data-row-simple .drs-value.green{color:#059669}
+			.data-row-simple .drs-value.red{color:#dc2626}
+			.data-row-simple.total{background:#f8fafc;margin:10px -20px -20px -20px;padding:14px 20px;border-radius:0 0 8px 8px;border-bottom:none}
+			.data-row-simple.total .drs-label{font-weight:700;color:#1e293b}
+			.data-row-simple.total .drs-value{font-size:18px}
 			.summary-row{background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:12px;padding:20px 28px;display:flex;justify-content:space-around;align-items:center;margin-top:20px;flex-wrap:wrap;gap:16px}
 			.summary-item{text-align:center}
 			.summary-item .si-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:6px}
@@ -344,6 +353,11 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
 	}
 
+	function fmtNum(v) {
+		v = parseFloat(v) || 0;
+		return v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	}
+
 	function render(d) {
 		var info = d.project_info || {};
 		var so = d.sales_orders || {};
@@ -539,107 +553,83 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			`;
 		}
 
-		// Profitability Section
-		html += '<div class="sec-title">Profitability</div>';
-		html += `
-			<div class="card-grid g4">
-				<div class="card gold">
-					<div class="c-label">Project Value</div>
-					<div class="c-value">${fmt(prof.project_value)}</div>
-					<div class="c-sub">Contract amount</div>
-				</div>
-				<div class="card amber">
-					<div class="c-label">Total Cost</div>
-					<div class="c-value">${fmt(prof.total_cost)}</div>
-					<div class="c-sub">PO + Expenses + Labour</div>
-				</div>
-				<div class="card ${prof.is_profit ? 'emerald' : 'rose'}">
-					<div class="c-label">${prof.is_profit ? 'Profit' : 'Loss'}</div>
-					<div class="c-value ${prof.is_profit ? 'profit' : 'loss'}">${fmt(Math.abs(prof.profit))}</div>
-					<div class="c-sub"><span class="${prof.is_profit ? 'up' : 'down'}">↑ ${prof.is_profit ? 'Profitable' : 'Loss'}</span></div>
-				</div>
-				<div class="card ${prof.margin >= 20 ? 'emerald' : (prof.margin >= 10 ? 'amber' : 'rose')}">
-					<div class="c-label">Profit Margin</div>
-					<div class="c-value ${prof.margin >= 20 ? 'profit' : (prof.margin >= 0 ? '' : 'loss')}">${prof.margin}%</div>
-					<div class="c-sub">${prof.margin >= 20 ? 'Healthy margin' : (prof.margin >= 10 ? 'Low margin' : 'Critical')}</div>
-				</div>
-			</div>
-		`;
-
-		// Budget vs Actual Section
-		html += '<div class="sec-title">Budget vs Actual</div>';
+		// Manhours, Costs & Profitability Section (Simplified 2-Panel Layout)
+		var mh = d.manhours || {working_hours: 0, ot_hours: 0, total_hours: 0};
+		var costs = d.costs || {};
+		
+		html += '<div class="sec-title">Manhours, Costs & Profitability</div>';
 		html += '<div class="two-col">';
-
-		// Left: Department Budgets
-		html += '<div class="panel">';
-		html += '<div class="panel-title"><span class="icon">📈</span> Cost Tracking</div>';
-		if (hp && plan.department_budgets && plan.department_budgets.length) {
-			plan.department_budgets.forEach(function(db) {
-				var pct = db.budget_amount > 0 ? Math.min(100, Math.round(db.spent_amount / db.budget_amount * 100)) : 0;
-				var variance = db.budget_amount - db.spent_amount;
-				var barColor = db.status === 'On Track' ? 'emerald' : (db.status === 'Warning' ? 'gold' : 'rose');
-				html += `
-					<div class="budget-row">
-						<div class="br-label">${db.department_name}</div>
-						<div class="br-bar">
-							<div class="progress-bar">
-								<div class="fill ${barColor}" style="width:${pct}%"></div>
-							</div>
-						</div>
-						<div class="br-values">
-							<div class="bv-item">
-								<div class="bv-label">Budget</div>
-								<div class="bv-val">${fmt(db.budget_amount)}</div>
-							</div>
-							<div class="bv-item">
-								<div class="bv-label">Spent</div>
-								<div class="bv-val">${fmt(db.spent_amount)}</div>
-							</div>
-							<div class="bv-item">
-								<div class="bv-label">Variance</div>
-								<div class="bv-val ${variance >= 0 ? 'green' : 'red'}">${variance >= 0 ? '+' : ''}${fmt(variance)} ${variance >= 0 ? '✓' : '✗'}</div>
-							</div>
-						</div>
-					</div>
-				`;
-			});
-		} else {
-			html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px">No budgets defined in Project Plan</div>';
-		}
-		html += '</div>';
-
-		// Right: Budget Summary
-		html += '<div class="panel">';
-		html += '<div class="panel-title"><span class="icon">💰</span> Budget Summary</div>';
+		
+		// Left Panel: Manhours & Costs
 		html += `
-			<div class="card-grid g2" style="margin-bottom:16px">
-				<div class="card gold">
-					<div class="c-label">Total Budget</div>
-					<div class="c-value">${fmt(budget.total_budget)}</div>
+			<div class="panel" style="border-top:4px solid #0ea5e9">
+				<div class="panel-title"><span class="icon">⏱️</span> Manhours & Costs</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Working Hours</span>
+					<span class="drs-value">${fmtNum(mh.working_hours)}</span>
 				</div>
-				<div class="card amber">
-					<div class="c-label">Total Spent</div>
-					<div class="c-value">${fmt(budget.total_spent)}</div>
+				<div class="data-row-simple">
+					<span class="drs-label">OT Hours</span>
+					<span class="drs-value">${fmtNum(mh.ot_hours)}</span>
 				</div>
-			</div>
-			<div class="card ${budget.is_under_budget ? 'emerald' : 'rose'}">
-				<div class="c-label">Total Variance</div>
-				<div class="c-value ${budget.is_under_budget ? 'profit' : 'loss'}">${budget.variance >= 0 ? '+' : ''}${fmt(budget.variance)}</div>
-				<div class="c-sub">
-					<span class="tag ${budget.is_under_budget ? 'saved' : 'exceeded'}">${budget.is_under_budget ? '✓ Under Budget by' : '✗ Over Budget by'} ${Math.abs(budget.variance_percent)}%</span>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Manhours</span>
+					<span class="drs-value">${fmtNum(mh.total_hours)}</span>
 				</div>
-				<div class="progress-wrap">
-					<div class="progress-bar">
-						<div class="fill gold" style="width:${budget.total_budget > 0 ? Math.min(100, Math.round(budget.total_spent / budget.total_budget * 100)) : 0}%"></div>
-					</div>
-					<div class="progress-info">
-						<span>${budget.total_budget > 0 ? Math.round(budget.total_spent / budget.total_budget * 100) : 0}% budget utilized</span>
-						<span>${Math.abs(budget.variance_percent)}% ${budget.is_under_budget ? 'saved' : 'exceeded'}</span>
-					</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Labour Cost</span>
+					<span class="drs-value">${fmtFull(costs.labour_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Purchase Orders</span>
+					<span class="drs-value">${fmtFull(costs.po_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Expense Claims</span>
+					<span class="drs-value">${fmtFull(costs.expense_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple total">
+					<span class="drs-label">Total Spent</span>
+					<span class="drs-value">${fmtFull(costs.total_cost || 0)}</span>
 				</div>
 			</div>
 		`;
-		html += '</div>';
+		
+		// Right Panel: Budget & Profitability
+		html += `
+			<div class="panel" style="border-top:4px solid #fbbf24">
+				<div class="panel-title"><span class="icon">💰</span> Budget & Profitability</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Budget</span>
+					<span class="drs-value">${budget.has_budget ? fmtFull(budget.total_budget) : '<span style="color:#94a3b8">Not Set</span>'}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Spent</span>
+					<span class="drs-value">${fmtFull(budget.total_spent)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Variance</span>
+					<span class="drs-value ${budget.is_under_budget ? 'green' : 'red'}">${budget.has_budget ? ((budget.variance >= 0 ? '+' : '') + fmtFull(budget.variance) + ' <span class="tag ' + (budget.is_under_budget ? 'saved' : 'exceeded') + '">' + (budget.is_under_budget ? '✓ Under' : '✗ Over') + '</span>') : '—'}</span>
+				</div>
+				<div class="data-row-simple" style="margin-top:12px;padding-top:14px;border-top:2px solid #e2e8f0">
+					<span class="drs-label">Project Value (SO)</span>
+					<span class="drs-value">${fmtFull(prof.project_value)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Cost</span>
+					<span class="drs-value">${fmtFull(prof.total_cost)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">${prof.is_profit ? 'Profit' : 'Loss'}</span>
+					<span class="drs-value ${prof.is_profit ? 'green' : 'red'}">${fmtFull(Math.abs(prof.profit))}</span>
+				</div>
+				<div class="data-row-simple total">
+					<span class="drs-label">Profit Margin</span>
+					<span class="drs-value ${prof.margin >= 20 ? 'green' : (prof.margin >= 0 ? '' : 'red')}">${prof.margin}%</span>
+				</div>
+			</div>
+		`;
+		
 		html += '</div>'; // end two-col
 
 		// Final Summary Bar

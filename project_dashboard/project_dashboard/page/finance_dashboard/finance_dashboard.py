@@ -142,6 +142,9 @@ def get_finance_data(project):
     # Costs - Labour (from Project Timesheet)
     labour_cost = get_labour_cost(project)
     
+    # Manhours breakdown
+    manhours = get_manhours(project)
+    
     po_total = flt(po_cost[0].total) if po_cost else 0
     expense_total = flt(expense_cost[0].total) if expense_cost else 0
     
@@ -153,6 +156,8 @@ def get_finance_data(project):
         "labour_cost": labour_cost,
         "total_cost": total_cost
     }
+    
+    data["manhours"] = manhours
     
     # Profitability
     project_value = so_total  # Use SO total as project value
@@ -167,27 +172,19 @@ def get_finance_data(project):
         "is_profit": profit >= 0
     }
     
-    # Budget vs Actual
-    if pp_name:
-        budget_total = sum(flt(r.budget_amount) for r in (plan.department_budgets or []))
-        spent_total = sum(flt(r.spent_amount) for r in (plan.department_budgets or []))
-        variance = budget_total - spent_total
-        
-        data["budget_summary"] = {
-            "total_budget": budget_total,
-            "total_spent": spent_total,
-            "variance": variance,
-            "variance_percent": round((variance / budget_total * 100) if budget_total > 0 else 0, 1),
-            "is_under_budget": variance >= 0
-        }
-    else:
-        data["budget_summary"] = {
-            "total_budget": 0,
-            "total_spent": 0,
-            "variance": 0,
-            "variance_percent": 0,
-            "is_under_budget": True
-        }
+    # Budget vs Actual (from Budget DocType)
+    budget_total = get_project_budget(project)
+    spent_total = total_cost  # PO + Expenses + Labour
+    variance = budget_total - spent_total
+    
+    data["budget_summary"] = {
+        "total_budget": budget_total,
+        "total_spent": spent_total,
+        "variance": variance,
+        "variance_percent": round((variance / budget_total * 100) if budget_total > 0 else 0, 1),
+        "is_under_budget": variance >= 0,
+        "has_budget": budget_total > 0
+    }
     
     return data
 
@@ -230,6 +227,47 @@ def get_labour_cost(project):
         total_cost += working_cost + ot_cost
     
     return round(total_cost, 2)
+
+
+def get_manhours(project):
+    """Get manhours breakdown from Project Timesheet"""
+    result = frappe.db.sql("""
+        SELECT
+            COALESCE(SUM(pte.working_hours), 0) as working_hours,
+            COALESCE(SUM(pte.overtime_hours), 0) as overtime_hours
+        FROM `tabProject Timesheet Employee` pte
+        INNER JOIN `tabProject Timesheet` pt ON pt.name = pte.parent
+        WHERE pte.project = %s AND pt.docstatus = 1
+    """, project, as_dict=1)
+    
+    working_hours = flt(result[0].working_hours) if result else 0
+    ot_hours = flt(result[0].overtime_hours) if result else 0
+    
+    return {
+        "working_hours": working_hours,
+        "ot_hours": ot_hours,
+        "total_hours": working_hours + ot_hours
+    }
+
+
+def get_project_budget(project):
+    """Get budget from Budget DocType"""
+    # Find submitted Budget linked to this project
+    budget_name = frappe.db.get_value("Budget", 
+        {"project": project, "docstatus": 1}, 
+        "name")
+    
+    if not budget_name:
+        return 0
+    
+    # Sum all budget amounts from Budget Account child table
+    total = frappe.db.sql("""
+        SELECT COALESCE(SUM(budget_amount), 0) as total
+        FROM `tabBudget Account`
+        WHERE parent = %s
+    """, budget_name)
+    
+    return flt(total[0][0]) if total else 0
 
 
 @frappe.whitelist()
