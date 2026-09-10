@@ -630,15 +630,26 @@ def _finish_split(rows, unit=""):
 
 
 @frappe.whitelist()
-def get_head_split(company, from_date, to_date, head="direct", mode="cost_center"):
-    """Any expense head split by cost center, account or month."""
+def get_head_split(company, from_date, to_date, head="direct", mode="cost_center",
+                   cost_center=None):
+    """An expense head split by cost centre, employment type, account or month.
+
+    Employment type lives on the Payroll Entry, not on the ledger line, so it
+    is reached through the accrual journal: the payable line carries
+    reference_type 'Payroll Entry' pointing at the run. Anything in the head
+    that did not come from a payroll run is reported on its own line rather
+    than being forced into a category, which matters while earlier months
+    still sit in manual journals.
+
+    Passing cost_center scopes every mode to that cost centre.
+    """
     _check_permission()
     company = _validate_company(company)
     from_date, to_date = _validate_dates(from_date, to_date)
 
     if head not in ("direct", "indirect"):
         frappe.throw(_("Invalid head"))
-    if mode not in ("cost_center", "account", "month"):
+    if mode not in ("cost_center", "employment_type", "account", "month"):
         frappe.throw(_("Invalid mode"))
 
     meta = _company_meta(company)
@@ -667,6 +678,11 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
         "accounts": accounts,
     }
 
+    cc_filter = ""
+    if cost_center:
+        cc_filter = " AND gl.cost_center = %(cost_center)s"
+        base["cost_center"] = cost_center
+
     if mode == "month":
         rows = frappe.db.sql(
             """
@@ -676,12 +692,40 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
             WHERE gl.company = %(company)s AND gl.is_cancelled = 0
               AND gl.account IN %(accounts)s
               AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
             GROUP BY label ORDER BY label
-            """,
+            """.format(cc_filter=cc_filter),
             base,
             as_dict=True,
         )
         return _finish_split(rows, unit="")
+
+    if mode == "employment_type":
+        rows = frappe.db.sql(
+            """
+            SELECT IFNULL(NULLIF(pe.employment_type, ''), 'Not from a payroll run') AS label,
+                   SUM(gl.debit - gl.credit) AS amount,
+                   COUNT(DISTINCT gl.voucher_no) AS cnt
+            FROM `tabGL Entry` gl
+            LEFT JOIN `tabJournal Entry Account` jea
+                   ON jea.parent = gl.voucher_no
+                  AND jea.reference_type = 'Payroll Entry'
+            LEFT JOIN `tabPayroll Entry` pe
+                   ON pe.name = jea.reference_name
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label
+            ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        for r in rows:
+            if r.get("label") == "Not from a payroll run":
+                r["warn"] = 1
+        return _finish_split(rows, unit="vch")
 
     label_field = {
         "cost_center": "IFNULL(NULLIF(gl.cost_center, ''), 'Unallocated')",
@@ -696,15 +740,18 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.account IN %(accounts)s
           AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          {cc_filter}
         GROUP BY label
         ORDER BY amount DESC
-        """.format(label_field=label_field),
+        """.format(label_field=label_field, cc_filter=cc_filter),
         base,
         as_dict=True,
     )
     for r in rows:
         if r.get("label") == "Unallocated":
             r["warn"] = 1
+        elif mode == "cost_center" and not cost_center:
+            r["drill"] = r.get("label")
 
     return _finish_split(rows, unit="")
 

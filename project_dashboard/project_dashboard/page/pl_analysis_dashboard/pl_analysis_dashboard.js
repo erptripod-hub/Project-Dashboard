@@ -733,10 +733,6 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		return 'head_indirect';
 	}
 
-	function drill_row_style(row) {
-		return row.drill ? ' style="cursor:pointer"' : '';
-	}
-
 	function drill_label(kind) {
 		if (kind === 'customer_group') return 'customer group';
 		if (kind === 'supplier_group') return 'supplier group';
@@ -776,9 +772,11 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				method: 'get_head_split',
 				head: kind === 'head_direct' ? 'direct' : 'indirect',
 				colour: kind === 'head_direct' ? '#993c1d' : '#5f5e5a',
+				salary: 1,
 				tabs: [
 					{ k: 'cost_center', label: 'Cost center' },
-					{ k: 'account', label: 'Account' },
+					{ k: 'employment_type', label: 'Labour vs office' },
+					{ k: 'account', label: 'Component account' },
 					{ k: 'month', label: 'Month' }
 				]
 			};
