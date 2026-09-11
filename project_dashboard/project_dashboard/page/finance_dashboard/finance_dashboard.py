@@ -70,9 +70,9 @@ def get_project_costs_converted(project, target_currency):
         WHERE project = %s AND docstatus = 1
     """, project, as_dict=1)
     
-    # Expense Claims - use base_grand_total
+    # Expense Claims - use grand_total (Expense Claim doesn't have base_grand_total)
     expense_cost = frappe.db.sql("""
-        SELECT COALESCE(SUM(base_grand_total), 0) as total
+        SELECT COALESCE(SUM(grand_total), 0) as total
         FROM `tabExpense Claim`
         WHERE project = %s AND docstatus = 1
     """, project, as_dict=1)
