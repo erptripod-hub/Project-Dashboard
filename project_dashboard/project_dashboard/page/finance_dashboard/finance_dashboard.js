@@ -164,8 +164,25 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.projects-table .status-dot.delayed::before{background:#f43f5e}
 			.projects-table tfoot td{padding:12px 10px;background:#f8fafc;font-weight:700;border-top:2px solid #e2e8f0}
 			.projects-table tfoot .amt{font-size:13px;font-weight:800}
+			.projects-bar{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+			.project-card{background:#fff;border-radius:12px;padding:16px 20px;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.04)}
+			.project-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+			.project-card.parent::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+			.project-card.child::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed)}
+			.pc-row{display:flex;justify-content:space-between;align-items:center}
+			.pc-left{display:flex;flex-direction:column;gap:2px}
+			.pc-tag{font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}
+			.pc-tag.parent{color:#f59e0b}
+			.pc-tag.child{color:#8b5cf6}
+			.pc-title{font-size:15px;font-weight:700;color:#1e293b}
+			.pc-name{font-size:11px;color:#64748b}
+			.pc-company{font-size:11px;color:#94a3b8;background:#f1f5f9;padding:4px 10px;border-radius:4px}
+			.consolidate-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #475569}
+			.consolidate-toggle input{width:16px;height:16px;accent-color:#fbbf24;cursor:pointer}
+			.consolidate-toggle label{font-size:12px;color:#94a3b8;cursor:pointer}
+			.consolidate-toggle label strong{color:#fbbf24}
 			@media(max-width:1200px){.card-grid.g4{grid-template-columns:repeat(2,1fr)}.summary-stats{grid-template-columns:repeat(3,1fr)}}
-			@media(max-width:768px){.card-grid.g4,.card-grid.g3,.card-grid.g2{grid-template-columns:1fr}.two-col{grid-template-columns:1fr}.summary-row{flex-direction:column}.divider-v{display:none}.summary-stats{grid-template-columns:repeat(2,1fr)}}
+			@media(max-width:768px){.card-grid.g4,.card-grid.g3,.card-grid.g2{grid-template-columns:1fr}.two-col{grid-template-columns:1fr}.summary-row{flex-direction:column}.divider-v{display:none}.summary-stats{grid-template-columns:repeat(2,1fr)}.projects-bar{grid-template-columns:1fr}}
 		`;
 		document.head.appendChild(s);
 	}
@@ -182,9 +199,14 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 					<div class="project-search-wrap">
 						<input type="text" id="fd-project-search" class="project-search-input" placeholder="Search project..." autocomplete="off">
 						<div id="fd-project-dropdown" class="project-dropdown"></div>
+						<div class="consolidate-toggle" id="consolidate-toggle" style="display:none">
+							<input type="checkbox" id="consolidate-check">
+							<label for="consolidate-check">Include linked: <strong id="linked-project-name"></strong></label>
+						</div>
 					</div>
 				</div>
 			</div>
+			<div id="fd-projects-bar"></div>
 			<div id="fd-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">
 				Select a project above to load financial data
 			</div>
@@ -407,28 +429,143 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		document.getElementById('modal-body').innerHTML = html;
 	}
 
+	var linkedProjectsData = null;
+	var consolidateMode = false;
+
 	function load_dashboard(project) {
 		document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:60px;color:#64748b">Loading...</div>';
+		document.getElementById('fd-projects-bar').innerHTML = '';
+		
+		// First check for linked projects
 		frappe.call({
-			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_finance_data',
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.check_linked_projects',
 			args: {project: project},
 			callback: function(r) {
-				if (r.message) render(r.message);
-				else document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading data.</div>';
+				if (r.message) {
+					linkedProjectsData = r.message;
+					
+					if (linkedProjectsData.has_linked) {
+						// Show consolidate toggle
+						document.getElementById('consolidate-toggle').style.display = 'flex';
+						var childName = linkedProjectsData.children[0].name;
+						document.getElementById('linked-project-name').textContent = childName + ' (' + linkedProjectsData.children[0].company + ')';
+						
+						// Check if consolidate checkbox was previously checked
+						var checkbox = document.getElementById('consolidate-check');
+						if (checkbox.checked) {
+							consolidateMode = true;
+							loadConsolidatedData(project);
+						} else {
+							consolidateMode = false;
+							loadSingleProjectData(project);
+						}
+					} else {
+						// No linked projects
+						document.getElementById('consolidate-toggle').style.display = 'none';
+						linkedProjectsData = null;
+						consolidateMode = false;
+						loadSingleProjectData(project);
+					}
+				} else {
+					loadSingleProjectData(project);
+				}
 			}
 		});
 	}
 
-	function fmt(v) {
-		v = parseFloat(v) || 0;
-		if (v >= 1000000) return 'AED ' + (v/1000000).toFixed(2) + 'M';
-		if (v >= 1000) return 'AED ' + Math.round(v/1000) + 'K';
-		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	function loadSingleProjectData(project) {
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_finance_data',
+			args: {project: project},
+			callback: function(r) {
+				if (r.message) {
+					renderProjectsBar(false);
+					render(r.message, false);
+				} else {
+					document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading data.</div>';
+				}
+			}
+		});
 	}
 
-	function fmtFull(v) {
+	function loadConsolidatedData(project) {
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_consolidated_finance_data',
+			args: {project: project},
+			callback: function(r) {
+				if (r.message) {
+					renderProjectsBar(true, r.message);
+					render(r.message, true);
+				} else {
+					document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading consolidated data.</div>';
+				}
+			}
+		});
+	}
+
+	function renderProjectsBar(consolidated, data) {
+		var bar = document.getElementById('fd-projects-bar');
+		if (!consolidated || !linkedProjectsData || !linkedProjectsData.has_linked) {
+			bar.innerHTML = '';
+			return;
+		}
+		
+		var parent = data.parent_project || linkedProjectsData.parent;
+		var children = data.linked_projects || linkedProjectsData.children;
+		var currency = data.display_currency || 'AED';
+		
+		var html = '<div class="projects-bar">';
+		
+		// Parent card
+		html += '<div class="project-card parent">';
+		html += '<div class="pc-row">';
+		html += '<div class="pc-left">';
+		html += '<span class="pc-tag parent">● Parent Project</span>';
+		html += '<span class="pc-title">' + parent.name + '</span>';
+		html += '<span class="pc-name">' + (parent.project_name || '') + '</span>';
+		html += '</div>';
+		html += '<span class="pc-company">' + (parent.company || '') + '</span>';
+		html += '</div></div>';
+		
+		// Child cards
+		children.forEach(function(child) {
+			html += '<div class="project-card child">';
+			html += '<div class="pc-row">';
+			html += '<div class="pc-left">';
+			html += '<span class="pc-tag child">● Linked Project</span>';
+			html += '<span class="pc-title">' + child.name + '</span>';
+			html += '<span class="pc-name">' + (child.project_name || '') + '</span>';
+			html += '</div>';
+			html += '<span class="pc-company">' + (child.company || '') + '</span>';
+			html += '</div></div>';
+		});
+		
+		html += '</div>';
+		bar.innerHTML = html;
+	}
+
+	// Consolidate toggle event
+	document.getElementById('consolidate-check').addEventListener('change', function() {
+		consolidateMode = this.checked;
+		if (cur_project) {
+			load_dashboard(cur_project);
+		}
+	});
+
+	var displayCurrency = 'AED';
+
+	function fmt(v, currency) {
 		v = parseFloat(v) || 0;
-		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+		var cur = currency || displayCurrency;
+		if (v >= 1000000) return cur + ' ' + (v/1000000).toFixed(2) + 'M';
+		if (v >= 1000) return cur + ' ' + Math.round(v/1000) + 'K';
+		return cur + ' ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	}
+
+	function fmtFull(v, currency) {
+		v = parseFloat(v) || 0;
+		var cur = currency || displayCurrency;
+		return cur + ' ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
 	}
 
 	function fmtNum(v) {
@@ -436,7 +573,9 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		return v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
 	}
 
-	function render(d) {
+	function render(d, isConsolidated) {
+		// Set display currency
+		displayCurrency = d.display_currency || 'AED';
 		var info = d.project_info || {};
 		var so = d.sales_orders || {};
 		var si = d.sales_invoices || {};
