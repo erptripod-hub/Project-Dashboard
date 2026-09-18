@@ -55,7 +55,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 	$(wrapper).find('.page-content').html(
 		'<div class="pd">' +
 		'<div class="hdr">' +
-		'<div><h2>TRIPOD MENA | <span>Project Dashboard</span></h2><p>Select a project to view live data</p></div>' +
+		'<div><h2>TRIPOD MIDDLE EAST | <span>Project Dashboard</span></h2><p>Select a project to view live data</p></div>' +
 		'<div><input id="pd-inp" list="pd-dl" placeholder="Type project name or number..." autocomplete="off" style="background:#1e2a3b;border:1px solid #334155;color:#e2e8f0;padding:8px 14px;border-radius:8px;font-size:12px;min-width:280px;outline:none"><datalist id="pd-dl"></datalist></div>' +
 		'</div>' +
 		'<div id="pd-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">Select a project above to load dashboard</div>' +

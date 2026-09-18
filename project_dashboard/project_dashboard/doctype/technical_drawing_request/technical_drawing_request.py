@@ -93,7 +93,7 @@ class TechnicalDrawingRequest(Document):
 		message = f"""
 		<div style="font-family:Arial,sans-serif;max-width:700px;">
 			<div style="background:#0f1623;padding:16px 22px;border-radius:8px 8px 0 0;">
-				<h2 style="color:#fff;margin:0;font-size:16px;">TRIPOD MENA | Technical Drawing Request</h2>
+				<h2 style="color:#fff;margin:0;font-size:16px;">TRIPOD MIDDLE EAST | Technical Drawing Request</h2>
 			</div>
 			<div style="background:#f8fafc;padding:20px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
 				<table style="width:100%;margin-bottom:16px;border-collapse:collapse;">

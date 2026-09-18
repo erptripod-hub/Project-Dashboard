@@ -53,7 +53,7 @@ frappe.pages['logistics-dashboard'].on_page_load = function(wrapper) {
     $(wrapper).find('.page-content').html(
         '<div class="lt">' +
         '<div class="head">' +
-        '<div><h2>TRIPOD MENA · <span class="accent">Logistics dashboard</span></h2>' +
+        '<div><h2>TRIPOD MIDDLE EAST · <span class="accent">Logistics dashboard</span></h2>' +
         '<p>Operations + financial flow · share weekly</p></div>' +
         '<div class="ctrls"><input id="lt-inp" list="lt-dl" placeholder="Filter by project (or pick All)..." autocomplete="off">' +
         '<datalist id="lt-dl"></datalist>' +
