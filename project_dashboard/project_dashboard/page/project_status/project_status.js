@@ -51,7 +51,7 @@ frappe.pages['project-status'].on_page_load = function(wrapper) {
 	$(wrapper).find('.page-content').html(
 		'<div class="ps">' +
 		'<div class="hdr">' +
-		'<div><h2>TRIPOD MENA | <span>Project Status Overview</span></h2></div>' +
+		'<div><h2>TRIPOD MIDDLE EAST | <span>Project Status Overview</span></h2></div>' +
 		'<div class="hdr-filters">' +
 		'<select id="ps-status"><option value="Open">Open</option><option value="On Hold">On Hold</option><option value="All">All</option><option value="Completed">Completed</option></select>' +
 		'<input id="ps-company" placeholder="Company..." style="width:150px">' +
