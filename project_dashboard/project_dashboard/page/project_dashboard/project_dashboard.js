@@ -225,7 +225,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		html += sr('Total POs', po.total_pos||0);
 		html += sr('Total suppliers', po.total_suppliers||0);
 		html += sr('Total PO value', fmt(po.total_value));
-		html += sr('Amount received', fmt(po.total_received), 'sv-g');
+		html += sr('Amount paid', fmt(po.total_paid), 'sv-g');
 		html += sr('Amount pending', fmt(po.total_pending), 'sv-r');
 		if (pot.Joinery) html += sr('↳ Joinery (Material)', fmt(pot.Joinery.total_value), 'sv-b');
 		if (pot.Fitout) html += sr('↳ Fitout (Subcontractor)', fmt(pot.Fitout.total_value), 'sv-b');
@@ -396,7 +396,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 			html += '<table><thead><tr>';
 			html += '<th>Supplier</th><th>PO No.</th><th>Date</th>';
 			html += '<th style="text-align:right;color:#1d4ed8">PO Value</th>';
-			html += '<th style="text-align:right;color:#0f6e56">Received</th>';
+			html += '<th style="text-align:right;color:#0f6e56">Paid</th>';
 			html += '<th style="text-align:right;color:#b91c1c">Pending</th>';
 			html += '</tr></thead><tbody>';
 			fp.forEach(function(r) {
@@ -405,14 +405,14 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 				html += '<td style="color:#64748b;font-size:11px">' + (r.po_name||'') + '</td>';
 				html += '<td style="color:#64748b">' + (r.transaction_date||'') + '</td>';
 				html += '<td style="text-align:right;font-weight:600;color:#1d4ed8">' + fmt(r.po_value) + '</td>';
-				html += '<td style="text-align:right;font-weight:600;color:#0f6e56">' + fmt(r.received) + '</td>';
+				html += '<td style="text-align:right;font-weight:600;color:#0f6e56">' + fmt(r.paid) + '</td>';
 				html += '<td style="text-align:right;font-weight:600;color:#b91c1c">' + fmt(r.pending) + '</td>';
 				html += '</tr>';
 			});
 			html += '<tr style="background:#f8fafc;border-top:2px solid #e2e8f0">';
 			html += '<td colspan="3" style="font-weight:700;color:#0f172a">Total</td>';
 			html += '<td style="text-align:right;font-weight:800;color:#1d4ed8">' + fmt(ftot.total_value||0) + '</td>';
-			html += '<td style="text-align:right;font-weight:800;color:#0f6e56">' + fmt(ftot.total_received||0) + '</td>';
+			html += '<td style="text-align:right;font-weight:800;color:#0f6e56">' + fmt(ftot.total_paid||0) + '</td>';
 			html += '<td style="text-align:right;font-weight:800;color:#b91c1c">' + fmt(ftot.total_pending||0) + '</td>';
 			html += '</tr></tbody></table>';
 		} else {

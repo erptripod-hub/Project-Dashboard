@@ -19,6 +19,27 @@ def get_employee_hourly_rate(employee):
 	return 0
 
 
+def get_project_budget(project):
+	"""Get budget from Budget DocType (handles amended budgets)"""
+	# Find latest submitted Budget linked to this project
+	budget_name = frappe.db.get_value("Budget", 
+		{"project": project, "docstatus": 1}, 
+		"name",
+		order_by="creation desc")
+	
+	if not budget_name:
+		return 0
+	
+	# Sum all budget amounts from Budget Account child table
+	total = frappe.db.sql("""
+		SELECT COALESCE(SUM(budget_amount), 0) as total
+		FROM `tabBudget Account`
+		WHERE parent = %s
+	""", budget_name)
+	
+	return float(total[0][0]) if total else 0
+
+
 @frappe.whitelist()
 def get_dashboard_data(project):
 	data = {}
@@ -51,12 +72,17 @@ def get_dashboard_data(project):
 	so_net_total = float(so_result[0].total_net or 0) if so_result else 0
 	so_grand_total = float(so_result[0].total_grand or 0) if so_result else 0
 	so_count = int(so_result[0].so_count or 0) if so_result else 0
-	auto_budget = round(so_net_total * 0.33, 2)  # 33% of ex-VAT value
+	
+	# Budget: first check Budget DocType, fallback to 33% of SO value
+	budget_from_doctype = get_project_budget(project)
+	auto_budget = budget_from_doctype if budget_from_doctype > 0 else round(so_net_total * 0.33, 2)
+	
 	data["so_data"] = {
 		"so_net_total": so_net_total,
 		"so_grand_total": so_grand_total,
 		"so_count": so_count,
 		"auto_budget": auto_budget,
+		"budget_source": "Budget DocType" if budget_from_doctype > 0 else "Auto (33%)"
 	}
 
 	if pp_name:
@@ -208,7 +234,7 @@ def get_dashboard_data(project):
 			COUNT(DISTINCT name) as total_pos,
 			COUNT(DISTINCT supplier) as total_suppliers,
 			COALESCE(SUM(grand_total), 0) as total_value,
-			COALESCE(SUM(grand_total * per_billed / 100), 0) as total_received,
+			COALESCE(SUM(grand_total * per_billed / 100), 0) as total_paid,
 			COALESCE(SUM(grand_total * (1 - per_billed / 100)), 0) as total_pending
 		FROM `tabPurchase Order`
 		WHERE project = %s AND docstatus = 1
@@ -216,7 +242,7 @@ def get_dashboard_data(project):
 
 	data["purchase_orders"] = po_totals[0] if po_totals else {
 		"total_pos": 0, "total_suppliers": 0,
-		"total_value": 0, "total_received": 0, "total_pending": 0
+		"total_value": 0, "total_paid": 0, "total_pending": 0
 	}
 	data["po_by_type"] = {
 		row.order_type: {"count": row.count, "total_value": float(row.total_value or 0)}
@@ -310,7 +336,7 @@ def get_dashboard_data(project):
 			po.name as po_name,
 			po.transaction_date,
 			COALESCE(po.grand_total, 0) as po_value,
-			COALESCE(po.grand_total * po.per_billed / 100, 0) as received,
+			COALESCE(po.grand_total * po.per_billed / 100, 0) as paid,
 			COALESCE(po.grand_total * (1 - po.per_billed / 100), 0) as pending
 		FROM `tabPurchase Order` po
 		WHERE po.project = %s
@@ -324,12 +350,12 @@ def get_dashboard_data(project):
 		"po_name": r.po_name,
 		"transaction_date": str(r.transaction_date) if r.transaction_date else "",
 		"po_value": float(r.po_value or 0),
-		"received": float(r.received or 0),
+		"paid": float(r.paid or 0),
 		"pending": float(r.pending or 0),
 	} for r in fitout_pos]
 	data["fitout_totals"] = {
 		"total_value": sum(float(r.po_value or 0) for r in fitout_pos),
-		"total_received": sum(float(r.received or 0) for r in fitout_pos),
+		"total_paid": sum(float(r.paid or 0) for r in fitout_pos),
 		"total_pending": sum(float(r.pending or 0) for r in fitout_pos),
 	}
 
