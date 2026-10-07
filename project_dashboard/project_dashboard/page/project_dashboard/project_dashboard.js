@@ -231,6 +231,7 @@ frappe.pages['project-dashboard'].on_page_load = function(wrapper) {
 		if (pot.Fitout) html += sr('↳ Fitout (Subcontractor)', fmt(pot.Fitout.total_value), 'sv-b');
 		if (pot.Logistics) html += sr('↳ Logistics', fmt(pot.Logistics.total_value), 'sv-b');
 		html += sr('Expense claims', fmt(d.total_expenses||0));
+		html += sr('Material Consumption', fmt(d.material_consumption||0));
 		html += '</div>';
 		html += '</div>';
 

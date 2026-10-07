@@ -80,6 +80,9 @@ def get_project_costs_converted(project, target_currency):
     # Labour cost (already calculated in company currency)
     labour_cost = get_labour_cost(project)
     
+    # Material Consumption (extra store stock not covered by PO)
+    material_consumption = get_material_consumption(project)
+    
     # Manhours
     manhours = get_manhours(project)
     
@@ -93,7 +96,8 @@ def get_project_costs_converted(project, target_currency):
         "po_cost": po_total * exchange_rate,
         "expense_cost": expense_total * exchange_rate,
         "labour_cost": labour_cost * exchange_rate,
-        "total_cost": (po_total + expense_total + labour_cost) * exchange_rate,
+        "material_consumption": material_consumption * exchange_rate,
+        "total_cost": (po_total + expense_total + labour_cost + material_consumption) * exchange_rate,
         "manhours": manhours,
         "source_currency": source_currency,
         "exchange_rate": exchange_rate
@@ -209,6 +213,7 @@ def get_consolidated_finance_data(project):
         "po_cost": 0,
         "expense_cost": 0,
         "labour_cost": 0,
+        "material_consumption": 0,
         "total_cost": 0
     }
     combined_manhours = {
@@ -227,6 +232,7 @@ def get_consolidated_finance_data(project):
         combined_costs["po_cost"] += costs["po_cost"]
         combined_costs["expense_cost"] += costs["expense_cost"]
         combined_costs["labour_cost"] += costs["labour_cost"]
+        combined_costs["material_consumption"] += costs["material_consumption"]
         combined_costs["total_cost"] += costs["total_cost"]
         
         combined_manhours["working_hours"] += costs["manhours"]["working_hours"]
@@ -241,6 +247,7 @@ def get_consolidated_finance_data(project):
             "po_cost": costs["po_cost"],
             "expense_cost": costs["expense_cost"],
             "labour_cost": costs["labour_cost"],
+            "material_consumption": costs["material_consumption"],
             "total_cost": costs["total_cost"]
         })
     
@@ -417,18 +424,22 @@ def get_finance_data(project):
     # Costs - Labour (from Project Timesheet)
     labour_cost = get_labour_cost(project)
     
+    # Costs - Material Consumption (extra store stock not covered by PO)
+    material_consumption = get_material_consumption(project)
+    
     # Manhours breakdown
     manhours = get_manhours(project)
     
     po_total = flt(po_cost[0].total) if po_cost else 0
     expense_total = flt(expense_cost[0].total) if expense_cost else 0
     
-    total_cost = po_total + expense_total + labour_cost
+    total_cost = po_total + expense_total + labour_cost + material_consumption
     
     data["costs"] = {
         "po_cost": po_total,
         "expense_cost": expense_total,
         "labour_cost": labour_cost,
+        "material_consumption": material_consumption,
         "total_cost": total_cost
     }
     
@@ -543,6 +554,41 @@ def get_project_budget(project):
     """, budget_name)
     
     return flt(total[0][0]) if total else 0
+
+
+def get_material_consumption(project):
+    """
+    Calculate material consumption from store (extra stock not covered by PO).
+    Logic: For each item, if Stock Entry issued qty > PO qty, the excess is extra store cost.
+    Items issued via SE but not in any PO are 100% extra store cost.
+    """
+    result = frappe.db.sql("""
+        SELECT COALESCE(SUM(extra_amount), 0) as total
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN COALESCE(po.po_qty, 0) = 0 THEN se.issued_amount
+                    WHEN se.issued_qty > po.po_qty THEN ROUND((se.issued_qty - po.po_qty) * (se.issued_amount / se.issued_qty), 2)
+                    ELSE 0
+                END as extra_amount
+            FROM (
+                SELECT sed.item_code, SUM(sed.qty) as issued_qty, SUM(sed.amount) as issued_amount
+                FROM `tabStock Entry Detail` sed
+                JOIN `tabStock Entry` se ON se.name = sed.parent
+                WHERE se.docstatus = 1 AND se.stock_entry_type = 'Material Issue' AND sed.project = %s
+                GROUP BY sed.item_code
+            ) se
+            LEFT JOIN (
+                SELECT poi.item_code, SUM(poi.qty) as po_qty
+                FROM `tabPurchase Order Item` poi
+                JOIN `tabPurchase Order` po ON po.name = poi.parent
+                WHERE po.docstatus = 1 AND poi.project = %s
+                GROUP BY poi.item_code
+            ) po ON se.item_code = po.item_code
+        ) calc
+    """, (project, project))
+    
+    return flt(result[0][0]) if result else 0
 
 
 @frappe.whitelist()

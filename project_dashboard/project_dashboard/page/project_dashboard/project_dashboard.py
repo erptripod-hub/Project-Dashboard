@@ -40,6 +40,41 @@ def get_project_budget(project):
 	return float(total[0][0]) if total else 0
 
 
+def get_material_consumption(project):
+	"""
+	Calculate material consumption from store (extra stock not covered by PO).
+	Logic: For each item, if Stock Entry issued qty > PO qty, the excess is extra store cost.
+	Items issued via SE but not in any PO are 100% extra store cost.
+	"""
+	result = frappe.db.sql("""
+		SELECT COALESCE(SUM(extra_amount), 0) as total
+		FROM (
+			SELECT 
+				CASE 
+					WHEN COALESCE(po.po_qty, 0) = 0 THEN se.issued_amount
+					WHEN se.issued_qty > po.po_qty THEN ROUND((se.issued_qty - po.po_qty) * (se.issued_amount / se.issued_qty), 2)
+					ELSE 0
+				END as extra_amount
+			FROM (
+				SELECT sed.item_code, SUM(sed.qty) as issued_qty, SUM(sed.amount) as issued_amount
+				FROM `tabStock Entry Detail` sed
+				JOIN `tabStock Entry` se ON se.name = sed.parent
+				WHERE se.docstatus = 1 AND se.stock_entry_type = 'Material Issue' AND sed.project = %s
+				GROUP BY sed.item_code
+			) se
+			LEFT JOIN (
+				SELECT poi.item_code, SUM(poi.qty) as po_qty
+				FROM `tabPurchase Order Item` poi
+				JOIN `tabPurchase Order` po ON po.name = poi.parent
+				WHERE po.docstatus = 1 AND poi.project = %s
+				GROUP BY poi.item_code
+			) po ON se.item_code = po.item_code
+		) calc
+	""", (project, project))
+	
+	return float(result[0][0]) if result else 0
+
+
 @frappe.whitelist()
 def get_dashboard_data(project):
 	data = {}
@@ -257,8 +292,11 @@ def get_dashboard_data(project):
 	""", project, as_dict=1)
 	data["total_expenses"] = float(expenses[0].total_expenses or 0) if expenses else 0
 
-	# Total Spent = PO + Expenses
-	data["total_spent"] = float(data["purchase_orders"]["total_value"] or 0) + data["total_expenses"]
+	# Material Consumption (extra store stock not covered by PO)
+	data["material_consumption"] = get_material_consumption(project)
+
+	# Total Spent = PO + Expenses + Material Consumption
+	data["total_spent"] = float(data["purchase_orders"]["total_value"] or 0) + data["total_expenses"] + data["material_consumption"]
 
 	# Weekly Reports
 	data["weekly_reports"] = []

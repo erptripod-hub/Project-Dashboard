@@ -805,6 +805,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 					<span class="drs-label">Expense Claims</span>
 					<span class="drs-value">${fmtFull(costs.expense_cost || 0)}</span>
 				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Material Consumption</span>
+					<span class="drs-value">${fmtFull(costs.material_consumption || 0)}</span>
+				</div>
 				<div class="data-row-simple total">
 					<span class="drs-label">Total Spent</span>
 					<span class="drs-value">${fmtFull(costs.total_cost || 0)}</span>
