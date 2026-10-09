@@ -44,7 +44,7 @@ def get_linked_projects(project):
             p.parent_project
         FROM `tabProject` p
         WHERE p.parent_project = %s
-        AND p.status NOT IN ('Cancelled', 'Completed')
+        AND p.status != 'Cancelled'
     """, project, as_dict=1)
     
     return children
@@ -138,40 +138,7 @@ def get_consolidated_finance_data(project):
     data["has_linked"] = len(children) > 0
     data["display_currency"] = parent_currency
     
-    # Sales Orders (from parent only - use base amounts)
-    sales_orders = frappe.db.sql("""
-        SELECT
-            so.name,
-            so.transaction_date,
-            so.base_grand_total,
-            so.status,
-            so.per_billed,
-            so.customer
-        FROM `tabSales Order` so
-        WHERE so.project = %s
-        AND so.docstatus = 1
-        ORDER BY so.transaction_date
-    """, project, as_dict=1)
-    
-    so_total = sum(flt(so.base_grand_total) for so in sales_orders)
-    so_billed = sum(flt(so.base_grand_total) * flt(so.per_billed) / 100 for so in sales_orders)
-    
-    data["sales_orders"] = {
-        "list": [{
-            "name": so.name,
-            "date": str(so.transaction_date) if so.transaction_date else "",
-            "value": flt(so.base_grand_total),
-            "billed": flt(so.base_grand_total) * flt(so.per_billed) / 100,
-            "pending": flt(so.base_grand_total) * (1 - flt(so.per_billed) / 100),
-            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
-        } for so in sales_orders],
-        "count": len(sales_orders),
-        "total_value": so_total,
-        "total_billed": so_billed,
-        "total_pending": so_total - so_billed
-    }
-    
-    # Sales Invoices (from parent only - use base amounts)
+    # Sales Invoices FIRST (need SI total for billed amount)
     sales_invoices = frappe.db.sql("""
         SELECT
             si.name,
@@ -202,6 +169,40 @@ def get_consolidated_finance_data(project):
         "total_value": si_total,
         "total_paid": si_paid,
         "total_outstanding": si_outstanding
+    }
+    
+    # Sales Orders (use actual SI total for billed amount, not per_billed)
+    sales_orders = frappe.db.sql("""
+        SELECT
+            so.name,
+            so.transaction_date,
+            so.base_grand_total,
+            so.status,
+            so.per_billed,
+            so.customer
+        FROM `tabSales Order` so
+        WHERE so.project = %s
+        AND so.docstatus = 1
+        ORDER BY so.transaction_date
+    """, project, as_dict=1)
+    
+    so_total = sum(flt(so.base_grand_total) for so in sales_orders)
+    # Use actual SI total as billed amount (more accurate than per_billed)
+    so_billed = si_total
+    
+    data["sales_orders"] = {
+        "list": [{
+            "name": so.name,
+            "date": str(so.transaction_date) if so.transaction_date else "",
+            "value": flt(so.base_grand_total),
+            "billed": flt(so.base_grand_total) * flt(so.per_billed) / 100,
+            "pending": flt(so.base_grand_total) * (1 - flt(so.per_billed) / 100),
+            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
+        } for so in sales_orders],
+        "count": len(sales_orders),
+        "total_value": so_total,
+        "total_billed": so_billed,
+        "total_pending": so_total - so_billed
     }
     
     data["total_outstanding"] = si_outstanding
@@ -325,46 +326,7 @@ def get_finance_data(project):
     else:
         data["plan"] = {}
     
-    # Sales Orders linked to project
-    sales_orders = frappe.db.sql("""
-        SELECT
-            so.name,
-            so.transaction_date,
-            so.grand_total,
-            so.status,
-            so.per_billed,
-            so.customer,
-            (SELECT GROUP_CONCAT(DISTINCT soi.description SEPARATOR ', ')
-             FROM `tabSales Order Item` soi WHERE soi.parent = so.name LIMIT 1) as description
-        FROM `tabSales Order` so
-        WHERE so.project = %s
-        AND so.docstatus = 1
-        ORDER BY so.transaction_date
-    """, project, as_dict=1)
-    
-    so_total = 0
-    so_billed = 0
-    for so in sales_orders:
-        so_total += flt(so.grand_total)
-        so_billed += flt(so.grand_total) * flt(so.per_billed) / 100
-    
-    data["sales_orders"] = {
-        "list": [{
-            "name": so.name,
-            "date": str(so.transaction_date) if so.transaction_date else "",
-            "description": (so.description or "")[:50] + "..." if so.description and len(so.description) > 50 else (so.description or ""),
-            "value": flt(so.grand_total),
-            "billed": flt(so.grand_total) * flt(so.per_billed) / 100,
-            "pending": flt(so.grand_total) * (1 - flt(so.per_billed) / 100),
-            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
-        } for so in sales_orders],
-        "count": len(sales_orders),
-        "total_value": so_total,
-        "total_billed": so_billed,
-        "total_pending": so_total - so_billed
-    }
-    
-    # Sales Invoices linked to project
+    # Sales Invoices FIRST (need SI total for billed amount)
     sales_invoices = frappe.db.sql("""
         SELECT
             si.name,
@@ -406,6 +368,45 @@ def get_finance_data(project):
     
     # Total Project Outstanding (from all unpaid invoices)
     data["total_outstanding"] = si_outstanding
+    
+    # Sales Orders linked to project (use SI total for billed amount)
+    sales_orders = frappe.db.sql("""
+        SELECT
+            so.name,
+            so.transaction_date,
+            so.grand_total,
+            so.status,
+            so.per_billed,
+            so.customer,
+            (SELECT GROUP_CONCAT(DISTINCT soi.description SEPARATOR ', ')
+             FROM `tabSales Order Item` soi WHERE soi.parent = so.name LIMIT 1) as description
+        FROM `tabSales Order` so
+        WHERE so.project = %s
+        AND so.docstatus = 1
+        ORDER BY so.transaction_date
+    """, project, as_dict=1)
+    
+    so_total = 0
+    for so in sales_orders:
+        so_total += flt(so.grand_total)
+    # Use actual SI total as billed amount (more accurate than per_billed)
+    so_billed = si_total
+    
+    data["sales_orders"] = {
+        "list": [{
+            "name": so.name,
+            "date": str(so.transaction_date) if so.transaction_date else "",
+            "description": (so.description or "")[:50] + "..." if so.description and len(so.description) > 50 else (so.description or ""),
+            "value": flt(so.grand_total),
+            "billed": flt(so.grand_total) * flt(so.per_billed) / 100,
+            "pending": flt(so.grand_total) * (1 - flt(so.per_billed) / 100),
+            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
+        } for so in sales_orders],
+        "count": len(sales_orders),
+        "total_value": so_total,
+        "total_billed": so_billed,
+        "total_pending": so_total - so_billed
+    }
     
     # Costs - Purchase Orders
     po_cost = frappe.db.sql("""
@@ -603,7 +604,7 @@ def check_linked_projects(project):
             p.company
         FROM `tabProject` p
         WHERE p.parent_project = %s
-        AND p.status NOT IN ('Cancelled', 'Completed')
+        AND p.status != 'Cancelled'
     """, project, as_dict=1)
     
     result = {
