@@ -1,0 +1,191 @@
+{%- set company = frappe.get_doc("Company", doc.company) -%}
+{%- set _logo = company.get("company_logo") or "" -%}
+{%- set tax_id = company.get("tax_id") or "" -%}
+{%- set customer_doc = frappe.get_doc("Customer", doc.customer) if doc.customer else {} -%}
+{%- set customer_tax_id = customer_doc.get("tax_id") or "" -%}
+{%- set project_doc = frappe.get_doc("Project", doc.project) if doc.project else {} -%}
+{%- set project_name = project_doc.get("project_name") or "" -%}
+
+<style>
+  @page { size: A4; margin: 15mm 12mm 12mm 12mm; }
+  body { font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 11px; line-height: 1.4; }
+  .inv-title { font-size: 22px; font-weight: 700; color: #1f2933; letter-spacing: 1px; }
+  .inv-number { font-size: 14px; font-weight: 600; color: #333; }
+  .label { color: #666; font-size: 10px; }
+  .value { font-weight: 600; }
+  table.items { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  table.items th { background: #1f2933; color: #fff; font-weight: 600; padding: 8px 6px; text-align: left; font-size: 10px; }
+  table.items td { padding: 7px 6px; border-bottom: 1px solid #e0e0e0; font-size: 10.5px; }
+  table.items tr:nth-child(even) { background: #fafafa; }
+  table.items tfoot td { background: #f0f0f0; font-weight: 700; border-top: 2px solid #1f2933; }
+  .totals-box { background: #f5f7fa; border: 1px solid #ddd; border-radius: 4px; padding: 10px 14px; }
+  .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+  .totals-row.grand { font-size: 13px; font-weight: 700; border-top: 1px solid #bbb; margin-top: 6px; padding-top: 8px; }
+  .declaration { font-size: 9.5px; color: #555; margin-top: 16px; border-top: 1px solid #ddd; padding-top: 10px; }
+  .bank-details { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; margin-top: 14px; font-size: 10px; }
+  .bank-details b { color: #333; }
+  .signatures { margin-top: 40px; }
+  .sig-box { display: inline-block; width: 45%; text-align: center; }
+  .sig-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 6px; font-size: 10px; color: #666; }
+</style>
+
+<div style="padding: 10px;">
+
+  <!-- HEADER -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+    <tr>
+      <td style="vertical-align: top; width: 50%;">
+        {% if _logo %}<img src="{{ _logo }}" style="max-height: 60px; margin-bottom: 8px;"><br>{% endif %}
+        <div class="inv-title">TAX INVOICE</div>
+        <div class="inv-number">{{ doc.name }}</div>
+      </td>
+      <td style="vertical-align: top; text-align: right; width: 50%;">
+        <table style="margin-left: auto; border-collapse: collapse;">
+          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Invoice No</td><td class="value" style="padding: 3px 8px;">{{ doc.name }}</td></tr>
+          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Dated</td><td class="value" style="padding: 3px 8px;">{{ frappe.utils.formatdate(doc.posting_date, "dd-MM-yyyy") }}</td></tr>
+          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Delivery Note</td><td class="value" style="padding: 3px 8px;"></td></tr>
+          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Mode/Terms of Payment</td><td class="value" style="padding: 3px 8px;">Immediate</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div style="height: 2px; background: #1f2933; margin: 8px 0 14px;"></div>
+
+  <!-- BUYER INFO -->
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+    <tr>
+      <td style="width: 50%; vertical-align: top;">
+        <div style="font-weight: 700; font-size: 11px; color: #333; margin-bottom: 4px;">Buyer</div>
+        <div class="value" style="font-size: 12px;">{{ doc.customer_name or doc.customer }}</div>
+        {% if customer_doc.get("customer_primary_address") %}
+          {%- set addr = frappe.get_doc("Address", customer_doc.customer_primary_address) -%}
+          <div style="font-size: 10px; color: #555; margin-top: 4px;">
+            {{ addr.address_line1 or "" }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}<br>
+            {{ addr.city or "" }}{% if addr.pincode %}, {{ addr.pincode }}{% endif %}<br>
+            {{ addr.country or "" }}
+          </div>
+        {% endif %}
+      </td>
+      <td style="width: 50%; vertical-align: top;">
+        <table style="border-collapse: collapse;">
+          <tr><td class="label" style="padding: 3px 8px;">Buyer's Order No</td><td class="value" style="padding: 3px 8px;">{{ doc.sales_order }}</td></tr>
+          <tr><td class="label" style="padding: 3px 8px;">PO Date</td><td class="value" style="padding: 3px 8px;"></td></tr>
+          <tr><td class="label" style="padding: 3px 8px;">TAX No</td><td class="value" style="padding: 3px 8px;">{{ tax_id }}</td></tr>
+          <tr><td class="label" style="padding: 3px 8px;">Place of Supply</td><td class="value" style="padding: 3px 8px;"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ITEMS TABLE -->
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width: 30px;">Sr</th>
+        <th>Description</th>
+        <th style="width: 50px;">Unit</th>
+        <th style="width: 50px; text-align: right;">Qty</th>
+        <th style="width: 80px; text-align: right;">Rate ({{ doc.currency }})</th>
+        <th style="width: 90px; text-align: right;">Amount ({{ doc.currency }})</th>
+        <th style="width: 45px; text-align: right;">Tax %</th>
+        <th style="width: 70px; text-align: right;">Tax Amt</th>
+        <th style="width: 90px; text-align: right;">Total ({{ doc.currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in doc.items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.item_name or item.item_code }}</td>
+        <td>{{ item.uom or "Nos" }}</td>
+        <td style="text-align: right;">{{ "%.2f"|format(item.qty) }}</td>
+        <td style="text-align: right;">{{ frappe.utils.fmt_money(item.rate, currency=doc.currency) }}</td>
+        <td style="text-align: right;">{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}</td>
+        <td style="text-align: right;">{% if doc.taxes %}{{ (doc.taxes[0].rate or 0)|int }}{% else %}0{% endif %}</td>
+        <td style="text-align: right;">{% if doc.taxes %}{{ frappe.utils.fmt_money(item.amount * (doc.taxes[0].rate or 0) / 100, currency=doc.currency) }}{% else %}0.00{% endif %}</td>
+        <td style="text-align: right;">{% if doc.taxes %}{{ frappe.utils.fmt_money(item.amount * (1 + (doc.taxes[0].rate or 0) / 100), currency=doc.currency) }}{% else %}{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" style="text-align: right;">Total ({{ doc.currency }})</td>
+        <td style="text-align: right;">{{ frappe.utils.fmt_money(doc.net_total, currency=doc.currency) }}</td>
+        <td></td>
+        <td style="text-align: right;">{{ frappe.utils.fmt_money(doc.total_taxes, currency=doc.currency) }}</td>
+        <td style="text-align: right;">{{ frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- PROJECT REFERENCE -->
+  {% if doc.project %}
+  <div style="margin: 10px 0; padding: 8px 10px; background: #f0f4f8; border-left: 3px solid #1f2933; font-size: 10.5px;">
+    <b>Project:</b> {{ doc.project }}{% if project_name %} (Name: {{ project_name }}){% endif %}<br>
+    <b>Reference:</b> {{ doc.billing_percentage|int }}% Progressive Invoice
+  </div>
+  {% endif %}
+
+  <!-- TOTALS -->
+  <table style="width: 100%; margin-top: 12px;">
+    <tr>
+      <td style="width: 55%; vertical-align: top;"></td>
+      <td style="width: 45%; vertical-align: top;">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>{% if doc.taxes %}UAE VAT {{ doc.taxes[0].rate|int }}% ({{ doc.currency }}){% else %}UAE VAT Zero - TM ({{ doc.currency }}){% endif %}</span>
+            <span>{{ frappe.utils.fmt_money(doc.total_taxes, currency=doc.currency) }}</span>
+          </div>
+          <div class="totals-row grand">
+            <span>Grand Total ({{ doc.currency }})</span>
+            <span>{{ frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</span>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- AMOUNT IN WORDS -->
+  <div style="margin-top: 14px; font-size: 10.5px;">
+    <div><b>Amount In Words:</b> {{ doc.currency }} {{ frappe.utils.money_in_words(doc.grand_total, doc.currency) }}</div>
+    <div style="margin-top: 4px;"><b>VAT Amount In Words:</b> {{ doc.currency }} {{ frappe.utils.money_in_words(doc.total_taxes or 0, doc.currency) }}</div>
+  </div>
+
+  <!-- DECLARATION -->
+  <div class="declaration">
+    <b>Declaration:</b><br>
+    We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+  </div>
+
+  <!-- BANK DETAILS -->
+  <div class="bank-details">
+    <b>Terms &amp; Conditions</b><br>
+    1) Payments to be made in favor of : <b>TRIPOD MIDDLE EAST FZ LLC</b><br>
+    2) Bank Details :<br>
+    <table style="margin-left: 12px; margin-top: 4px; font-size: 10px;">
+      <tr><td style="padding: 2px 6px;">Bank Name :</td><td style="padding: 2px 6px;"><b>RAK Bank</b></td><td style="padding: 2px 6px;">Branch :</td><td style="padding: 2px 6px;"><b>Emaar Business Park</b></td></tr>
+      <tr><td style="padding: 2px 6px;">Account # :</td><td style="padding: 2px 6px;"><b>0322-4232-79001</b></td><td style="padding: 2px 6px;">IBAN No :</td><td style="padding: 2px 6px;"><b>AE82-0400-0003-2242-3279-001</b></td></tr>
+      <tr><td style="padding: 2px 6px;">Swift Code :</td><td style="padding: 2px 6px;"><b>NRAKAEAK</b></td><td style="padding: 2px 6px;">Currency :</td><td style="padding: 2px 6px;"><b>AED</b></td></tr>
+    </table>
+  </div>
+
+  <!-- SIGNATURES -->
+  <table style="width: 100%; margin-top: 40px;">
+    <tr>
+      <td style="width: 50%; text-align: center;">
+        <div style="border-top: 1px solid #333; width: 180px; margin: 50px auto 0; padding-top: 6px; font-size: 10px; color: #666;">Customer's Seal &amp; Signature</div>
+      </td>
+      <td style="width: 50%; text-align: center;">
+        <div style="font-weight: 600; margin-bottom: 6px;">Tripod Middle East FZ LLC</div>
+        <div style="border-top: 1px solid #333; width: 180px; margin: 40px auto 0; padding-top: 6px; font-size: 10px; color: #666;">Authorised Signatory</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- FOOTER -->
+  <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #888;">
+    This is a Computer Generated Invoice
+  </div>
+
+</div>
