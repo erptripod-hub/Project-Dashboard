@@ -20,5 +20,13 @@ after_migrate = [
 doc_events = {
     "Project": {
         "after_insert": "project_dashboard.project_dashboard.doctype.project_production_plan.project_production_plan.create_production_plan_for_project"
+    },
+    "Sales Invoice": {
+        "on_submit": "project_dashboard.project_dashboard.doctype.proforma_invoice.proforma_invoice.update_proforma_on_cn"
     }
+}
+
+# Add button to Sales Order
+doctype_js = {
+    "Sales Order": "public/js/sales_order.js"
 }
