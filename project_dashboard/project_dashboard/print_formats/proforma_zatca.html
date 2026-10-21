@@ -1,279 +1,472 @@
-{%- set company = frappe.get_doc("Company", doc.company) -%}
-{%- set _logo = company.get("company_logo") or "" -%}
-{%- set company_vat = company.get("tax_id") or "" -%}
+{%- set company_doc = frappe.get_doc("Company", doc.company) -%}
+{%- set company_vat = company_doc.get("tax_id") or "310337300200003" -%}
 {%- set customer_doc = frappe.get_doc("Customer", doc.customer) if doc.customer else {} -%}
 {%- set customer_vat = customer_doc.get("tax_id") or "" -%}
-{%- set project_doc = frappe.get_doc("Project", doc.project) if doc.project else {} -%}
-{%- set project_name = project_doc.get("project_name") or "" -%}
-{%- set customer_addr = None -%}
-{%- if customer_doc.get("customer_primary_address") -%}
-  {%- set customer_addr = frappe.get_doc("Address", customer_doc.customer_primary_address) -%}
-{%- endif -%}
+{%- set customer_name_ar = customer_doc.get("custom_customer_name_in_arabic") or "" -%}
+{%- set so_doc = frappe.get_doc("Sales Order", doc.sales_order) if doc.sales_order else {} -%}
+{%- set customer_address = so_doc.get("customer_address") if so_doc else "" -%}
+{%- set address_display = so_doc.get("address_display") if so_doc else "" -%}
+{%- set address_doc = frappe.get_doc("Address", customer_address) if customer_address else {} -%}
+{%- set address_ar = address_doc.get("custom_address_in_arabic") or "" -%}
 
 <style>
-  @page { size: A4; margin: 12mm 10mm 10mm 10mm; }
-  body { font-family: 'DejaVu Sans', 'Open Sans', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 10px; line-height: 1.35; }
-  .rtl { direction: rtl; text-align: right; font-family: 'DejaVu Sans', 'Amiri', 'Noto Naskh Arabic', Arial, sans-serif; }
-  .bilingual { display: flex; justify-content: space-between; }
-  .bilingual .en { text-align: left; }
-  .bilingual .ar { text-align: right; direction: rtl; }
-  .header-title { font-size: 20px; font-weight: 700; color: #1f2933; }
-  .header-title-ar { font-size: 18px; font-weight: 700; color: #1f2933; direction: rtl; }
-  .label { color: #666; font-size: 9px; }
-  .label-ar { color: #666; font-size: 9px; direction: rtl; text-align: right; }
-  .value { font-weight: 600; font-size: 10px; }
-  table.items { width: 100%; border-collapse: collapse; margin: 10px 0; }
-  table.items th { background: #1f2933; color: #fff; font-weight: 600; padding: 6px 4px; font-size: 9px; }
-  table.items th .ar { font-size: 8px; display: block; margin-top: 2px; opacity: 0.9; }
-  table.items td { padding: 5px 4px; border-bottom: 1px solid #ddd; font-size: 9.5px; vertical-align: top; }
-  table.items tr:nth-child(even) { background: #fafafa; }
-  .totals-section { margin-top: 12px; }
-  .totals-row { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #eee; font-size: 10px; }
-  .totals-row.grand { font-weight: 700; font-size: 11px; background: #f0f0f0; border-top: 2px solid #333; }
-  .declaration { font-size: 9px; color: #444; margin-top: 12px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; }
-  .bank-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 10px; font-size: 9px; }
-  .company-address { font-size: 8px; color: #666; text-align: center; margin-top: 16px; padding-top: 10px; border-top: 1px solid #ddd; }
+@page {
+    size: A4;
+    margin: 8mm;
+}
+body {
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    line-height: 1.3;
+    color: #000;
+    margin: 0;
+    padding: 0;
+}
+.invoice-container {
+    width: 100%;
+    padding: 5px;
+}
+
+/* HEADER */
+.header-table {
+    width: 100%;
+    border: none;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+}
+.header-table td {
+    border: none;
+    vertical-align: middle;
+    padding: 8px;
+}
+.logo-cell {
+    width: 25%;
+    text-align: left;
+}
+.logo-cell img {
+    max-height: 70px;
+    max-width: 150px;
+}
+.title-cell {
+    width: 50%;
+    text-align: center;
+}
+.title-en {
+    font-size: 20px;
+    font-weight: bold;
+}
+.title-ar {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000;
+}
+.company-cell {
+    width: 25%;
+    text-align: right;
+}
+.company-name-ar {
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+}
+.company-name-en {
+    font-size: 10px;
+    color: #333;
+}
+.company-website {
+    font-size: 9px;
+    color: #666;
+}
+
+/* MAIN INFO TABLE */
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.info-table td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.buyer-cell {
+    width: 40%;
+}
+.label-en {
+    font-size: 8px;
+    color: #000;
+    font-weight: bold;
+}
+.label-ar {
+    font-size: 9px;
+    color: #000;
+    font-weight: bold;
+    float: right;
+}
+.value-text {
+    font-size: 10px;
+    font-weight: bold;
+}
+.info-mid {
+    width: 30%;
+}
+.info-right {
+    width: 30%;
+}
+.arabic-text {
+    font-size: 10px;
+    color: #000;
+    font-weight: normal;
+}
+
+/* ITEMS TABLE */
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.items-table th {
+    border: 1px solid #000;
+    padding: 6px 4px;
+    font-size: 9px;
+    font-weight: bold;
+    text-align: center;
+    background-color: #f0f0f0;
+}
+.items-table th .ar {
+    font-size: 9px;
+    font-weight: bold;
+    color: #000;
+    display: block;
+}
+.items-table td {
+    border: 1px solid #000;
+    padding: 5px 4px;
+    font-size: 9px;
+}
+.items-table .center {
+    text-align: center;
+}
+.items-table .right {
+    text-align: right;
+}
+
+/* TOTALS TABLE */
+.totals-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.totals-table td {
+    border: 1px solid #000;
+    padding: 5px 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.currency-cell {
+    width: 20%;
+}
+.words-cell {
+    width: 35%;
+}
+.totals-label-cell {
+    width: 25%;
+    text-align: right;
+}
+.amount-cell {
+    width: 20%;
+    text-align: right;
+    font-weight: bold;
+}
+.total-label-ar {
+    font-size: 9px;
+    color: #000;
+}
+
+/* BANK DETAILS */
+.bank-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.bank-table td {
+    border: 1px solid #000;
+    padding: 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.bank-left {
+    width: 50%;
+}
+.bank-right {
+    width: 50%;
+}
+.bank-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 10px;
+}
+
+/* SIGNATURE */
+.signature-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.signature-table td {
+    border: 1px solid #000;
+    padding: 10px;
+    font-size: 9px;
+    vertical-align: top;
+    height: 100px;
+}
+.sig-left {
+    width: 50%;
+    vertical-align: bottom;
+}
+.sig-right {
+    width: 50%;
+    text-align: center;
+    vertical-align: bottom;
+}
+.stamp-area {
+    text-align: center;
+    margin: 10px 0;
+}
+.stamp-area img {
+    max-height: 70px;
+}
+
+/* FOOTER */
+.footer-bar {
+    background-color: #e0e0e0;
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 9px;
+    margin-top: 8px;
+}
 </style>
 
-<div style="padding: 8px;">
+<div class="invoice-container">
 
-  <!-- HEADER -->
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+<!-- ========== HEADER WITH LOGO ========== -->
+<table class="header-table">
     <tr>
-      <td style="vertical-align: top; width: 35%;">
-        {% if _logo %}<img src="{{ _logo }}" style="max-height: 50px; margin-bottom: 6px;"><br>{% endif %}
-        <div style="font-size: 11px; font-weight: 600; color: #333;">Tripod Global Shopfit<br>Manufacturing Co.</div>
-        <div class="rtl" style="font-size: 10px; color: #555; margin-top: 2px;">شركة ترايبود غلوبال<br>شوبفيتس للصناعة</div>
-        <div style="font-size: 8px; color: #777; margin-top: 4px;">www.tripodmena.com</div>
-      </td>
-      <td style="vertical-align: top; text-align: center; width: 30%;">
-        <div class="header-title">TAX INVOICE</div>
-        <div class="header-title-ar">فاتورة ضريبية</div>
-      </td>
-      <td style="vertical-align: top; text-align: right; width: 35%;">
-        <!-- Empty for balance -->
-      </td>
+        <td class="logo-cell">
+            <img src="/files/ts_h.jpg" alt="TRIPOD GLOBAL">
+        </td>
+        <td class="title-cell">
+            <div class="title-en">PROFORMA INVOICE</div>
+            <div class="title-ar">فاتورة مبدئية</div>
+        </td>
+        <td class="company-cell">
+            <div class="company-name-ar">شركة ترايبود غلوبال</div>
+            <div class="company-name-ar">شوبفيتس للصناعة</div>
+            <div class="company-name-en">Tripod Global Shopfit</div>
+            <div class="company-name-en">Manufacturing Co.</div>
+            <div class="company-website">www.tripodmena.com</div>
+        </td>
     </tr>
-  </table>
+</table>
 
-  <div style="height: 2px; background: #1f2933; margin: 6px 0 10px;"></div>
-
-  <!-- BUYER & INVOICE INFO -->
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+<!-- ========== MAIN INFO TABLE ========== -->
+<table class="info-table">
     <tr>
-      <td style="width: 48%; vertical-align: top; padding-right: 10px; border-right: 1px solid #ddd;">
-        <div class="bilingual" style="margin-bottom: 6px;">
-          <span style="font-weight: 700; font-size: 11px;">Buyer</span>
-          <span class="rtl" style="font-weight: 700; font-size: 11px;">المشتري</span>
-        </div>
-        <div style="font-weight: 600; font-size: 11px;">{{ doc.customer_name or doc.customer }}</div>
-        {% if customer_addr %}
-        <div style="font-size: 9px; color: #555; margin-top: 4px;">
-          {{ customer_addr.address_line1 or "" }}{% if customer_addr.address_line2 %}, {{ customer_addr.address_line2 }}{% endif %}<br>
-          {{ customer_addr.city or "" }}{% if customer_addr.pincode %}, {{ customer_addr.pincode }}{% endif %}<br>
-          {{ customer_addr.country or "" }}
-        </div>
-        {% endif %}
-        <div style="margin-top: 6px; font-size: 9px;">
-          <span class="label">Country:</span> <span class="value">{{ customer_addr.country if customer_addr else "" }}</span> / <span class="rtl">{{ "المملكة العربية السعودية" if customer_addr and customer_addr.country == "Saudi Arabia" else "" }}</span><br>
-          <span class="label">Postal Code:</span> <span class="value">{{ customer_addr.pincode if customer_addr else "" }}</span><br>
-          <span class="label">VAT No.:</span> <span class="value">{{ customer_vat }}</span> <span class="rtl" style="font-size: 8px;">:رقم الضريبة</span>
-        </div>
-      </td>
-      <td style="width: 52%; vertical-align: top; padding-left: 10px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-          <tr>
-            <td style="padding: 3px 0; width: 35%;"><span class="label">Invoice No.</span><br><span class="label-ar">رقم الفاتورة</span></td>
-            <td style="padding: 3px 0;" class="value">{{ doc.name }}</td>
-            <td style="padding: 3px 0; width: 30%;"><span class="label">Dated</span><br><span class="label-ar">بتاريخ</span></td>
-            <td style="padding: 3px 0;" class="value">{{ frappe.utils.formatdate(doc.posting_date, "dd-MM-yyyy") }}</td>
-          </tr>
-          <tr>
-            <td style="padding: 3px 0;"><span class="label">Delivery Note</span><br><span class="label-ar">مذكرة التسليم</span></td>
-            <td style="padding: 3px 0;" class="value">-</td>
-            <td style="padding: 3px 0;"><span class="label">Delivery Note Date</span><br><span class="label-ar">تاريخ مذكرة التسليم</span></td>
-            <td style="padding: 3px 0;" class="value">-</td>
-          </tr>
-          <tr>
-            <td style="padding: 3px 0;"><span class="label">Supplier's Ref</span><br><span class="label-ar">مرجع المورد</span></td>
-            <td style="padding: 3px 0;" class="value">{{ doc.name }}</td>
-            <td style="padding: 3px 0;"><span class="label">Dispatch Document No.</span><br><span class="label-ar">رقم الإرسالية</span></td>
-            <td style="padding: 3px 0;" class="value">-</td>
-          </tr>
-          <tr>
-            <td style="padding: 3px 0;"><span class="label">Buyer's Order No.</span><br><span class="label-ar">رقم طلب المشتري</span></td>
-            <td style="padding: 3px 0;" class="value">{{ doc.sales_order }}</td>
-            <td style="padding: 3px 0;"><span class="label">Mode / Terms of Payment</span><br><span class="label-ar">طريقة وشروط الدفع</span></td>
-            <td style="padding: 3px 0;" class="value">Immediate</td>
-          </tr>
-          <tr>
-            <td style="padding: 3px 0;"><span class="label">Company's VAT No.</span><br><span class="label-ar">رقم ضريبة القيمة المضافة للشركة</span></td>
-            <td style="padding: 3px 0;" class="value" colspan="3">{{ company_vat }}</td>
-          </tr>
-          <tr>
-            <td style="padding: 3px 0;"><span class="label">Destination</span><br><span class="label-ar">مكان التسليم</span></td>
-            <td style="padding: 3px 0;" class="value" colspan="3">{{ doc.customer_name }}-Billing</td>
-          </tr>
-        </table>
-      </td>
+        <!-- BUYER -->
+        <td class="buyer-cell" rowspan="6">
+            <span class="label-en">Buyer</span><span class="label-ar">المشتري</span><br>
+            <span class="value-text">{{ doc.customer_name }}</span><br>
+            {{ address_display or '' }}
+            <br>Country: Saudi Arabia / المملكة العربية السعودية
+            <br>Postal Code: {{ address_doc.get("pincode") or '' }}
+            <br><b>VAT No.: {{ customer_vat }}</b>
+            <br><span class="arabic-text">رقم الضريبة: {{ customer_vat }}</span>
+            <br><br>
+            <span class="arabic-text"><b>{{ customer_name_ar }}</b></span><br>
+            <span class="arabic-text">{{ address_ar }}</span>
+        </td>
+        
+        <!-- ROW 1: Invoice No & Date -->
+        <td class="info-mid">
+            <span class="label-en">Proforma No.</span><span class="label-ar">رقم الفاتورة المبدئية</span><br>
+            <span class="value-text">{{ doc.name }}</span>
+        </td>
+        <td class="info-right">
+            <span class="label-en">Dated</span><span class="label-ar">بتاريخ</span><br>
+            <span class="value-text">{{ doc.get_formatted('posting_date') }}</span>
+        </td>
     </tr>
-  </table>
+    <tr>
+        <!-- ROW 2: Delivery Note -->
+        <td>
+            <span class="label-en">Delivery Note</span><span class="label-ar">مذكرة التسليم</span><br>
+            <span class="value-text">-</span>
+        </td>
+        <td>
+            <span class="label-en">Delivery Note Date</span><span class="label-ar">تاريخ مذكرة التسليم</span><br>
+            <span class="value-text">-</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 3: Supplier Ref -->
+        <td>
+            <span class="label-en">Supplier's Ref</span><span class="label-ar">مرجع المورد</span><br>
+            <span class="value-text">{{ doc.name }}</span>
+        </td>
+        <td>
+            <span class="label-en">Dispatch Document No.</span><span class="label-ar">رقم الإرسالية</span><br>
+            <span class="value-text">-</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 4: Buyer Order -->
+        <td>
+            <span class="label-en">Buyer's Order No.</span><span class="label-ar">رقم طلب المشتري</span><br>
+            <span class="value-text">{{ doc.sales_order or '-' }}</span>
+        </td>
+        <td>
+            <span class="label-en">Mode / Terms of Payment</span><span class="label-ar">طريقة وشروط الدفع</span><br>
+            <span class="value-text">Immediate</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 5: Company VAT -->
+        <td colspan="2">
+            <span class="label-en">Company's VAT No.</span><span class="label-ar">رقم ضريبة القيمة المضافة للشركة</span><br>
+            <span class="value-text">{{ company_vat }}</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 6: Destination -->
+        <td colspan="2">
+            <span class="label-en">Destination</span><span class="label-ar">مكان التسليم</span><br>
+            <span class="value-text">{{ doc.customer_name }}-Billing</span>
+        </td>
+    </tr>
+</table>
 
-  <!-- ITEMS TABLE -->
-  <table class="items">
+<!-- ========== ITEMS TABLE WITH LINE TAX ========== -->
+<table class="items-table">
     <thead>
-      <tr>
-        <th style="width: 28px; text-align: center;">S.No<span class="ar">م</span></th>
-        <th style="text-align: left;">Description of Goods<span class="ar">وصف البضاعة</span></th>
-        <th style="width: 45px; text-align: center;">Quantity<span class="ar">الكمية</span></th>
-        <th style="width: 60px; text-align: right;">Rate<span class="ar">السعر</span></th>
-        <th style="width: 40px; text-align: center;">UOM<span class="ar">الوحدة</span></th>
-        <th style="width: 70px; text-align: right;">Amount<span class="ar">المبلغ</span></th>
-        <th style="width: 50px; text-align: right;">Tax 15%<span class="ar">الضريبة</span></th>
-        <th style="width: 75px; text-align: right;">Total<span class="ar">الإجمالي</span></th>
-      </tr>
+        <tr>
+            <th style="width:4%;">S. No<span class="ar">م</span></th>
+            <th style="width:35%;">Description of Goods<span class="ar">وصف البضاعة</span></th>
+            <th style="width:8%;">Quantity<span class="ar">الكمية</span></th>
+            <th style="width:13%;">Rate<span class="ar">السعر</span></th>
+            <th style="width:6%;">UOM<span class="ar">الوحدة</span></th>
+            <th style="width:14%;">Amount<span class="ar">المبلغ</span></th>
+            <th style="width:10%;">Tax 15%<span class="ar">الضريبة</span></th>
+            <th style="width:14%;">Total<span class="ar">الإجمالي</span></th>
+        </tr>
     </thead>
     <tbody>
-      {% for item in doc.items %}
-      {%- set tax_rate = doc.taxes[0].rate if doc.taxes else 0 -%}
-      {%- set item_tax = item.amount * tax_rate / 100 -%}
-      {%- set item_total = item.amount + item_tax -%}
-      <tr>
-        <td style="text-align: center;">{{ loop.index }}</td>
-        <td>
-          {{ item.item_name or item.item_code }}
-          {% if item.description and item.description != item.item_name %}<br><span style="font-size: 8px; color: #666;">{{ item.description|striptags|truncate(60) }}</span>{% endif %}
-        </td>
-        <td style="text-align: center;">{{ "%.1f"|format(item.qty) }}</td>
-        <td style="text-align: right;">{{ doc.currency }} {{ "%.2f"|format(item.rate) }}</td>
-        <td style="text-align: center;">{{ item.uom or "Nos" }}</td>
-        <td style="text-align: right;">{{ doc.currency }} {{ "{:,.2f}".format(item.amount) }}</td>
-        <td style="text-align: right;">{{ doc.currency }} {{ "{:,.2f}".format(item_tax) }}</td>
-        <td style="text-align: right;">{{ doc.currency }} {{ "{:,.2f}".format(item_total) }}</td>
-      </tr>
-      {% endfor %}
+        {% for row in doc.items %}
+        {%- set tax_rate = doc.taxes[0].rate if doc.taxes else 15 -%}
+        {%- set item_tax = row.amount * tax_rate / 100 -%}
+        {%- set item_total = row.amount + item_tax -%}
+        <tr>
+            <td class="center">{{ row.idx }}</td>
+            <td>{{ row.item_name or row.item_code }}</td>
+            <td class="center">{{ "%.2f"|format(row.qty) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(row.rate, currency=doc.currency) }}</td>
+            <td class="center">{{ row.uom or "Nos" }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(row.amount, currency=doc.currency) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(item_tax, currency=doc.currency) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(item_total, currency=doc.currency) }}</td>
+        </tr>
+        {% endfor %}
     </tbody>
-  </table>
+</table>
 
-  <!-- TOTALS -->
-  <table style="width: 100%; margin-top: 8px;">
+<!-- ========== TOTALS TABLE ========== -->
+<table class="totals-table">
+    <!-- ROW 1 -->
     <tr>
-      <td style="width: 50%; vertical-align: top;">
-        <div style="font-size: 9px;">
-          <span class="label">Currency:</span> <span class="value">{{ doc.currency }}</span>
-          <span class="rtl" style="margin-left: 10px;">العملة</span>
-        </div>
-      </td>
-      <td style="width: 50%; vertical-align: top;">
-        <div style="background: #f5f7fa; border: 1px solid #ddd; border-radius: 4px; padding: 8px;">
-          <div class="totals-row">
-            <span>Taxable Value <span class="rtl" style="font-size: 8px;">القيمة الخاضعة للضريبة</span></span>
-            <span class="value">{{ doc.currency }} {{ "{:,.2f}".format(doc.net_total) }}</span>
-          </div>
-          <div class="totals-row">
-            <span>VAT 15% <span class="rtl" style="font-size: 8px;">ضريبة القيمة المضافة</span></span>
-            <span class="value">{{ doc.currency }} {{ "{:,.2f}".format(doc.total_taxes) }}</span>
-          </div>
-          <div class="totals-row grand">
-            <span>Invoice Total <span class="rtl" style="font-size: 9px;">إجمالي الفاتورة</span></span>
-            <span class="value">{{ doc.currency }} {{ "{:,.2f}".format(doc.grand_total) }}</span>
-          </div>
-        </div>
-      </td>
+        <td class="currency-cell">
+            <span class="label-en">Currency:</span><span class="label-ar">العملة</span><br>
+            <span class="value-text">{{ doc.currency }}</span>
+        </td>
+        <td class="totals-label-cell">
+            <span class="label-en">Taxable Value</span><br>
+            <span class="total-label-ar">القيمة الخاضعة للضريبة</span>
+        </td>
+        <td class="amount-cell">{{ frappe.utils.fmt_money(doc.net_total, currency=doc.currency) }}</td>
     </tr>
-  </table>
-
-  <!-- AMOUNT IN WORDS -->
-  <div style="margin-top: 10px; font-size: 9px; padding: 8px; background: #fafafa; border: 1px solid #eee; border-radius: 4px;">
-    <div class="bilingual">
-      <span><b>Amount Chargeable (in words):</b></span>
-      <span class="rtl"><b>المبلغ المستحق بالحروف</b></span>
-    </div>
-    <div style="margin-top: 4px;">{{ doc.currency }} {{ frappe.utils.money_in_words(doc.grand_total, doc.currency) }}</div>
-    <div class="bilingual" style="margin-top: 6px;">
-      <span><b>VAT Amount in words:</b></span>
-      <span class="rtl"><b>مبلغ ضريبة القيمة المضافة بالحروف</b></span>
-    </div>
-    <div style="margin-top: 4px;">{{ doc.currency }} {{ frappe.utils.money_in_words(doc.total_taxes or 0, doc.currency) }}</div>
-  </div>
-
-  <!-- DECLARATION -->
-  <div class="declaration">
-    <div class="bilingual">
-      <span><b>Declaration</b></span>
-      <span class="rtl"><b>إقرار</b></span>
-    </div>
-    <div style="margin-top: 4px;">
-      We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-    </div>
-    <div class="rtl" style="margin-top: 4px; font-size: 8px;">
-      نقر بأن هذه الفاتورة تظهر السعر الفعلي للبضائع الموصوفة وأن جميع التفاصيل صحيحة ودقيقة.
-    </div>
-    <div style="margin-top: 6px; font-size: 8px; color: #666;">
-      Any discrepancies or errors must be replied within 3 days from the submission date.
-    </div>
-  </div>
-
-  <!-- BANK DETAILS -->
-  <div class="bank-box">
-    <div class="bilingual" style="margin-bottom: 6px;">
-      <span><b>BANK DETAILS</b></span>
-      <span class="rtl"><b>تفاصيل البنك</b></span>
-    </div>
-    <div><b>Terms &amp; Conditions</b></div>
-    <div>1) Payments to be made in favor of <b>Tripod Global Shopfits Company</b></div>
-    <div>2) Bank Details:</div>
-    <table style="margin-left: 12px; margin-top: 4px; font-size: 9px;">
-      <tr>
-        <td style="padding: 2px 6px;">Bank Name:</td><td style="padding: 2px 6px;"><b>AL RAJHI</b></td>
-        <td style="padding: 2px 6px;">Branch:</td><td style="padding: 2px 6px;"><b>COMPANY BRANCH, DAMMAM</b></td>
-      </tr>
-      <tr>
-        <td style="padding: 2px 6px;">Account #:</td><td style="padding: 2px 6px;"><b>0578-6080-1007-5341</b></td>
-        <td style="padding: 2px 6px;">Swift Code:</td><td style="padding: 2px 6px;"><b>RJHISARI</b></td>
-      </tr>
-      <tr>
-        <td style="padding: 2px 6px;">Iban No.:</td><td style="padding: 2px 6px;" colspan="3"><b>SA4880000578608010075341</b> &nbsp; Currency: <b>SAR</b></td>
-      </tr>
-    </table>
-    <table style="margin-left: 12px; margin-top: 6px; font-size: 9px;">
-      <tr>
-        <td style="padding: 2px 6px;">Bank Name:</td><td style="padding: 2px 6px;"><b>Saudi Al Awal Bank</b></td>
-        <td style="padding: 2px 6px;">Branch:</td><td style="padding: 2px 6px;"><b>Riyadh</b></td>
-      </tr>
-      <tr>
-        <td style="padding: 2px 6px;">Account #:</td><td style="padding: 2px 6px;"><b>004-775730-001</b></td>
-        <td style="padding: 2px 6px;">Swift Code:</td><td style="padding: 2px 6px;"><b>SABBSARI</b></td>
-      </tr>
-      <tr>
-        <td style="padding: 2px 6px;">Iban No.:</td><td style="padding: 2px 6px;" colspan="3"><b>SA7945000000004775730001</b> &nbsp; Currency: <b>SAR</b></td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- SIGNATURES -->
-  <table style="width: 100%; margin-top: 24px;">
+    <!-- ROW 2 -->
     <tr>
-      <td style="width: 50%; text-align: center;">
-        <div class="bilingual" style="margin-bottom: 40px;">
-          <span style="font-size: 9px; color: #666;">Customer's Seal and Signature</span>
-          <span class="rtl" style="font-size: 9px; color: #666;">ختم وتوقيع العميل</span>
-        </div>
-        <div style="border-top: 1px solid #333; width: 160px; margin: 0 auto; padding-top: 4px;"></div>
-      </td>
-      <td style="width: 50%; text-align: center;">
-        <div style="font-weight: 600; font-size: 10px; margin-bottom: 4px;">FOR TRIPOD GLOBAL SHOPFIT<br>MANUFACTURING COMPANY</div>
-        <div style="margin-top: 30px; border-top: 1px solid #333; width: 160px; margin: 30px auto 0; padding-top: 4px;">
-          <span style="font-size: 9px;">Authorised Signatory</span> / <span class="rtl" style="font-size: 8px;">المفوض بالتوقيع</span>
-        </div>
-      </td>
+        <td class="words-cell" rowspan="2">
+            <span class="label-en">Amount Chargeable (in words):</span><br>
+            <span class="total-label-ar">المبلغ المستحق بالحروف</span><br>
+            {{ frappe.utils.money_in_words(doc.grand_total, doc.currency) }}
+        </td>
+        <td class="totals-label-cell">
+            <span class="label-en">VAT 15%</span><br>
+            <span class="total-label-ar">ضريبة القيمة المضافة</span>
+        </td>
+        <td class="amount-cell">{{ frappe.utils.fmt_money(doc.total_taxes, currency=doc.currency) }}</td>
     </tr>
-  </table>
+    <!-- ROW 3: GRAND TOTAL -->
+    <tr>
+        <td class="totals-label-cell" style="font-weight:bold;border:2px solid #000;">
+            <span class="label-en">Proforma Total</span><br>
+            <span class="total-label-ar">إجمالي الفاتورة المبدئية</span>
+        </td>
+        <td class="amount-cell" style="font-weight:bold;border:2px solid #000;font-size:11px;">{{ frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
+    </tr>
+    <!-- ROW 4: VAT WORDS -->
+    <tr>
+        <td colspan="3">
+            <span class="label-en">VAT Amount in words:</span><span class="label-ar">مبلغ ضريبة القيمة المضافة بالحروف</span><br>
+            {{ doc.currency }} {{ " ".join(frappe.utils.money_in_words(doc.total_taxes or 0).split(" ")[1:]) }}
+        </td>
+    </tr>
+</table>
 
-  <!-- COMPANY ADDRESS -->
-  <div class="company-address">
-    <div>P.O. Box: 6606, Postal Code 14326, Warehouse (3,4,5) Exit 18, Industrial Area, Riyadh, KSA</div>
-    <div class="rtl" style="font-size: 8px; margin-top: 2px;">ص.ب: 6606، الرمز البريدي 14326، المستودع (3،4،5) مخرج 18، المنطقة الصناعية، الرياض، المملكة العربية السعودية</div>
-  </div>
+<!-- ========== BANK DETAILS & DECLARATION ========== -->
+<table class="bank-table">
+    <tr>
+        <td class="bank-left">
+            <span class="label-en"><b>Declaration</b></span> <span class="label-ar"><b>إقرار</b></span><br><br>
+            We declare that this proforma invoice shows the actual price of the goods described and that all particulars are true and correct.<br>
+            <span class="arabic-text">نقر بأن هذه الفاتورة المبدئية تظهر السعر الفعلي للبضائع الموصوفة وأن جميع التفاصيل صحيحة ودقيقة.</span>
+            <br><br>
+            Any discrepancies or errors must be replied within 3 days from the submission date.
+        </td>
+        <td class="bank-right">
+            <div class="bank-title">BANK DETAILS / تفاصيل البنك</div>
+            <b>A/C Holder's Name:</b><br>
+            TRIPOD GLOBAL SHOPFIT MANUFACTURING COMPANY<br>
+            <b>Bank Name:</b> Al Rajhi Bank<br>
+            <b>A/C No.:</b> 0578-6080-1007-5341<br>
+            <b>IBAN:</b> SA48-8000-0578-6080-1007-5341<br>
+            <b>Branch & Swift Code:</b> RJHISARI
+        </td>
+    </tr>
+</table>
+
+<!-- ========== SIGNATURE ========== -->
+<table class="signature-table">
+    <tr>
+        <td class="sig-left">
+            <b>Customer's Seal and Signature</b><br>
+            <span class="arabic-text">ختم وتوقيع العميل</span>
+        </td>
+        <td class="sig-right">
+            <b>FOR {{ doc.company }}</b><br>
+            <div class="stamp-area">
+                <img src="/files/stamp_saudi.png" alt="Stamp">
+            </div>
+            <b>Authorised Signatory / المفوض بالتوقيع</b>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== FOOTER ========== -->
+<div class="footer-bar">
+    P.O. Box: 6606, Postal Code 14326, Warehouse (3,4,5) Exit 18, Industrial Area, Riyadh, KSA<br>
+    ص.ب: 6606، الرمز البريدي 14326، المستودع (3،4،5) مخرج 18، المنطقة الصناعية، الرياض، المملكة العربية السعودية
+</div>
 
 </div>
