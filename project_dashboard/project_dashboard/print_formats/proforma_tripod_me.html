@@ -5,6 +5,9 @@
 {%- set customer_tax_id = customer_doc.get("tax_id") or "" -%}
 {%- set project_doc = frappe.get_doc("Project", doc.project) if doc.project else {} -%}
 {%- set project_name = project_doc.get("project_name") or "" -%}
+{%- set so_doc = frappe.get_doc("Sales Order", doc.sales_order) if doc.sales_order else {} -%}
+{%- set terms = so_doc.get("terms") or "" -%}
+{%- set payment_terms = so_doc.get("payment_terms_template") or "Immediate" -%}
 
 <style>
   @page { size: A4; margin: 15mm 12mm 12mm 12mm; }
@@ -44,7 +47,7 @@
           <tr><td class="label" style="padding: 3px 8px; text-align: right;">Invoice No</td><td class="value" style="padding: 3px 8px;">{{ doc.name }}</td></tr>
           <tr><td class="label" style="padding: 3px 8px; text-align: right;">Dated</td><td class="value" style="padding: 3px 8px;">{{ frappe.utils.formatdate(doc.posting_date, "dd-MM-yyyy") }}</td></tr>
           <tr><td class="label" style="padding: 3px 8px; text-align: right;">Delivery Note</td><td class="value" style="padding: 3px 8px;"></td></tr>
-          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Mode/Terms of Payment</td><td class="value" style="padding: 3px 8px;">Immediate</td></tr>
+          <tr><td class="label" style="padding: 3px 8px; text-align: right;">Mode/Terms of Payment</td><td class="value" style="padding: 3px 8px;">{{ payment_terms }}</td></tr>
         </table>
       </td>
     </tr>
@@ -158,17 +161,12 @@
     We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
   </div>
 
-  <!-- BANK DETAILS -->
+  <!-- TERMS & BANK DETAILS -->
+  {% if terms %}
   <div class="bank-details">
-    <b>Terms &amp; Conditions</b><br>
-    1) Payments to be made in favor of : <b>TRIPOD MIDDLE EAST FZ LLC</b><br>
-    2) Bank Details :<br>
-    <table style="margin-left: 12px; margin-top: 4px; font-size: 10px;">
-      <tr><td style="padding: 2px 6px;">Bank Name :</td><td style="padding: 2px 6px;"><b>RAK Bank</b></td><td style="padding: 2px 6px;">Branch :</td><td style="padding: 2px 6px;"><b>Emaar Business Park</b></td></tr>
-      <tr><td style="padding: 2px 6px;">Account # :</td><td style="padding: 2px 6px;"><b>0322-4232-79001</b></td><td style="padding: 2px 6px;">IBAN No :</td><td style="padding: 2px 6px;"><b>AE82-0400-0003-2242-3279-001</b></td></tr>
-      <tr><td style="padding: 2px 6px;">Swift Code :</td><td style="padding: 2px 6px;"><b>NRAKAEAK</b></td><td style="padding: 2px 6px;">Currency :</td><td style="padding: 2px 6px;"><b>AED</b></td></tr>
-    </table>
+    {{ terms }}
   </div>
+  {% endif %}
 
   <!-- SIGNATURES -->
   <table style="width: 100%; margin-top: 40px;">

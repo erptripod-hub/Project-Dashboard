@@ -6,6 +6,8 @@
 {%- set so_doc = frappe.get_doc("Sales Order", doc.sales_order) if doc.sales_order else {} -%}
 {%- set customer_address = so_doc.get("customer_address") if so_doc else "" -%}
 {%- set address_display = so_doc.get("address_display") if so_doc else "" -%}
+{%- set terms = so_doc.get("terms") or "" -%}
+{%- set payment_terms = so_doc.get("payment_terms_template") or "Immediate" -%}
 {%- set address_doc = frappe.get_doc("Address", customer_address) if customer_address else {} -%}
 {%- set address_ar = address_doc.get("custom_address_in_arabic") or "" -%}
 
@@ -328,7 +330,7 @@ body {
         </td>
         <td>
             <span class="label-en">Mode / Terms of Payment</span><span class="label-ar">طريقة وشروط الدفع</span><br>
-            <span class="value-text">Immediate</span>
+            <span class="value-text">{{ payment_terms }}</span>
         </td>
     </tr>
     <tr>
@@ -436,12 +438,16 @@ body {
         </td>
         <td class="bank-right">
             <div class="bank-title">BANK DETAILS / تفاصيل البنك</div>
+            {% if terms %}
+            {{ terms }}
+            {% else %}
             <b>A/C Holder's Name:</b><br>
             TRIPOD GLOBAL SHOPFIT MANUFACTURING COMPANY<br>
             <b>Bank Name:</b> Al Rajhi Bank<br>
             <b>A/C No.:</b> 0578-6080-1007-5341<br>
             <b>IBAN:</b> SA48-8000-0578-6080-1007-5341<br>
             <b>Branch & Swift Code:</b> RJHISARI
+            {% endif %}
         </td>
     </tr>
 </table>
