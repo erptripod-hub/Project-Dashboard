@@ -268,16 +268,23 @@ def get_dashboard_data(project):
 		SELECT
 			COUNT(DISTINCT name) as total_pos,
 			COUNT(DISTINCT supplier) as total_suppliers,
-			COALESCE(SUM(grand_total), 0) as total_value,
-			COALESCE(SUM(grand_total * per_billed / 100), 0) as total_paid,
-			COALESCE(SUM(grand_total * (1 - per_billed / 100)), 0) as total_pending
+			COALESCE(SUM(grand_total), 0) as total_value
 		FROM `tabPurchase Order`
 		WHERE project = %s AND docstatus = 1
 	""", project, as_dict=1)
 
-	data["purchase_orders"] = po_totals[0] if po_totals else {
-		"total_pos": 0, "total_suppliers": 0,
-		"total_value": 0, "total_paid": 0, "total_pending": 0
+	# Actual paid = submitted Payment Entries / Journal Entries
+	# (advances against PO + payments against Purchase Invoices of the PO)
+	po_paid_map = get_po_paid_map(project)
+	po_total_value = float((po_totals[0].total_value if po_totals else 0) or 0)
+	po_total_paid = sum(po_paid_map.values())
+
+	data["purchase_orders"] = {
+		"total_pos": (po_totals[0].total_pos if po_totals else 0) or 0,
+		"total_suppliers": (po_totals[0].total_suppliers if po_totals else 0) or 0,
+		"total_value": po_total_value,
+		"total_paid": po_total_paid,
+		"total_pending": max(po_total_value - po_total_paid, 0),
 	}
 	data["po_by_type"] = {
 		row.order_type: {"count": row.count, "total_value": float(row.total_value or 0)}
@@ -373,9 +380,7 @@ def get_dashboard_data(project):
 			po.supplier_name,
 			po.name as po_name,
 			po.transaction_date,
-			COALESCE(po.grand_total, 0) as po_value,
-			COALESCE(po.grand_total * po.per_billed / 100, 0) as paid,
-			COALESCE(po.grand_total * (1 - po.per_billed / 100), 0) as pending
+			COALESCE(po.grand_total, 0) as po_value
 		FROM `tabPurchase Order` po
 		WHERE po.project = %s
 		AND po.docstatus = 1
@@ -388,13 +393,119 @@ def get_dashboard_data(project):
 		"po_name": r.po_name,
 		"transaction_date": str(r.transaction_date) if r.transaction_date else "",
 		"po_value": float(r.po_value or 0),
-		"paid": float(r.paid or 0),
-		"pending": float(r.pending or 0),
+		"paid": po_paid_map.get(r.po_name, 0),
+		"pending": max(float(r.po_value or 0) - po_paid_map.get(r.po_name, 0), 0),
 	} for r in fitout_pos]
 	data["fitout_totals"] = {
-		"total_value": sum(float(r.po_value or 0) for r in fitout_pos),
-		"total_paid": sum(float(r.paid or 0) for r in fitout_pos),
-		"total_pending": sum(float(r.pending or 0) for r in fitout_pos),
+		"total_value": sum(r["po_value"] for r in data["fitout_pos"]),
+		"total_paid": sum(r["paid"] for r in data["fitout_pos"]),
+		"total_pending": sum(r["pending"] for r in data["fitout_pos"]),
 	}
 
 	return data
+
+
+def get_po_paid_map(project):
+	"""
+	Actual amount paid per Purchase Order of a project, from submitted
+	Payment Entries and Journal Entries only (not invoice amounts).
+
+	Counts:
+	  1. Advances paid directly against the PO
+	  2. Payments against Purchase Invoices made from the PO
+	     (split by PO share if one invoice covers several POs)
+	"""
+	pos = frappe.get_all(
+		"Purchase Order",
+		filters={"project": project, "docstatus": 1},
+		pluck="name",
+	)
+	if not pos:
+		return {}
+
+	paid = {po: 0.0 for po in pos}
+
+	# 1. Direct advances against PO
+	pe_po = frappe.db.sql("""
+		SELECT per.reference_name AS po, SUM(per.allocated_amount) AS amt
+		FROM `tabPayment Entry Reference` per
+		INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+		WHERE pe.docstatus = 1
+		AND per.reference_doctype = 'Purchase Order'
+		AND per.reference_name IN %(pos)s
+		GROUP BY per.reference_name
+	""", {"pos": pos}, as_dict=1)
+
+	je_po = frappe.db.sql("""
+		SELECT jea.reference_name AS po,
+			SUM(jea.debit_in_account_currency - jea.credit_in_account_currency) AS amt
+		FROM `tabJournal Entry Account` jea
+		INNER JOIN `tabJournal Entry` je ON je.name = jea.parent
+		WHERE je.docstatus = 1
+		AND jea.reference_type = 'Purchase Order'
+		AND jea.reference_name IN %(pos)s
+		GROUP BY jea.reference_name
+	""", {"pos": pos}, as_dict=1)
+
+	for r in pe_po + je_po:
+		paid[r.po] += float(r.amt or 0)
+
+	# 2. Payments against Purchase Invoices linked to these POs
+	pi_rows = frappe.db.sql("""
+		SELECT pii.parent AS pi, pii.purchase_order AS po, SUM(pii.amount) AS amt
+		FROM `tabPurchase Invoice Item` pii
+		INNER JOIN `tabPurchase Invoice` pinv ON pinv.name = pii.parent
+		WHERE pinv.docstatus = 1
+		AND pinv.is_return = 0
+		AND pii.purchase_order IN %(pos)s
+		GROUP BY pii.parent, pii.purchase_order
+	""", {"pos": pos}, as_dict=1)
+
+	if pi_rows:
+		pis = list({r.pi for r in pi_rows})
+
+		# Total item amount per PI (to split payment by PO share)
+		pi_totals = {
+			r.pi: float(r.amt or 0)
+			for r in frappe.db.sql("""
+				SELECT parent AS pi, SUM(amount) AS amt
+				FROM `tabPurchase Invoice Item`
+				WHERE parent IN %(pis)s
+				GROUP BY parent
+			""", {"pis": pis}, as_dict=1)
+		}
+
+		pi_paid = {}
+		pe_pi = frappe.db.sql("""
+			SELECT per.reference_name AS pi, SUM(per.allocated_amount) AS amt
+			FROM `tabPayment Entry Reference` per
+			INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+			WHERE pe.docstatus = 1
+			AND per.reference_doctype = 'Purchase Invoice'
+			AND per.reference_name IN %(pis)s
+			GROUP BY per.reference_name
+		""", {"pis": pis}, as_dict=1)
+
+		je_pi = frappe.db.sql("""
+			SELECT jea.reference_name AS pi,
+				SUM(jea.debit_in_account_currency - jea.credit_in_account_currency) AS amt
+			FROM `tabJournal Entry Account` jea
+			INNER JOIN `tabJournal Entry` je ON je.name = jea.parent
+			WHERE je.docstatus = 1
+			AND je.voucher_type != 'Debit Note'
+			AND jea.reference_type = 'Purchase Invoice'
+			AND jea.reference_name IN %(pis)s
+			GROUP BY jea.reference_name
+		""", {"pis": pis}, as_dict=1)
+
+		for r in pe_pi + je_pi:
+			pi_paid[r.pi] = pi_paid.get(r.pi, 0) + float(r.amt or 0)
+
+		for r in pi_rows:
+			total = pi_totals.get(r.pi) or 0
+			if not total or not pi_paid.get(r.pi):
+				continue
+			share = float(r.amt or 0) / total
+			paid[r.po] += pi_paid[r.pi] * share
+
+	return {po: round(max(v, 0), 2) for po, v in paid.items()}
