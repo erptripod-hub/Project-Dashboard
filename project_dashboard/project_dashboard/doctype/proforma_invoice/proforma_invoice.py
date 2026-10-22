@@ -56,59 +56,63 @@ class ProformaInvoice(Document):
 	
 	@frappe.whitelist()
 	def create_sales_invoice(self):
-		"""Create Sales Invoice from Proforma"""
+		"""Create Sales Invoice from Proforma using standard SO mapper"""
 		if self.billing_status == "Invoiced":
 			frappe.throw(_("Sales Invoice already created: {0}").format(self.sales_invoice))
-		
+
 		if self.billing_status == "Cancelled":
 			frappe.throw(_("Cannot create invoice from cancelled Proforma"))
-		
-		si = frappe.new_doc("Sales Invoice")
-		si.customer = self.customer
-		si.project = self.project
-		si.company = self.company
-		si.currency = self.currency
+
+		from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
+
+		# Standard mapper copies all matching header fields from SO
+		# (custom fields, address, payment terms, sales team, PO no, etc.)
+		si = make_sales_invoice(self.sales_order, ignore_permissions=True)
+
+		# Keep only SO rows that are on the Proforma, with Proforma qty/rate
+		pf_rows = {d.so_detail: d for d in self.items if d.so_detail}
+		new_items = []
+		for row in si.items:
+			pf = pf_rows.get(row.so_detail)
+			if pf and flt(pf.qty):
+				row.qty = flt(pf.qty)
+				row.rate = flt(pf.rate)
+				new_items.append(row)
+
+		if not new_items:
+			frappe.throw(_("No billable items found on Sales Order {0}").format(self.sales_order))
+
+		si.set("items", new_items)
 		si.custom_proforma_invoice = self.name
-		
-		# Copy items
-		for item in self.items:
-			si.append("items", {
-				"item_code": item.item_code,
-				"item_name": item.item_name,
-				"description": item.description,
-				"qty": item.qty,
-				"uom": item.uom,
-				"rate": item.rate,
-				"amount": item.amount,
-				"sales_order": self.sales_order,
-				"so_detail": item.so_detail
-			})
-		
-		# Copy taxes
-		if self.taxes_and_charges:
-			si.taxes_and_charges = self.taxes_and_charges
-		
-		for tax in self.taxes:
-			si.append("taxes", {
-				"charge_type": tax.charge_type,
-				"account_head": tax.account_head,
-				"description": tax.description,
-				"rate": tax.rate
-			})
-		
+
+		# Accounts Manager (mandatory custom field on Sales Invoice)
+		si_meta = frappe.get_meta("Sales Invoice")
+		if si_meta.has_field("custom_accounts_manager") and not si.get("custom_accounts_manager"):
+			if frappe.get_meta("Sales Order").has_field("custom_accounts_manager"):
+				si.custom_accounts_manager = frappe.db.get_value(
+					"Sales Order", self.sales_order, "custom_accounts_manager"
+				)
+			if not si.get("custom_accounts_manager") and si.get("sales_team"):
+				si.custom_accounts_manager = si.sales_team[0].sales_person
+			if not si.get("custom_accounts_manager"):
+				frappe.throw(_("Accounts Manager is not set on Sales Order {0}. Set it and try again.").format(self.sales_order))
+
+		si.run_method("set_missing_values")
+		si.run_method("calculate_taxes_and_totals")
+
 		si.flags.ignore_permissions = True
-		si.save()
-		
+		si.insert()
+
 		# Update proforma status
 		self.db_set("sales_invoice", si.name)
 		self.db_set("billing_status", "Invoiced")
-		
+
 		frappe.msgprint(_("Sales Invoice {0} created").format(
 			frappe.utils.get_link_to_form("Sales Invoice", si.name)
 		))
-		
+
 		return si.name
-	
+
 	@frappe.whitelist()
 	def cancel_proforma(self):
 		"""Cancel proforma without creating CN"""
