@@ -387,8 +387,8 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<th>Total Cost</th>
 						<th>Profit</th>
 						<th>Margin %</th>
-						<th class="amt">Outstanding</th>
-						<th class="st">Status</th>
+						<th>Outstanding</th>
+						<th>Status</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -738,7 +738,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 								<th>Against SO</th>
 								<th class="amt">Invoice Value</th>
 								<th class="amt">Paid</th>
-								<th>Outstanding</th>
+								<th class="amt">Outstanding</th>
 								<th class="st">Status</th>
 							</tr>
 						</thead>
