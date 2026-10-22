@@ -27,6 +27,12 @@ doc_events = {
 }
 
 # Add button to Sales Order
+override_doctype_dashboards = {
+    "Sales Order": "project_dashboard.project_dashboard.dashboard_overrides.sales_order",
+    "Sales Invoice": "project_dashboard.project_dashboard.dashboard_overrides.sales_invoice",
+    "Project": "project_dashboard.project_dashboard.dashboard_overrides.project",
+}
+
 doctype_js = {
     "Sales Order": "public/js/sales_order.js"
 }
