@@ -167,9 +167,9 @@ def make_proforma_from_so(source_name, billing_percentage=None):
 
 
 @frappe.whitelist()
-def update_proforma_on_cn(cn_name):
+def update_proforma_on_cn(doc, method=None):
 	"""Update Proforma status when Credit Note is created against linked SI"""
-	cn = frappe.get_doc("Sales Invoice", cn_name)
+	cn = doc
 	
 	if not cn.is_return:
 		return
