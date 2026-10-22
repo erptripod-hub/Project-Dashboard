@@ -72,7 +72,7 @@ def execute(filters=None):
 	for key, label, ind in zip(buckets, labels, indicators):
 		summary.append({"label": label + " " + _("Days"), "value": totals[key], "datatype": "Currency",
 			"currency": currency, "indicator": ind})
-	summary.append({"label": _("Invoices Without Bill Date"), "value": missing, "datatype": "Int",
+	summary.append({"label": _("Invoices Without Supplier Invoice Date"), "value": missing, "datatype": "Int",
 		"indicator": "Orange" if missing else "Green"})
 
 	return _columns(filters.view, buckets, ranges), data, None, chart, summary
@@ -161,16 +161,14 @@ def _columns(view, buckets, ranges):
 		cols += [
 			{"label": _("Invoice"), "fieldname": "invoice", "fieldtype": "Link", "options": "Purchase Invoice", "width": 150},
 			{"label": _("Supplier Invoice No"), "fieldname": "bill_no", "fieldtype": "Data", "width": 130},
-			{"label": _("Bill Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 100},
-			{"label": _("Posting Date"), "fieldname": "posting_date", "fieldtype": "Date", "width": 100},
+			{"label": _("Supplier Invoice Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 140},
 			{"label": _("Due Date"), "fieldname": "due_date", "fieldtype": "Date", "width": 100},
 			{"label": _("Age (Days)"), "fieldname": "age", "fieldtype": "Int", "width": 90},
 		]
 	else:
 		cols += [
 			{"label": _("Invoices"), "fieldname": "invoice_count", "fieldtype": "Int", "width": 80},
-			{"label": _("Oldest Bill Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 110},
-			{"label": _("Oldest Posting Date"), "fieldname": "posting_date", "fieldtype": "Date", "width": 120},
+			{"label": _("Oldest Supplier Invoice Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 170},
 		]
 
 	cols += [
@@ -182,5 +180,5 @@ def _columns(view, buckets, ranges):
 	for key, label in zip(buckets, labels):
 		cols.append({"label": label, "fieldname": key, "fieldtype": "Currency", "options": "currency", "width": 120})
 
-	cols.append({"label": _("No Bill Date"), "fieldname": "no_bill_date", "fieldtype": "Int", "width": 100})
+	cols.append({"label": _("No Supplier Invoice Date"), "fieldname": "no_bill_date", "fieldtype": "Int", "width": 170})
 	return cols
