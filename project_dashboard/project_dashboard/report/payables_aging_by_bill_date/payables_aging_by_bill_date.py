@@ -135,9 +135,15 @@ def _summarise(data, buckets, currency):
 				"outstanding": 0.0,
 				"invoice_count": 0,
 				"no_bill_date": 0,
+				"bill_date": None,
+				"posting_date": None,
 				**{k: 0.0 for k in buckets},
 			},
 		)
+		if d["bill_date"] and (not s["bill_date"] or d["bill_date"] < s["bill_date"]):
+			s["bill_date"] = d["bill_date"]
+		if d["posting_date"] and (not s["posting_date"] or d["posting_date"] < s["posting_date"]):
+			s["posting_date"] = d["posting_date"]
 		s["outstanding"] += d["outstanding"]
 		s["invoice_count"] += 1
 		s["no_bill_date"] += d["no_bill_date"]
@@ -161,10 +167,14 @@ def _columns(view, buckets, ranges):
 			{"label": _("Age (Days)"), "fieldname": "age", "fieldtype": "Int", "width": 90},
 		]
 	else:
-		cols.append({"label": _("Invoices"), "fieldname": "invoice_count", "fieldtype": "Int", "width": 80})
+		cols += [
+			{"label": _("Invoices"), "fieldname": "invoice_count", "fieldtype": "Int", "width": 80},
+			{"label": _("Oldest Bill Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 110},
+			{"label": _("Oldest Posting Date"), "fieldname": "posting_date", "fieldtype": "Date", "width": 120},
+		]
 
 	cols += [
-		{"label": _("Currency"), "fieldname": "currency", "fieldtype": "Link", "options": "Currency", "width": 70, "hidden": 1},
+		{"label": _("Currency"), "fieldname": "currency", "fieldtype": "Link", "options": "Currency", "width": 80},
 		{"label": _("Outstanding"), "fieldname": "outstanding", "fieldtype": "Currency", "options": "currency", "width": 130},
 	]
 
