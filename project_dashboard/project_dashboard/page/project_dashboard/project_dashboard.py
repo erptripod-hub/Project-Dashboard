@@ -273,7 +273,7 @@ def get_dashboard_data(project):
 		WHERE project = %s AND docstatus = 1
 	""", project, as_dict=1)
 
-	# Actual paid = submitted Payment Entries / Journal Entries
+	# Actual paid = submitted Payment Entries only
 	# (advances against PO + payments against Purchase Invoices of the PO)
 	po_paid_map = get_po_paid_map(project)
 	po_total_value = float((po_totals[0].total_value if po_totals else 0) or 0)
@@ -408,7 +408,7 @@ def get_dashboard_data(project):
 def get_po_paid_map(project):
 	"""
 	Actual amount paid per Purchase Order of a project, from submitted
-	Payment Entries and Journal Entries only (not invoice amounts).
+	Payment Entries only (not invoice amounts, not Journal Entries).
 
 	Counts:
 	  1. Advances paid directly against the PO
@@ -436,18 +436,7 @@ def get_po_paid_map(project):
 		GROUP BY per.reference_name
 	""", {"pos": pos}, as_dict=1)
 
-	je_po = frappe.db.sql("""
-		SELECT jea.reference_name AS po,
-			SUM(jea.debit_in_account_currency - jea.credit_in_account_currency) AS amt
-		FROM `tabJournal Entry Account` jea
-		INNER JOIN `tabJournal Entry` je ON je.name = jea.parent
-		WHERE je.docstatus = 1
-		AND jea.reference_type = 'Purchase Order'
-		AND jea.reference_name IN %(pos)s
-		GROUP BY jea.reference_name
-	""", {"pos": pos}, as_dict=1)
-
-	for r in pe_po + je_po:
+	for r in pe_po:
 		paid[r.po] += float(r.amt or 0)
 
 	# 2. Payments against Purchase Invoices linked to these POs
@@ -486,19 +475,7 @@ def get_po_paid_map(project):
 			GROUP BY per.reference_name
 		""", {"pis": pis}, as_dict=1)
 
-		je_pi = frappe.db.sql("""
-			SELECT jea.reference_name AS pi,
-				SUM(jea.debit_in_account_currency - jea.credit_in_account_currency) AS amt
-			FROM `tabJournal Entry Account` jea
-			INNER JOIN `tabJournal Entry` je ON je.name = jea.parent
-			WHERE je.docstatus = 1
-			AND je.voucher_type != 'Debit Note'
-			AND jea.reference_type = 'Purchase Invoice'
-			AND jea.reference_name IN %(pis)s
-			GROUP BY jea.reference_name
-		""", {"pis": pis}, as_dict=1)
-
-		for r in pe_pi + je_pi:
+		for r in pe_pi:
 			pi_paid[r.pi] = pi_paid.get(r.pi, 0) + float(r.amt or 0)
 
 		for r in pi_rows:
