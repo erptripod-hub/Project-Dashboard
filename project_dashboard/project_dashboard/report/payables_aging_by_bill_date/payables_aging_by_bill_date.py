@@ -22,7 +22,7 @@ def execute(filters=None):
 
 	data = []
 	for r in rows:
-		age_date = _age_date(r, filters.ageing_based_on)
+		age_date = r.bill_date or r.posting_date
 		age = date_diff(today, age_date) if age_date else 0
 		amt = flt(r.outstanding_amount) * flt(r.conversion_rate or 1)
 
@@ -104,14 +104,6 @@ def _get_invoices(filters):
 	)
 
 
-def _age_date(r, based_on):
-	if based_on == "Posting Date":
-		return r.posting_date
-	if based_on == "Due Date":
-		return r.due_date or r.posting_date
-	return r.bill_date or r.posting_date
-
-
 def _bucket_labels(ranges):
 	return ["range1", "range2", "range3", "range4", "range5"]
 
@@ -162,7 +154,6 @@ def _columns(view, buckets, ranges):
 			{"label": _("Invoice"), "fieldname": "invoice", "fieldtype": "Link", "options": "Purchase Invoice", "width": 150},
 			{"label": _("Supplier Invoice No"), "fieldname": "bill_no", "fieldtype": "Data", "width": 130},
 			{"label": _("Supplier Invoice Date"), "fieldname": "bill_date", "fieldtype": "Date", "width": 140},
-			{"label": _("Due Date"), "fieldname": "due_date", "fieldtype": "Date", "width": 100},
 			{"label": _("Age (Days)"), "fieldname": "age", "fieldtype": "Int", "width": 90},
 		]
 	else:

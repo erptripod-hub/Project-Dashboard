@@ -19,14 +19,6 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 			reqd: 1,
 		},
 		{
-			fieldname: "ageing_based_on",
-			label: __("Ageing Based On"),
-			fieldtype: "Select",
-			options: "Supplier Invoice Date\nPosting Date\nDue Date",
-			default: "Supplier Invoice Date",
-			reqd: 1,
-		},
-		{
 			fieldname: "supplier",
 			label: __("Supplier"),
 			fieldtype: "Link",
