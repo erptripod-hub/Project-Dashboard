@@ -91,6 +91,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.data-table tfoot td{padding:12px;background:#f8fafc;border-top:2px solid #e2e8f0}
 			.data-table .total-label{font-weight:700;color:#1e293b;text-align:right}
 			.data-table .amt.total{font-size:13px;font-weight:800}
+			.panel-title{justify-content:flex-start !important;text-align:left !important}
+			.data-table th,.data-table td{text-align:left !important;vertical-align:middle}
+			.data-table th.amt,.data-table td.amt,.data-table .total-label{text-align:right !important}
+			.data-table th.st,.data-table td.st{text-align:center !important}
 			.status-tag{display:inline-block;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600}
 			.status-tag.completed{background:#ecfdf5;color:#059669}
 			.status-tag.partial{background:#fef3c7;color:#b45309}
@@ -383,8 +387,8 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<th>Total Cost</th>
 						<th>Profit</th>
 						<th>Margin %</th>
-						<th>Outstanding</th>
-						<th>Status</th>
+						<th class="amt">Outstanding</th>
+						<th class="st">Status</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -652,10 +656,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 								<th>SO Number</th>
 								<th>Date</th>
 								<th>Description</th>
-								<th>SO Value</th>
-								<th>Billed</th>
-								<th>Pending</th>
-								<th>Status</th>
+								<th class="amt">SO Value</th>
+								<th class="amt">Billed</th>
+								<th class="amt">Pending</th>
+								<th class="st">Status</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -670,7 +674,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<td class="amt">${fmtFull(s.value)}</td>
 						<td class="amt green">${fmtFull(s.billed)}</td>
 						<td class="amt orange">${fmtFull(s.pending)}</td>
-						<td><span class="status-tag ${stCls}">${s.status}</span></td>
+						<td class="st"><span class="status-tag ${stCls}">${s.status}</span></td>
 					</tr>
 				`;
 			});
@@ -732,10 +736,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 								<th>Invoice No</th>
 								<th>Date</th>
 								<th>Against SO</th>
-								<th>Invoice Value</th>
-								<th>Paid</th>
+								<th class="amt">Invoice Value</th>
+								<th class="amt">Paid</th>
 								<th>Outstanding</th>
-								<th>Status</th>
+								<th class="st">Status</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -750,7 +754,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<td class="amt">${fmtFull(s.value)}</td>
 						<td class="amt green">${fmtFull(s.paid)}</td>
 						<td class="amt red">${fmtFull(s.outstanding)}</td>
-						<td><span class="status-tag ${stCls}">${s.status}</span></td>
+						<td class="st"><span class="status-tag ${stCls}">${s.status}</span></td>
 					</tr>
 				`;
 			});
