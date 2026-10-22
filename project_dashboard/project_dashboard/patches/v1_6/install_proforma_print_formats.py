@@ -12,6 +12,10 @@ import os
 def execute():
     """Install or update Proforma Invoice print formats."""
     
+    # Skip if DocType doesn't exist yet (runs before model sync)
+    if not frappe.db.exists("DocType", "Proforma Invoice"):
+        return
+    
     # Path to print format templates
     app_path = frappe.get_app_path("project_dashboard")
     templates_dir = os.path.join(app_path, "project_dashboard", "print_formats")
