@@ -67,4 +67,30 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 			reqd: 1,
 		},
 	],
+
+	formatter(value, row, column, data, default_formatter) {
+		value = default_formatter(value, row, column, data);
+		if (!data) return value;
+		const f = column.fieldname;
+		const v = flt(data[f]);
+		if (f === "outstanding") {
+			return `<span style="font-weight:700">${value}</span>`;
+		}
+		if ((f === "range4" || f === "range5") && v > 0) {
+			return `<span style="color:#b91c1c;font-weight:600">${value}</span>`;
+		}
+		if (f === "range3" && v > 0) {
+			return `<span style="color:#c2410c;font-weight:600">${value}</span>`;
+		}
+		if (f.startsWith("range") && v === 0) {
+			return `<span style="color:#9ca3af">${value}</span>`;
+		}
+		if (f === "no_bill_date" && v > 0) {
+			return `<span style="color:#c2410c;font-weight:600">${value}</span>`;
+		}
+		if (f === "age" && v > 90) {
+			return `<span style="color:#b91c1c;font-weight:600">${value}</span>`;
+		}
+		return value;
+	},
 };

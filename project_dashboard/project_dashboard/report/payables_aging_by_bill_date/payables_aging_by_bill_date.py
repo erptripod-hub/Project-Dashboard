@@ -11,7 +11,7 @@ from frappe.utils import cint, date_diff, flt, getdate, nowdate
 def execute(filters=None):
 	filters = frappe._dict(filters or {})
 	if not filters.company:
-		return [], []
+		return [], [], None, None, []
 
 	ranges = [cint(filters.get(f"range{i}")) or d for i, d in enumerate((30, 60, 90, 120), 1)]
 	buckets = _bucket_labels(ranges)
@@ -44,10 +44,43 @@ def execute(filters=None):
 		row[_bucket_for(age, ranges)] = amt
 		data.append(row)
 
+	labels = _range_labels(ranges)
+	totals = {k: sum(d[k] for d in data) for k in buckets}
+	total_outstanding = sum(d["outstanding"] for d in data)
+	missing = sum(d["no_bill_date"] for d in data)
+
 	if filters.view == "Supplier Summary":
 		data = _summarise(data, buckets, currency)
 
-	return _columns(filters.view, buckets, ranges), data
+	chart = {
+		"data": {
+			"labels": labels,
+			"datasets": [{"name": _("Outstanding"), "values": [round(totals[k], 2) for k in buckets]}],
+		},
+		"type": "bar",
+		"colors": ["#2563eb"],
+		"fieldtype": "Currency",
+		"options": currency,
+		"barOptions": {"spaceRatio": 0.5},
+	}
+
+	indicators = ["Green", "Blue", "Orange", "Red", "Red"]
+	summary = [
+		{"label": _("Total Outstanding"), "value": total_outstanding, "datatype": "Currency",
+			"currency": currency, "indicator": "Blue"},
+	]
+	for key, label, ind in zip(buckets, labels, indicators):
+		summary.append({"label": label + " " + _("Days"), "value": totals[key], "datatype": "Currency",
+			"currency": currency, "indicator": ind})
+	summary.append({"label": _("Invoices Without Bill Date"), "value": missing, "datatype": "Int",
+		"indicator": "Orange" if missing else "Green"})
+
+	return _columns(filters.view, buckets, ranges), data, None, chart, summary
+
+
+def _range_labels(ranges):
+	r1, r2, r3, r4 = ranges
+	return [f"0-{r1}", f"{r1 + 1}-{r2}", f"{r2 + 1}-{r3}", f"{r3 + 1}-{r4}", f"{r4 + 1}+"]
 
 
 def _get_invoices(filters):
@@ -135,8 +168,7 @@ def _columns(view, buckets, ranges):
 		{"label": _("Outstanding"), "fieldname": "outstanding", "fieldtype": "Currency", "options": "currency", "width": 130},
 	]
 
-	r1, r2, r3, r4 = ranges
-	labels = [f"0-{r1}", f"{r1 + 1}-{r2}", f"{r2 + 1}-{r3}", f"{r3 + 1}-{r4}", f"{r4 + 1}-Above"]
+	labels = _range_labels(ranges)
 	for key, label in zip(buckets, labels):
 		cols.append({"label": label, "fieldname": key, "fieldtype": "Currency", "options": "currency", "width": 120})
 
