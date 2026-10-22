@@ -63,6 +63,16 @@ class ProformaInvoice(Document):
 		if self.billing_status == "Cancelled":
 			frappe.throw(_("Cannot create invoice from cancelled Proforma"))
 
+		so_status = frappe.db.get_value(
+			"Sales Order", self.sales_order, ["docstatus", "per_billed", "status"], as_dict=1
+		)
+		if not so_status or so_status.docstatus != 1:
+			frappe.throw(_("Sales Order {0} is not submitted").format(self.sales_order))
+		if flt(so_status.per_billed) >= 100:
+			frappe.throw(_("Sales Order {0} is already fully billed. Nothing left to invoice.").format(self.sales_order))
+		if so_status.status in ("Closed", "On Hold"):
+			frappe.throw(_("Sales Order {0} is {1}. Re-open it first.").format(self.sales_order, so_status.status))
+
 		from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
 
 		# Standard mapper copies all matching header fields from SO
@@ -185,3 +195,37 @@ def update_proforma_on_cn(doc, method=None):
 		if proforma:
 			frappe.db.set_value("Proforma Invoice", proforma, "billing_status", "Cancelled")
 			frappe.msgprint(_("Linked Proforma Invoice {0} marked as Cancelled").format(proforma))
+
+
+# ---------------------------------------------------------------------------
+# Sales Invoice hooks: allow cancel/delete of an SI created from a Proforma
+# ---------------------------------------------------------------------------
+def si_before_cancel(doc, method=None):
+	"""Submitted Proforma links to this SI; don't let that block the cancel."""
+	ignored = list(doc.get("ignore_linked_doctypes") or [])
+	if "Proforma Invoice" not in ignored:
+		ignored.append("Proforma Invoice")
+	doc.ignore_linked_doctypes = ignored
+
+
+def si_on_cancel(doc, method=None):
+	"""Cancelled SI: free the Proforma so a new invoice can be made from it."""
+	_release_proforma(doc)
+
+
+def si_on_trash(doc, method=None):
+	"""Deleted draft SI: clear the Proforma link before Frappe's link check."""
+	_release_proforma(doc)
+
+
+def _release_proforma(doc):
+	if doc.get("is_return"):
+		return
+	for name in frappe.get_all(
+		"Proforma Invoice", filters={"sales_invoice": doc.name}, pluck="name"
+	):
+		frappe.db.set_value(
+			"Proforma Invoice", name,
+			{"sales_invoice": None, "billing_status": "Unpaid"},
+			update_modified=False,
+		)
