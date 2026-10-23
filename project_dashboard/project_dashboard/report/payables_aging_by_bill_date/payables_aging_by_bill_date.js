@@ -79,6 +79,12 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 		if (f === "no_bill_date" && v > 0) {
 			return `<span style="color:#c2410c;font-weight:600">${value}</span>`;
 		}
+		if (f.startsWith("pdc_") && v !== 0) {
+			return `<span style="color:#6d28d9;font-weight:600">${value}</span>`;
+		}
+		if (f === "balance_after_pdc") {
+			return `<span style="font-weight:700">${value}</span>`;
+		}
 		if (f === "advance" && v !== 0) {
 			return `<span style="color:#15803d;font-weight:600">${value}</span>`;
 		}

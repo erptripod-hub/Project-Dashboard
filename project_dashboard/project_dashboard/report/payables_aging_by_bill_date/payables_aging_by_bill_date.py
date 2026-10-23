@@ -1,9 +1,14 @@
 # Copyright (c) 2026, Tripod and contributors
-# Accounts Payable Summary aged by Supplier Invoice Date (Purchase Invoice.bill_date).
+# Accounts Payable Summary aged by Supplier Invoice Date (Purchase Invoice.bill_date),
+# one row per supplier, with Post-Dated Cheques (PDC) shown by month.
 #
 # Balances come from the Payment Ledger (same source as the standard
 # Accounts Payable Summary), as on the selected date, in company currency.
-# Invoices without a Supplier Invoice Date are aged from their posting date.
+# PDC = submitted supplier Payment Entry whose cheque date (Reference Date,
+# else Posting Date) is after the As On Date. PDCs are kept out of the
+# outstanding/aging and shown separately, so aging reflects unpaid invoices.
+
+import datetime
 
 import frappe
 from frappe import _
@@ -22,25 +27,18 @@ def execute(filters=None):
 	labels = _range_labels(ranges)
 	currency = frappe.get_cached_value("Company", filters.company, "default_currency")
 
-	balances = _get_balances(filters, as_on)
-	pi_dates = _get_invoice_dates([b.against_voucher_no for b in balances if b.against_voucher_type == "Purchase Invoice"])
-	names = _get_supplier_names({b.party for b in balances})
+	pdcs = _get_pdcs(filters, as_on)
+	pdc_months = sorted({p.month_key for p in pdcs})
+	balances = _get_balances(filters, as_on, [p.name for p in pdcs])
+	pi_dates = _get_invoice_dates(
+		[b.against_voucher_no for b in balances if b.against_voucher_type == "Purchase Invoice"]
+	)
+	names = _get_supplier_names({b.party for b in balances} | {p.party for p in pdcs})
 
 	suppliers = {}
 	for b in balances:
 		amt = flt(b.amount)
-		s = suppliers.setdefault(b.party, {
-			"supplier": b.party,
-			"supplier_name": names.get(b.party) or b.party,
-			"currency": currency,
-			"invoice_count": 0,
-			"oldest_bill_date": None,
-			"outstanding": 0.0,
-			"advance": 0.0,
-			"net_payable": 0.0,
-			"no_bill_date": 0,
-			**{k: 0.0 for k in BUCKETS},
-		})
+		s = _supplier_row(suppliers, b.party, names, currency, pdc_months)
 		s["net_payable"] += amt
 
 		if b.against_voucher_type == "Purchase Invoice":
@@ -50,8 +48,6 @@ def execute(filters=None):
 			s["invoice_count"] += 1
 			if not bill_date:
 				s["no_bill_date"] += 1
-			elif not s["oldest_bill_date"] or bill_date < s["oldest_bill_date"]:
-				s["oldest_bill_date"] = bill_date
 		elif amt < 0:
 			# Unallocated payment / advance to supplier
 			s["advance"] += amt
@@ -64,13 +60,26 @@ def execute(filters=None):
 		age = max(date_diff(as_on, age_date), 0) if age_date else 0
 		s[_bucket_for(age, ranges)] += amt
 
+	for p in pdcs:
+		s = _supplier_row(suppliers, p.party, names, currency, pdc_months)
+		amt = flt(p.amount)
+		s["pdc_" + p.month_key] += amt
+		s["pdc_total"] += amt
+
+	for s in suppliers.values():
+		s["balance_after_pdc"] = s["net_payable"] - s["pdc_total"]
+
 	data = sorted(
-		[s for s in suppliers.values() if abs(s["net_payable"]) >= 0.01 or abs(s["outstanding"]) >= 0.01],
+		[
+			s for s in suppliers.values()
+			if abs(s["net_payable"]) >= 0.01 or abs(s["outstanding"]) >= 0.01 or abs(s["pdc_total"]) >= 0.01
+		],
 		key=lambda x: x["net_payable"],
 		reverse=True,
 	)
 
-	totals = {k: sum(d[k] for d in data) for k in BUCKETS + ["outstanding", "advance", "net_payable", "no_bill_date"]}
+	keys = BUCKETS + ["outstanding", "advance", "net_payable", "pdc_total", "balance_after_pdc", "no_bill_date"]
+	totals = {k: sum(d[k] for d in data) for k in keys}
 
 	chart = {
 		"data": {
@@ -84,21 +93,79 @@ def execute(filters=None):
 		"barOptions": {"spaceRatio": 0.5},
 	}
 
-	summary = [
-		{"label": _("Net Payable"), "value": totals["net_payable"], "datatype": "Currency", "currency": currency, "indicator": "Blue"},
-		{"label": _("Advance Paid"), "value": totals["advance"], "datatype": "Currency", "currency": currency, "indicator": "Green"},
-	]
+	def card(label, key, ind):
+		return {"label": label, "value": totals[key], "datatype": "Currency", "currency": currency, "indicator": ind}
+
+	summary = [card(_("Net Payable"), "net_payable", "Blue")]
 	for key, label, ind in zip(BUCKETS, labels, ["Green", "Blue", "Orange", "Red", "Red"]):
-		summary.append({"label": label + " " + _("Days"), "value": totals[key], "datatype": "Currency", "currency": currency, "indicator": ind})
-	summary.append({
-		"label": _("Invoices Without Supplier Invoice Date"), "value": totals["no_bill_date"],
-		"datatype": "Int", "indicator": "Orange" if totals["no_bill_date"] else "Green",
+		summary.append(card(label + " " + _("Days"), key, ind))
+	summary += [
+		card(_("Advance Paid"), "advance", "Green"),
+		card(_("PDC Issued"), "pdc_total", "Purple"),
+		card(_("Balance After PDC"), "balance_after_pdc", "Blue"),
+		{
+			"label": _("Invoices Without Supplier Invoice Date"), "value": totals["no_bill_date"],
+			"datatype": "Int", "indicator": "Orange" if totals["no_bill_date"] else "Green",
+		},
+	]
+
+	return _columns(labels, pdc_months), data, None, chart, summary
+
+
+def _supplier_row(suppliers, party, names, currency, pdc_months):
+	return suppliers.setdefault(party, {
+		"supplier": party,
+		"supplier_name": names.get(party) or party,
+		"currency": currency,
+		"invoice_count": 0,
+		"outstanding": 0.0,
+		"advance": 0.0,
+		"net_payable": 0.0,
+		"pdc_total": 0.0,
+		"balance_after_pdc": 0.0,
+		"no_bill_date": 0,
+		**{k: 0.0 for k in BUCKETS},
+		**{"pdc_" + m: 0.0 for m in pdc_months},
 	})
 
-	return _columns(labels), data, None, chart, summary
+
+def _party_conditions(filters, alias, conditions, params):
+	if filters.supplier:
+		conditions.append(f"{alias}.party = %(supplier)s")
+		params["supplier"] = filters.supplier
+	if filters.supplier_group:
+		conditions.append("sup.supplier_group = %(supplier_group)s")
+		params["supplier_group"] = filters.supplier_group
 
 
-def _get_balances(filters, as_on):
+def _get_pdcs(filters, as_on):
+	conditions = [
+		"pe.docstatus = 1",
+		"pe.company = %(company)s",
+		"pe.payment_type = 'Pay'",
+		"pe.party_type = 'Supplier'",
+		"COALESCE(pe.reference_date, pe.posting_date) > %(as_on)s",
+	]
+	params = {"company": filters.company, "as_on": as_on}
+	_party_conditions(filters, "pe", conditions, params)
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT pe.name, pe.party, pe.base_paid_amount AS amount,
+			COALESCE(pe.reference_date, pe.posting_date) AS cheque_date
+		FROM `tabPayment Entry` pe
+		LEFT JOIN `tabSupplier` sup ON sup.name = pe.party
+		WHERE {" AND ".join(conditions)}
+		""",
+		params,
+		as_dict=1,
+	)
+	for r in rows:
+		r.month_key = getdate(r.cheque_date).strftime("%Y_%m")
+	return rows
+
+
+def _get_balances(filters, as_on, exclude_vouchers=None):
 	conditions = [
 		"ple.company = %(company)s",
 		"ple.party_type = 'Supplier'",
@@ -106,12 +173,10 @@ def _get_balances(filters, as_on):
 		"ple.posting_date <= %(as_on)s",
 	]
 	params = {"company": filters.company, "as_on": as_on}
-	if filters.supplier:
-		conditions.append("ple.party = %(supplier)s")
-		params["supplier"] = filters.supplier
-	if filters.supplier_group:
-		conditions.append("sup.supplier_group = %(supplier_group)s")
-		params["supplier_group"] = filters.supplier_group
+	if exclude_vouchers:
+		conditions.append("NOT (ple.voucher_type = 'Payment Entry' AND ple.voucher_no IN %(pdc)s)")
+		params["pdc"] = exclude_vouchers
+	_party_conditions(filters, "ple", conditions, params)
 
 	return frappe.db.sql(
 		f"""
@@ -166,18 +231,25 @@ def _bucket_for(age, ranges):
 	return "range5"
 
 
-def _columns(labels):
+def _columns(labels, pdc_months):
+	def money(label, fieldname, width=120):
+		return {"label": label, "fieldname": fieldname, "fieldtype": "Currency", "options": "currency", "width": width}
+
 	cols = [
 		{"label": _("Supplier"), "fieldname": "supplier", "fieldtype": "Link", "options": "Supplier", "width": 160},
 		{"label": _("Supplier Name"), "fieldname": "supplier_name", "fieldtype": "Data", "width": 220},
 		{"label": _("Currency"), "fieldname": "currency", "fieldtype": "Link", "options": "Currency", "width": 80},
 		{"label": _("Invoices"), "fieldname": "invoice_count", "fieldtype": "Int", "width": 80},
-		{"label": _("Oldest Supplier Invoice Date"), "fieldname": "oldest_bill_date", "fieldtype": "Date", "width": 170},
-		{"label": _("Invoice Outstanding"), "fieldname": "outstanding", "fieldtype": "Currency", "options": "currency", "width": 140},
-		{"label": _("Advance Paid"), "fieldname": "advance", "fieldtype": "Currency", "options": "currency", "width": 120},
-		{"label": _("Net Payable"), "fieldname": "net_payable", "fieldtype": "Currency", "options": "currency", "width": 130},
+		money(_("Invoice Outstanding"), "outstanding", 140),
 	]
-	for key, label in zip(BUCKETS, labels):
-		cols.append({"label": label, "fieldname": key, "fieldtype": "Currency", "options": "currency", "width": 120})
-	cols.append({"label": _("No Supplier Invoice Date"), "fieldname": "no_bill_date", "fieldtype": "Int", "width": 170})
+	cols += [money(label, key) for key, label in zip(BUCKETS, labels)]
+	cols += [money(_("Advance Paid"), "advance"), money(_("Net Payable"), "net_payable", 130)]
+	for m in pdc_months:
+		y, mo = m.split("_")
+		cols.append(money(_("PDC") + " " + datetime.date(int(y), int(mo), 1).strftime("%b-%Y"), "pdc_" + m))
+	cols += [
+		money(_("Total PDC"), "pdc_total"),
+		money(_("Balance After PDC"), "balance_after_pdc", 140),
+		{"label": _("No Supplier Invoice Date"), "fieldname": "no_bill_date", "fieldtype": "Int", "width": 170},
+	]
 	return cols
