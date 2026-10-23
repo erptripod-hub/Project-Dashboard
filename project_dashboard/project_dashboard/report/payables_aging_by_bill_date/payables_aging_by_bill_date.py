@@ -4,8 +4,8 @@
 #
 # Balances come from the Payment Ledger (same source as the standard
 # Accounts Payable Summary), as on the selected date, in company currency.
-# PDC = submitted supplier Payment Entry whose cheque date (Reference Date,
-# else Posting Date) is after the As On Date. PDCs are kept out of the
+# PDC = submitted supplier Payment Entry with a future Posting Date (after the
+# As On Date) AND Mode of Payment Cheque/Check. PDCs are kept out of the
 # outstanding/aging and shown separately, so aging reflects unpaid invoices.
 
 import datetime
@@ -144,7 +144,8 @@ def _get_pdcs(filters, as_on):
 		"pe.company = %(company)s",
 		"pe.payment_type = 'Pay'",
 		"pe.party_type = 'Supplier'",
-		"COALESCE(pe.reference_date, pe.posting_date) > %(as_on)s",
+		"pe.posting_date > %(as_on)s",
+		"(pe.mode_of_payment LIKE '%%cheque%%' OR pe.mode_of_payment LIKE '%%check%%')",
 	]
 	params = {"company": filters.company, "as_on": as_on}
 	_party_conditions(filters, "pe", conditions, params)
@@ -152,7 +153,7 @@ def _get_pdcs(filters, as_on):
 	rows = frappe.db.sql(
 		f"""
 		SELECT pe.name, pe.party, pe.base_paid_amount AS amount,
-			COALESCE(pe.reference_date, pe.posting_date) AS cheque_date
+			pe.posting_date AS cheque_date
 		FROM `tabPayment Entry` pe
 		LEFT JOIN `tabSupplier` sup ON sup.name = pe.party
 		WHERE {" AND ".join(conditions)}
