@@ -11,11 +11,10 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 			default: frappe.defaults.get_user_default("Company"),
 		},
 		{
-			fieldname: "view",
-			label: __("View"),
-			fieldtype: "Select",
-			options: "Invoice Detail\nSupplier Summary",
-			default: "Invoice Detail",
+			fieldname: "as_on_date",
+			label: __("As On Date"),
+			fieldtype: "Date",
+			default: frappe.datetime.get_today(),
 			reqd: 1,
 		},
 		{
@@ -65,7 +64,7 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 		if (!data) return value;
 		const f = column.fieldname;
 		const v = flt(data[f]);
-		if (f === "outstanding") {
+		if (f === "net_payable") {
 			return `<span style="font-weight:700">${value}</span>`;
 		}
 		if ((f === "range4" || f === "range5") && v > 0) {
@@ -80,8 +79,8 @@ frappe.query_reports["Payables Aging by Bill Date"] = {
 		if (f === "no_bill_date" && v > 0) {
 			return `<span style="color:#c2410c;font-weight:600">${value}</span>`;
 		}
-		if (f === "age" && v > 90) {
-			return `<span style="color:#b91c1c;font-weight:600">${value}</span>`;
+		if (f === "advance" && v !== 0) {
+			return `<span style="color:#15803d;font-weight:600">${value}</span>`;
 		}
 		return value;
 	},
