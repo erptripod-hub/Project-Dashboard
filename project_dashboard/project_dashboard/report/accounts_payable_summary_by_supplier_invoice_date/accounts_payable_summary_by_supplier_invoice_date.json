@@ -11,11 +11,11 @@
  "modified": "2026-10-22 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Project Dashboard",
- "name": "Payables Aging by Bill Date",
+ "name": "Accounts Payable Summary by Supplier Invoice Date",
  "owner": "Administrator",
  "prepared_report": 0,
  "ref_doctype": "Purchase Invoice",
- "report_name": "Payables Aging by Bill Date",
+ "report_name": "Accounts Payable Summary by Supplier Invoice Date",
  "report_type": "Script Report",
  "roles": [
   {"role": "System Manager"},

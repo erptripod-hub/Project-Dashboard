@@ -5,7 +5,7 @@
 # Balances come from the Payment Ledger (same source as the standard
 # Accounts Payable Summary), as on the selected date, in company currency.
 # PDC = submitted supplier Payment Entry with a future Posting Date (after the
-# As On Date) AND Mode of Payment Cheque/Check. PDCs are kept out of the
+# As On Date) AND Mode of Payment = Cheque. PDCs are kept out of the
 # outstanding/aging and shown separately, so aging reflects unpaid invoices.
 
 import datetime
@@ -145,7 +145,7 @@ def _get_pdcs(filters, as_on):
 		"pe.payment_type = 'Pay'",
 		"pe.party_type = 'Supplier'",
 		"pe.posting_date > %(as_on)s",
-		"(pe.mode_of_payment LIKE '%%cheque%%' OR pe.mode_of_payment LIKE '%%check%%')",
+		"pe.mode_of_payment = 'Cheque'",
 	]
 	params = {"company": filters.company, "as_on": as_on}
 	_party_conditions(filters, "pe", conditions, params)

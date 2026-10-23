@@ -1,6 +1,6 @@
 // Copyright (c) 2026, Tripod and contributors
 
-frappe.query_reports["Payables Aging by Bill Date"] = {
+frappe.query_reports["Accounts Payable Summary by Supplier Invoice Date"] = {
 	filters: [
 		{
 			fieldname: "company",
