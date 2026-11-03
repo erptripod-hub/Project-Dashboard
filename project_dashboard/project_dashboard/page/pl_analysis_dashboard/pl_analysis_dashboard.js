@@ -379,6 +379,7 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += '<div class="pla-kpis">';
 		h += kpi('Total income', t.income.total, '', false);
 		h += kpi('Gross profit', t.gross_profit.total, fmt_pct(m.gross) + ' margin', t.gross_profit.total < 0);
+		h += kpi('Operating profit', t.operating_profit.total, fmt_pct(m.operating) + ' margin', t.operating_profit.total < 0);
 		h += kpi('Total expense', t.total_expense.total, fmt_pct(m.expense_ratio) + ' of income', false);
 		h += kpi('Net profit', t.net_profit.total, fmt_pct(m.net) + ' margin', t.net_profit.total < 0);
 		h += '</div>';
@@ -492,8 +493,9 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 		h += '</tr></thead><tbody>';
 		h += row('leaf drill', 'Income', t.income.total, 'customer group', 'income');
 		h += row('leaf drill', 'Cost of goods sold', head_by_key('cogs').total, 'supplier group', 'cogs');
-		h += row('leaf drill', 'Direct expenses', head_by_key('direct').total, 'cost center', 'direct');
 		h += row('sum', 'Gross profit', t.gross_profit.total, '');
+		h += row('leaf drill', 'Direct expenses', head_by_key('direct').total, 'cost center', 'direct');
+		h += row('sum', 'Operating profit', t.operating_profit.total, '');
 		h += row('leaf drill', 'Indirect expenses', head_by_key('indirect').total, 'cost center', 'indirect');
 		h += row('sum', 'Total expense', t.total_expense.total, '');
 		h += row('sum', 'Net profit', t.net_profit.total, '');
@@ -603,8 +605,11 @@ frappe.pages['pl-analysis-dashboard'].on_page_load = function(wrapper) {
 				}
 			}
 
-			if (key === 'direct') {
+			if (key === 'cogs') {
 				h += sum_row('Gross profit', t.gross_profit, months.length);
+			}
+			if (key === 'direct') {
+				h += sum_row('Operating profit', t.operating_profit, months.length);
 			}
 		}
 

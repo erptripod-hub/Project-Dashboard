@@ -221,12 +221,17 @@ def get_pl_data(company, from_date, to_date, cost_center=None):
     direct_m = head_totals["direct"]["months"]
     indirect_m = head_totals["indirect"]["months"]
 
-    gross_m = [income_m[i] - cogs_m[i] - direct_m[i] for i in range(len(month_keys))]
+    # Gross profit is income less cost of goods sold only. Direct expenses
+    # come off below it to give operating profit, so the page shows three
+    # margins: pricing, production, and overhead.
+    gross_m = [income_m[i] - cogs_m[i] for i in range(len(month_keys))]
+    oper_m = [gross_m[i] - direct_m[i] for i in range(len(month_keys))]
     totexp_m = [cogs_m[i] + direct_m[i] + indirect_m[i] for i in range(len(month_keys))]
-    net_m = [gross_m[i] - indirect_m[i] for i in range(len(month_keys))]
+    net_m = [oper_m[i] - indirect_m[i] for i in range(len(month_keys))]
 
     income_total = head_totals["income"]["total"]
     gross_total = sum(gross_m)
+    oper_total = sum(oper_m)
     totexp_total = sum(totexp_m)
     net_total = sum(net_m)
 
@@ -240,11 +245,13 @@ def get_pl_data(company, from_date, to_date, cost_center=None):
         "totals": {
             "income": {"months": income_m, "total": income_total},
             "gross_profit": {"months": gross_m, "total": gross_total},
+            "operating_profit": {"months": oper_m, "total": oper_total},
             "total_expense": {"months": totexp_m, "total": totexp_total},
             "net_profit": {"months": net_m, "total": net_total},
         },
         "margins": {
             "gross": (gross_total / income_total * 100.0) if income_total else 0.0,
+            "operating": (oper_total / income_total * 100.0) if income_total else 0.0,
             "net": (net_total / income_total * 100.0) if income_total else 0.0,
             "expense_ratio": (totexp_total / income_total * 100.0) if income_total else 0.0,
         },
