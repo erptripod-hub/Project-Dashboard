@@ -20,5 +20,22 @@ after_migrate = [
 doc_events = {
     "Project": {
         "after_insert": "project_dashboard.project_dashboard.doctype.project_production_plan.project_production_plan.create_production_plan_for_project"
+    },
+    "Sales Invoice": {
+        "on_submit": "project_dashboard.project_dashboard.doctype.proforma_invoice.proforma_invoice.update_proforma_on_cn",
+        "before_cancel": "project_dashboard.project_dashboard.doctype.proforma_invoice.proforma_invoice.si_before_cancel",
+        "on_cancel": "project_dashboard.project_dashboard.doctype.proforma_invoice.proforma_invoice.si_on_cancel",
+        "on_trash": "project_dashboard.project_dashboard.doctype.proforma_invoice.proforma_invoice.si_on_trash"
     }
+}
+
+# Add button to Sales Order
+override_doctype_dashboards = {
+    "Sales Order": "project_dashboard.project_dashboard.dashboard_overrides.sales_order",
+    "Sales Invoice": "project_dashboard.project_dashboard.dashboard_overrides.sales_invoice",
+    "Project": "project_dashboard.project_dashboard.dashboard_overrides.project",
+}
+
+doctype_js = {
+    "Sales Order": "public/js/sales_order.js"
 }

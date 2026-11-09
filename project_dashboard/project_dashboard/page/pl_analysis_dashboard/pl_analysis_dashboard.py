@@ -109,7 +109,7 @@ def get_companies():
 
 
 @frappe.whitelist()
-def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
+def get_pl_data(company, from_date, to_date, cost_center=None):
     """Full page payload: heads, monthly columns, ledger tree, drill flags."""
     _check_permission()
     company = _validate_company(company)
@@ -124,9 +124,6 @@ def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
     if cost_center:
         conditions += " AND gl.cost_center = %(cost_center)s"
         params["cost_center"] = cost_center
-    if project:
-        conditions += " AND gl.project = %(project)s"
-        params["project"] = project
 
     rows = frappe.db.sql(
         """
@@ -224,12 +221,17 @@ def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
     direct_m = head_totals["direct"]["months"]
     indirect_m = head_totals["indirect"]["months"]
 
-    gross_m = [income_m[i] - cogs_m[i] - direct_m[i] for i in range(len(month_keys))]
+    # Gross profit is income less cost of goods sold only. Direct expenses
+    # come off below it to give operating profit, so the page shows three
+    # margins: pricing, production, and overhead.
+    gross_m = [income_m[i] - cogs_m[i] for i in range(len(month_keys))]
+    oper_m = [gross_m[i] - direct_m[i] for i in range(len(month_keys))]
     totexp_m = [cogs_m[i] + direct_m[i] + indirect_m[i] for i in range(len(month_keys))]
-    net_m = [gross_m[i] - indirect_m[i] for i in range(len(month_keys))]
+    net_m = [oper_m[i] - indirect_m[i] for i in range(len(month_keys))]
 
     income_total = head_totals["income"]["total"]
     gross_total = sum(gross_m)
+    oper_total = sum(oper_m)
     totexp_total = sum(totexp_m)
     net_total = sum(net_m)
 
@@ -243,11 +245,13 @@ def get_pl_data(company, from_date, to_date, cost_center=None, project=None):
         "totals": {
             "income": {"months": income_m, "total": income_total},
             "gross_profit": {"months": gross_m, "total": gross_total},
+            "operating_profit": {"months": oper_m, "total": oper_total},
             "total_expense": {"months": totexp_m, "total": totexp_total},
             "net_profit": {"months": net_m, "total": net_total},
         },
         "margins": {
             "gross": (gross_total / income_total * 100.0) if income_total else 0.0,
+            "operating": (oper_total / income_total * 100.0) if income_total else 0.0,
             "net": (net_total / income_total * 100.0) if income_total else 0.0,
             "expense_ratio": (totexp_total / income_total * 100.0) if income_total else 0.0,
         },
@@ -357,7 +361,9 @@ def get_income_split(company, from_date, to_date, mode="customer_group"):
     group_field = {
         "customer_group": "IFNULL(NULLIF(c.customer_group, ''), 'Ungrouped')",
         "customer": "si.customer",
-        "project": "IFNULL(NULLIF(si.project, ''), 'No project')",
+        "project": ("CASE WHEN IFNULL(si.project, '') = '' THEN 'No project' "
+                    "ELSE CONCAT(si.project, IFNULL(CONCAT(' - ', NULLIF(pr.project_name, si.project)), '')) "
+                    "END"),
     }[mode]
 
     rows = frappe.db.sql(
@@ -369,6 +375,7 @@ def get_income_split(company, from_date, to_date, mode="customer_group"):
         INNER JOIN `tabAccount` a ON a.name = gl.account
         INNER JOIN `tabSales Invoice` si ON si.name = gl.voucher_no
         LEFT JOIN `tabCustomer` c ON c.name = si.customer
+        LEFT JOIN `tabProject` pr ON pr.name = si.project
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.voucher_type = 'Sales Invoice'
           AND a.root_type = 'Income'
@@ -494,13 +501,21 @@ def get_cogs_split(company, from_date, to_date, mode="supplier_group"):
 
 
 @frappe.whitelist()
-def get_salary_split(company, from_date, to_date, mode="cost_center"):
-    """Payroll cost by cost center or month, read from GL."""
+def get_salary_split(company, from_date, to_date, mode="cost_center", cost_center=None):
+    """Payroll cost by cost centre, employment type, account or month.
+
+    Employment type is held on the Payroll Entry, not on the ledger line,
+    so it is reached through the accrual journal: the payable line of the
+    journal carries reference_type 'Payroll Entry' pointing at the run.
+    Anything posted to the salary accounts by a manual journal has no
+    payroll entry behind it and is reported separately rather than
+    silently dropped.
+    """
     _check_permission()
     company = _validate_company(company)
     from_date, to_date = _validate_dates(from_date, to_date)
 
-    if mode not in ("cost_center", "month"):
+    if mode not in ("cost_center", "employment_type", "account", "month"):
         frappe.throw(_("Invalid mode"))
 
     accounts = _payroll_accounts(company)
@@ -515,6 +530,11 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
         "accounts": accounts,
     }
 
+    cc_filter = ""
+    if cost_center:
+        cc_filter = " AND gl.cost_center = %(cost_center)s"
+        base["cost_center"] = cost_center
+
     if mode == "month":
         rows = frappe.db.sql(
             """
@@ -524,12 +544,57 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
             WHERE gl.company = %(company)s AND gl.is_cancelled = 0
               AND gl.account IN %(accounts)s
               AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
             GROUP BY label ORDER BY label
-            """,
+            """.format(cc_filter=cc_filter),
             base,
             as_dict=True,
         )
         return _finish_split(rows, unit="")
+
+    if mode == "account":
+        rows = frappe.db.sql(
+            """
+            SELECT gl.account AS label,
+                   SUM(gl.debit - gl.credit) AS amount
+            FROM `tabGL Entry` gl
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        return _finish_split(rows, unit="")
+
+    if mode == "employment_type":
+        rows = frappe.db.sql(
+            """
+            SELECT IFNULL(NULLIF(pe.employment_type, ''), 'Not from a payroll run') AS label,
+                   SUM(gl.debit - gl.credit) AS amount,
+                   COUNT(DISTINCT gl.voucher_no) AS cnt
+            FROM `tabGL Entry` gl
+            LEFT JOIN `tabJournal Entry Account` jea
+                   ON jea.parent = gl.voucher_no
+                  AND jea.reference_type = 'Payroll Entry'
+            LEFT JOIN `tabPayroll Entry` pe
+                   ON pe.name = jea.reference_name
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label
+            ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        for r in rows:
+            if r.get("label") == "Not from a payroll run":
+                r["warn"] = 1
+        return _finish_split(rows, unit="vch")
 
     rows = frappe.db.sql(
         """
@@ -539,15 +604,18 @@ def get_salary_split(company, from_date, to_date, mode="cost_center"):
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.account IN %(accounts)s
           AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          {cc_filter}
         GROUP BY label
         ORDER BY amount DESC
-        """,
+        """.format(cc_filter=cc_filter),
         base,
         as_dict=True,
     )
     for r in rows:
         if r.get("label") == "Unallocated":
             r["warn"] = 1
+        else:
+            r["drill"] = r.get("label")
 
     return _finish_split(rows, unit="")
 
@@ -563,20 +631,32 @@ def _finish_split(rows, unit=""):
             "count": r.get("cnt") or 0,
             "pct": (amount / total * 100.0) if total else 0.0,
             "warn": 1 if r.get("warn") else 0,
+            "drill": r.get("drill") or "",
         })
     return {"rows": out, "total": total, "unit": unit}
 
 
 @frappe.whitelist()
-def get_head_split(company, from_date, to_date, head="direct", mode="cost_center"):
-    """Any expense head split by cost center, account or month."""
+def get_head_split(company, from_date, to_date, head="direct", mode="cost_center",
+                   cost_center=None):
+    """An expense head split by cost centre, employment type, account or month.
+
+    Employment type lives on the Payroll Entry, not on the ledger line, so it
+    is reached through the accrual journal: the payable line carries
+    reference_type 'Payroll Entry' pointing at the run. Anything in the head
+    that did not come from a payroll run is reported on its own line rather
+    than being forced into a category, which matters while earlier months
+    still sit in manual journals.
+
+    Passing cost_center scopes every mode to that cost centre.
+    """
     _check_permission()
     company = _validate_company(company)
     from_date, to_date = _validate_dates(from_date, to_date)
 
     if head not in ("direct", "indirect"):
         frappe.throw(_("Invalid head"))
-    if mode not in ("cost_center", "account", "month"):
+    if mode not in ("cost_center", "employment_type", "account", "month"):
         frappe.throw(_("Invalid mode"))
 
     meta = _company_meta(company)
@@ -605,6 +685,11 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
         "accounts": accounts,
     }
 
+    cc_filter = ""
+    if cost_center:
+        cc_filter = " AND gl.cost_center = %(cost_center)s"
+        base["cost_center"] = cost_center
+
     if mode == "month":
         rows = frappe.db.sql(
             """
@@ -614,12 +699,40 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
             WHERE gl.company = %(company)s AND gl.is_cancelled = 0
               AND gl.account IN %(accounts)s
               AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
             GROUP BY label ORDER BY label
-            """,
+            """.format(cc_filter=cc_filter),
             base,
             as_dict=True,
         )
         return _finish_split(rows, unit="")
+
+    if mode == "employment_type":
+        rows = frappe.db.sql(
+            """
+            SELECT IFNULL(NULLIF(pe.employment_type, ''), 'Not from a payroll run') AS label,
+                   SUM(gl.debit - gl.credit) AS amount,
+                   COUNT(DISTINCT gl.voucher_no) AS cnt
+            FROM `tabGL Entry` gl
+            LEFT JOIN `tabJournal Entry Account` jea
+                   ON jea.parent = gl.voucher_no
+                  AND jea.reference_type = 'Payroll Entry'
+            LEFT JOIN `tabPayroll Entry` pe
+                   ON pe.name = jea.reference_name
+            WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.account IN %(accounts)s
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              {cc_filter}
+            GROUP BY label
+            ORDER BY amount DESC
+            """.format(cc_filter=cc_filter),
+            base,
+            as_dict=True,
+        )
+        for r in rows:
+            if r.get("label") == "Not from a payroll run":
+                r["warn"] = 1
+        return _finish_split(rows, unit="vch")
 
     label_field = {
         "cost_center": "IFNULL(NULLIF(gl.cost_center, ''), 'Unallocated')",
@@ -634,15 +747,18 @@ def get_head_split(company, from_date, to_date, head="direct", mode="cost_center
         WHERE gl.company = %(company)s AND gl.is_cancelled = 0
           AND gl.account IN %(accounts)s
           AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          {cc_filter}
         GROUP BY label
         ORDER BY amount DESC
-        """.format(label_field=label_field),
+        """.format(label_field=label_field, cc_filter=cc_filter),
         base,
         as_dict=True,
     )
     for r in rows:
         if r.get("label") == "Unallocated":
             r["warn"] = 1
+        elif mode == "cost_center" and not cost_center:
+            r["drill"] = r.get("label")
 
     return _finish_split(rows, unit="")
 
@@ -661,7 +777,10 @@ def get_order_book(company, from_date, to_date):
         SELECT so.status,
                COUNT(so.name) AS orders,
                SUM(so.base_grand_total) AS order_value,
-               SUM(so.base_grand_total * IFNULL(so.per_billed, 0) / 100) AS billed_value
+               SUM(LEAST(
+                   so.base_grand_total * IFNULL(so.per_billed, 0) / 100,
+                   so.base_grand_total
+               )) AS billed_value
         FROM `tabSales Order` so
         WHERE so.company = %(company)s
           AND so.docstatus = 1
@@ -688,11 +807,13 @@ def get_order_book(company, from_date, to_date):
         """
         SELECT DATE_FORMAT(so.transaction_date, '%%Y-%%m') AS mkey,
                COUNT(so.name) AS orders,
-               SUM(so.base_grand_total) AS value
+               SUM(CASE WHEN so.status = 'Closed'
+                        THEN LEAST(so.base_grand_total * IFNULL(so.per_billed, 0) / 100,
+                                   so.base_grand_total)
+                        ELSE so.base_grand_total END) AS value
         FROM `tabSales Order` so
         WHERE so.company = %(company)s
           AND so.docstatus = 1
-          AND so.status != 'Closed'
           AND so.transaction_date BETWEEN %(from_date)s AND %(to_date)s
         GROUP BY mkey
         ORDER BY mkey
@@ -715,9 +836,27 @@ def get_order_book(company, from_date, to_date):
             "value": flt(hit.value) if hit else 0.0,
         })
 
+    # A closed order counts at what was billed, because nothing further will
+    # ever be invoiced against it. Its unbilled balance is dead and is left
+    # out of "not yet invoiced" on purpose.
+    book_value = open_value + closed_billed
+    book_billed = open_billed + closed_billed
+
     return {
         "currency": _company_meta(company)["currency"],
         "monthly": series,
+        "book": {
+            "orders": int(open_orders + closed_orders),
+            "open_orders": int(open_orders),
+            "closed_orders": int(closed_orders),
+            "value": book_value,
+            "billed": book_billed,
+            "unbilled": open_value - open_billed,
+            "pct_billed": (book_billed / book_value * 100.0) if book_value else 0.0,
+            "average_open": (open_value / open_orders) if open_orders else 0.0,
+            "closed_billed": closed_billed,
+            "closed_dead": closed_value - closed_billed,
+        },
         "open": {
             "orders": int(open_orders),
             "value": open_value,
@@ -733,6 +872,134 @@ def get_order_book(company, from_date, to_date):
             "unbilled": closed_value - closed_billed,
         },
     }
+
+
+@frappe.whitelist()
+def get_income_bridge(company, from_date, to_date):
+    """Reconcile order-linked billing to total income.
+
+    Answers the obvious question: why is the order book billed figure
+    lower than income? Because some invoices are raised with no sales
+    order behind them, and a little income is posted by journal entry.
+    The three lines always add up to the income shown on the page.
+    """
+    _check_permission()
+    company = _validate_company(company)
+    from_date, to_date = _validate_dates(from_date, to_date)
+
+    total_income = flt(frappe.db.sql(
+        """
+        SELECT SUM(gl.credit - gl.debit)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND IFNULL(gl.is_opening, 'No') = 'No'
+          AND gl.voucher_type != 'Period Closing Voucher'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0)
+
+    non_invoice = flt(frappe.db.sql(
+        """
+        SELECT SUM(gl.credit - gl.debit)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type != 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0)
+
+    non_invoice_count = frappe.db.sql(
+        """
+        SELECT COUNT(DISTINCT gl.voucher_no)
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type != 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+    )[0][0] or 0
+
+    no_order = frappe.db.sql(
+        """
+        SELECT COUNT(DISTINCT gl.voucher_no) AS cnt,
+               SUM(gl.credit - gl.debit) AS amount
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        INNER JOIN `tabSales Invoice` si ON si.name = gl.voucher_no
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+          AND gl.voucher_type = 'Sales Invoice'
+          AND a.root_type = 'Income'
+          AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND NOT EXISTS (
+              SELECT 1 FROM `tabSales Invoice Item` sii
+              WHERE sii.parent = si.name
+                AND IFNULL(sii.sales_order, '') != ''
+          )
+        """,
+        {"company": company, "from_date": from_date, "to_date": to_date},
+        as_dict=True,
+    )
+    no_order_amount = flt(no_order[0].amount) if no_order else 0.0
+    no_order_count = (no_order[0].cnt or 0) if no_order else 0
+
+    with_order = total_income - non_invoice - no_order_amount
+
+    return {
+        "currency": _company_meta(company)["currency"],
+        "with_order": with_order,
+        "no_order": no_order_amount,
+        "no_order_count": no_order_count,
+        "non_invoice": non_invoice,
+        "non_invoice_count": non_invoice_count,
+        "total_income": total_income,
+    }
+
+
+@frappe.whitelist()
+def get_no_order_invoices(company, from_date, to_date, limit=200):
+    """Sales invoices raised without any sales order, for the drill list."""
+    _check_permission()
+    company = _validate_company(company)
+    from_date, to_date = _validate_dates(from_date, to_date)
+    limit = min(int(limit or 200), 500)
+
+    return frappe.db.sql(
+        """
+        SELECT si.name AS invoice,
+               si.posting_date,
+               si.customer,
+               IFNULL(si.project, '') AS project,
+               si.base_net_total AS amount,
+               si.is_return,
+               si.owner
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s
+          AND si.docstatus = 1
+          AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND NOT EXISTS (
+              SELECT 1 FROM `tabSales Invoice Item` sii
+              WHERE sii.parent = si.name
+                AND IFNULL(sii.sales_order, '') != ''
+          )
+        ORDER BY si.base_net_total DESC
+        LIMIT %(limit)s
+        """,
+        {
+            "company": company,
+            "from_date": from_date,
+            "to_date": to_date,
+            "limit": limit,
+        },
+        as_dict=True,
+    )
 
 
 @frappe.whitelist()

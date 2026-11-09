@@ -1,0 +1,478 @@
+{%- set company_doc = frappe.get_doc("Company", doc.company) -%}
+{%- set company_vat = company_doc.get("tax_id") or "310337300200003" -%}
+{%- set customer_doc = frappe.get_doc("Customer", doc.customer) if doc.customer else {} -%}
+{%- set customer_vat = customer_doc.get("tax_id") or "" -%}
+{%- set customer_name_ar = customer_doc.get("custom_customer_name_in_arabic") or "" -%}
+{%- set so_doc = frappe.get_doc("Sales Order", doc.sales_order) if doc.sales_order else {} -%}
+{%- set customer_address = so_doc.get("customer_address") if so_doc else "" -%}
+{%- set address_display = so_doc.get("address_display") if so_doc else "" -%}
+{%- set terms = so_doc.get("terms") or "" -%}
+{%- set payment_terms = so_doc.get("payment_terms_template") or "Immediate" -%}
+{%- set address_doc = frappe.get_doc("Address", customer_address) if customer_address else {} -%}
+{%- set address_ar = address_doc.get("custom_address_in_arabic") or "" -%}
+
+<style>
+@page {
+    size: A4;
+    margin: 8mm;
+}
+body {
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    line-height: 1.3;
+    color: #000;
+    margin: 0;
+    padding: 0;
+}
+.invoice-container {
+    width: 100%;
+    padding: 5px;
+}
+
+/* HEADER */
+.header-table {
+    width: 100%;
+    border: none;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+}
+.header-table td {
+    border: none;
+    vertical-align: middle;
+    padding: 8px;
+}
+.logo-cell {
+    width: 25%;
+    text-align: left;
+}
+.logo-cell img {
+    max-height: 70px;
+    max-width: 150px;
+}
+.title-cell {
+    width: 50%;
+    text-align: center;
+}
+.title-en {
+    font-size: 20px;
+    font-weight: bold;
+}
+.title-ar {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000;
+}
+.company-cell {
+    width: 25%;
+    text-align: right;
+}
+.company-name-ar {
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+}
+.company-name-en {
+    font-size: 10px;
+    color: #333;
+}
+.company-website {
+    font-size: 9px;
+    color: #666;
+}
+
+/* MAIN INFO TABLE */
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.info-table td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.buyer-cell {
+    width: 40%;
+}
+.label-en {
+    font-size: 8px;
+    color: #000;
+    font-weight: bold;
+}
+.label-ar {
+    font-size: 9px;
+    color: #000;
+    font-weight: bold;
+    float: right;
+}
+.value-text {
+    font-size: 10px;
+    font-weight: bold;
+}
+.info-mid {
+    width: 30%;
+}
+.info-right {
+    width: 30%;
+}
+.arabic-text {
+    font-size: 10px;
+    color: #000;
+    font-weight: normal;
+}
+
+/* ITEMS TABLE */
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.items-table th {
+    border: 1px solid #000;
+    padding: 6px 4px;
+    font-size: 9px;
+    font-weight: bold;
+    text-align: center;
+    background-color: #f0f0f0;
+}
+.items-table th .ar {
+    font-size: 9px;
+    font-weight: bold;
+    color: #000;
+    display: block;
+}
+.items-table td {
+    border: 1px solid #000;
+    padding: 5px 4px;
+    font-size: 9px;
+}
+.items-table .center {
+    text-align: center;
+}
+.items-table .right {
+    text-align: right;
+}
+
+/* TOTALS TABLE */
+.totals-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.totals-table td {
+    border: 1px solid #000;
+    padding: 5px 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.currency-cell {
+    width: 20%;
+}
+.words-cell {
+    width: 35%;
+}
+.totals-label-cell {
+    width: 25%;
+    text-align: right;
+}
+.amount-cell {
+    width: 20%;
+    text-align: right;
+    font-weight: bold;
+}
+.total-label-ar {
+    font-size: 9px;
+    color: #000;
+}
+
+/* BANK DETAILS */
+.bank-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.bank-table td {
+    border: 1px solid #000;
+    padding: 6px;
+    font-size: 9px;
+    vertical-align: top;
+}
+.bank-left {
+    width: 50%;
+}
+.bank-right {
+    width: 50%;
+}
+.bank-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 10px;
+}
+
+/* SIGNATURE */
+.signature-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.signature-table td {
+    border: 1px solid #000;
+    padding: 10px;
+    font-size: 9px;
+    vertical-align: top;
+    height: 100px;
+}
+.sig-left {
+    width: 50%;
+    vertical-align: bottom;
+}
+.sig-right {
+    width: 50%;
+    text-align: center;
+    vertical-align: bottom;
+}
+.stamp-area {
+    text-align: center;
+    margin: 10px 0;
+}
+.stamp-area img {
+    max-height: 70px;
+}
+
+/* FOOTER */
+.footer-bar {
+    background-color: #e0e0e0;
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 9px;
+    margin-top: 8px;
+}
+</style>
+
+<div class="invoice-container">
+
+<!-- ========== HEADER WITH LOGO ========== -->
+<table class="header-table">
+    <tr>
+        <td class="logo-cell">
+            <img src="/files/ts_h.jpg" alt="TRIPOD GLOBAL">
+        </td>
+        <td class="title-cell">
+            <div class="title-en">PROFORMA INVOICE</div>
+            <div class="title-ar">فاتورة مبدئية</div>
+        </td>
+        <td class="company-cell">
+            <div class="company-name-ar">شركة ترايبود غلوبال</div>
+            <div class="company-name-ar">شوبفيتس للصناعة</div>
+            <div class="company-name-en">Tripod Global Shopfit</div>
+            <div class="company-name-en">Manufacturing Co.</div>
+            <div class="company-website">www.tripodmena.com</div>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== MAIN INFO TABLE ========== -->
+<table class="info-table">
+    <tr>
+        <!-- BUYER -->
+        <td class="buyer-cell" rowspan="6">
+            <span class="label-en">Buyer</span><span class="label-ar">المشتري</span><br>
+            <span class="value-text">{{ doc.customer_name }}</span><br>
+            {{ address_display or '' }}
+            <br>Country: Saudi Arabia / المملكة العربية السعودية
+            <br>Postal Code: {{ address_doc.get("pincode") or '' }}
+            <br><b>VAT No.: {{ customer_vat }}</b>
+            <br><span class="arabic-text">رقم الضريبة: {{ customer_vat }}</span>
+            <br><br>
+            <span class="arabic-text"><b>{{ customer_name_ar }}</b></span><br>
+            <span class="arabic-text">{{ address_ar }}</span>
+        </td>
+        
+        <!-- ROW 1: Invoice No & Date -->
+        <td class="info-mid">
+            <span class="label-en">Proforma No.</span><span class="label-ar">رقم الفاتورة المبدئية</span><br>
+            <span class="value-text">{{ doc.name }}</span>
+        </td>
+        <td class="info-right">
+            <span class="label-en">Dated</span><span class="label-ar">بتاريخ</span><br>
+            <span class="value-text">{{ doc.get_formatted('posting_date') }}</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 2: Delivery Note -->
+        <td>
+            <span class="label-en">Delivery Note</span><span class="label-ar">مذكرة التسليم</span><br>
+            <span class="value-text">-</span>
+        </td>
+        <td>
+            <span class="label-en">Delivery Note Date</span><span class="label-ar">تاريخ مذكرة التسليم</span><br>
+            <span class="value-text">-</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 3: Supplier Ref -->
+        <td>
+            <span class="label-en">Supplier's Ref</span><span class="label-ar">مرجع المورد</span><br>
+            <span class="value-text">{{ doc.name }}</span>
+        </td>
+        <td>
+            <span class="label-en">Dispatch Document No.</span><span class="label-ar">رقم الإرسالية</span><br>
+            <span class="value-text">-</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 4: Buyer Order -->
+        <td>
+            <span class="label-en">Buyer's Order No.</span><span class="label-ar">رقم طلب المشتري</span><br>
+            <span class="value-text">{{ doc.sales_order or '-' }}</span>
+        </td>
+        <td>
+            <span class="label-en">Mode / Terms of Payment</span><span class="label-ar">طريقة وشروط الدفع</span><br>
+            <span class="value-text">{{ payment_terms }}</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 5: Company VAT -->
+        <td colspan="2">
+            <span class="label-en">Company's VAT No.</span><span class="label-ar">رقم ضريبة القيمة المضافة للشركة</span><br>
+            <span class="value-text">{{ company_vat }}</span>
+        </td>
+    </tr>
+    <tr>
+        <!-- ROW 6: Destination -->
+        <td colspan="2">
+            <span class="label-en">Destination</span><span class="label-ar">مكان التسليم</span><br>
+            <span class="value-text">{{ doc.customer_name }}-Billing</span>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== ITEMS TABLE WITH LINE TAX ========== -->
+<table class="items-table">
+    <thead>
+        <tr>
+            <th style="width:4%;">S. No<span class="ar">م</span></th>
+            <th style="width:35%;">Description of Goods<span class="ar">وصف البضاعة</span></th>
+            <th style="width:8%;">Quantity<span class="ar">الكمية</span></th>
+            <th style="width:13%;">Rate<span class="ar">السعر</span></th>
+            <th style="width:6%;">UOM<span class="ar">الوحدة</span></th>
+            <th style="width:14%;">Amount<span class="ar">المبلغ</span></th>
+            <th style="width:10%;">Tax 15%<span class="ar">الضريبة</span></th>
+            <th style="width:14%;">Total<span class="ar">الإجمالي</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in doc.items %}
+        {%- set tax_rate = doc.taxes[0].rate if doc.taxes else 15 -%}
+        {%- set item_tax = row.amount * tax_rate / 100 -%}
+        {%- set item_total = row.amount + item_tax -%}
+        <tr>
+            <td class="center">{{ row.idx }}</td>
+            <td>{{ row.item_name or row.item_code }}</td>
+            <td class="center">{{ "%.2f"|format(row.qty) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(row.rate, currency=doc.currency) }}</td>
+            <td class="center">{{ row.uom or "Nos" }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(row.amount, currency=doc.currency) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(item_tax, currency=doc.currency) }}</td>
+            <td class="right">{{ frappe.utils.fmt_money(item_total, currency=doc.currency) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- ========== TOTALS TABLE ========== -->
+<table class="totals-table">
+    <!-- ROW 1 -->
+    <tr>
+        <td class="currency-cell">
+            <span class="label-en">Currency:</span><span class="label-ar">العملة</span><br>
+            <span class="value-text">{{ doc.currency }}</span>
+        </td>
+        <td class="totals-label-cell">
+            <span class="label-en">Taxable Value</span><br>
+            <span class="total-label-ar">القيمة الخاضعة للضريبة</span>
+        </td>
+        <td class="amount-cell">{{ frappe.utils.fmt_money(doc.net_total, currency=doc.currency) }}</td>
+    </tr>
+    <!-- ROW 2 -->
+    <tr>
+        <td class="words-cell" rowspan="2">
+            <span class="label-en">Amount Chargeable (in words):</span><br>
+            <span class="total-label-ar">المبلغ المستحق بالحروف</span><br>
+            {{ frappe.utils.money_in_words(doc.grand_total, doc.currency) }}
+        </td>
+        <td class="totals-label-cell">
+            <span class="label-en">VAT 15%</span><br>
+            <span class="total-label-ar">ضريبة القيمة المضافة</span>
+        </td>
+        <td class="amount-cell">{{ frappe.utils.fmt_money(doc.total_taxes, currency=doc.currency) }}</td>
+    </tr>
+    <!-- ROW 3: GRAND TOTAL -->
+    <tr>
+        <td class="totals-label-cell" style="font-weight:bold;border:2px solid #000;">
+            <span class="label-en">Proforma Total</span><br>
+            <span class="total-label-ar">إجمالي الفاتورة المبدئية</span>
+        </td>
+        <td class="amount-cell" style="font-weight:bold;border:2px solid #000;font-size:11px;">{{ frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
+    </tr>
+    <!-- ROW 4: VAT WORDS -->
+    <tr>
+        <td colspan="3">
+            <span class="label-en">VAT Amount in words:</span><span class="label-ar">مبلغ ضريبة القيمة المضافة بالحروف</span><br>
+            {{ doc.currency }} {{ " ".join(frappe.utils.money_in_words(doc.total_taxes or 0).split(" ")[1:]) }}
+        </td>
+    </tr>
+</table>
+
+<!-- ========== BANK DETAILS & DECLARATION ========== -->
+<table class="bank-table">
+    <tr>
+        <td class="bank-left">
+            <span class="label-en"><b>Declaration</b></span> <span class="label-ar"><b>إقرار</b></span><br><br>
+            We declare that this proforma invoice shows the actual price of the goods described and that all particulars are true and correct.<br>
+            <span class="arabic-text">نقر بأن هذه الفاتورة المبدئية تظهر السعر الفعلي للبضائع الموصوفة وأن جميع التفاصيل صحيحة ودقيقة.</span>
+            <br><br>
+            Any discrepancies or errors must be replied within 3 days from the submission date.
+        </td>
+        <td class="bank-right">
+            <div class="bank-title">BANK DETAILS / تفاصيل البنك</div>
+            {% if terms %}
+            {{ terms }}
+            {% else %}
+            <b>A/C Holder's Name:</b><br>
+            TRIPOD GLOBAL SHOPFIT MANUFACTURING COMPANY<br>
+            <b>Bank Name:</b> Al Rajhi Bank<br>
+            <b>A/C No.:</b> 0578-6080-1007-5341<br>
+            <b>IBAN:</b> SA48-8000-0578-6080-1007-5341<br>
+            <b>Branch & Swift Code:</b> RJHISARI
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+<!-- ========== SIGNATURE ========== -->
+<table class="signature-table">
+    <tr>
+        <td class="sig-left">
+            <b>Customer's Seal and Signature</b><br>
+            <span class="arabic-text">ختم وتوقيع العميل</span>
+        </td>
+        <td class="sig-right">
+            <b>FOR {{ doc.company }}</b><br>
+            <div class="stamp-area">
+                <img src="/files/stamp_saudi.png" alt="Stamp">
+            </div>
+            <b>Authorised Signatory / المفوض بالتوقيع</b>
+        </td>
+    </tr>
+</table>
+
+<!-- ========== FOOTER ========== -->
+<div class="footer-bar">
+    P.O. Box: 6606, Postal Code 14326, Warehouse (3,4,5) Exit 18, Industrial Area, Riyadh, KSA<br>
+    ص.ب: 6606، الرمز البريدي 14326، المستودع (3،4،5) مخرج 18، المنطقة الصناعية، الرياض، المملكة العربية السعودية
+</div>
+
+</div>

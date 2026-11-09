@@ -19,6 +19,62 @@ def get_employee_hourly_rate(employee):
 	return 0
 
 
+def get_project_budget(project):
+	"""Get budget from Budget DocType (handles amended budgets)"""
+	# Find latest submitted Budget linked to this project
+	budget_name = frappe.db.get_value("Budget", 
+		{"project": project, "docstatus": 1}, 
+		"name",
+		order_by="creation desc")
+	
+	if not budget_name:
+		return 0
+	
+	# Sum all budget amounts from Budget Account child table
+	total = frappe.db.sql("""
+		SELECT COALESCE(SUM(budget_amount), 0) as total
+		FROM `tabBudget Account`
+		WHERE parent = %s
+	""", budget_name)
+	
+	return float(total[0][0]) if total else 0
+
+
+def get_material_consumption(project):
+	"""
+	Calculate material consumption from store (extra stock not covered by PO).
+	Logic: For each item, if Stock Entry issued qty > PO qty, the excess is extra store cost.
+	Items issued via SE but not in any PO are 100% extra store cost.
+	"""
+	result = frappe.db.sql("""
+		SELECT COALESCE(SUM(extra_amount), 0) as total
+		FROM (
+			SELECT 
+				CASE 
+					WHEN COALESCE(po.po_qty, 0) = 0 THEN se.issued_amount
+					WHEN se.issued_qty > po.po_qty THEN ROUND((se.issued_qty - po.po_qty) * (se.issued_amount / se.issued_qty), 2)
+					ELSE 0
+				END as extra_amount
+			FROM (
+				SELECT sed.item_code, SUM(sed.qty) as issued_qty, SUM(sed.amount) as issued_amount
+				FROM `tabStock Entry Detail` sed
+				JOIN `tabStock Entry` se ON se.name = sed.parent
+				WHERE se.docstatus = 1 AND se.stock_entry_type = 'Material Issue' AND sed.project = %s
+				GROUP BY sed.item_code
+			) se
+			LEFT JOIN (
+				SELECT poi.item_code, SUM(poi.qty) as po_qty
+				FROM `tabPurchase Order Item` poi
+				JOIN `tabPurchase Order` po ON po.name = poi.parent
+				WHERE po.docstatus = 1 AND poi.project = %s
+				GROUP BY poi.item_code
+			) po ON se.item_code = po.item_code
+		) calc
+	""", (project, project))
+	
+	return float(result[0][0]) if result else 0
+
+
 @frappe.whitelist()
 def get_dashboard_data(project):
 	data = {}
@@ -51,12 +107,17 @@ def get_dashboard_data(project):
 	so_net_total = float(so_result[0].total_net or 0) if so_result else 0
 	so_grand_total = float(so_result[0].total_grand or 0) if so_result else 0
 	so_count = int(so_result[0].so_count or 0) if so_result else 0
-	auto_budget = round(so_net_total * 0.33, 2)  # 33% of ex-VAT value
+	
+	# Budget: first check Budget DocType, fallback to 33% of SO value
+	budget_from_doctype = get_project_budget(project)
+	auto_budget = budget_from_doctype if budget_from_doctype > 0 else round(so_net_total * 0.33, 2)
+	
 	data["so_data"] = {
 		"so_net_total": so_net_total,
 		"so_grand_total": so_grand_total,
 		"so_count": so_count,
 		"auto_budget": auto_budget,
+		"budget_source": "Budget DocType" if budget_from_doctype > 0 else "Auto (33%)"
 	}
 
 	if pp_name:
@@ -207,16 +268,23 @@ def get_dashboard_data(project):
 		SELECT
 			COUNT(DISTINCT name) as total_pos,
 			COUNT(DISTINCT supplier) as total_suppliers,
-			COALESCE(SUM(grand_total), 0) as total_value,
-			COALESCE(SUM(grand_total * per_billed / 100), 0) as total_received,
-			COALESCE(SUM(grand_total * (1 - per_billed / 100)), 0) as total_pending
+			COALESCE(SUM(grand_total), 0) as total_value
 		FROM `tabPurchase Order`
 		WHERE project = %s AND docstatus = 1
 	""", project, as_dict=1)
 
-	data["purchase_orders"] = po_totals[0] if po_totals else {
-		"total_pos": 0, "total_suppliers": 0,
-		"total_value": 0, "total_received": 0, "total_pending": 0
+	# Actual paid = submitted Payment Entries only
+	# (advances against PO + payments against Purchase Invoices of the PO)
+	po_paid_map = get_po_paid_map(project)
+	po_total_value = float((po_totals[0].total_value if po_totals else 0) or 0)
+	po_total_paid = sum(po_paid_map.values())
+
+	data["purchase_orders"] = {
+		"total_pos": (po_totals[0].total_pos if po_totals else 0) or 0,
+		"total_suppliers": (po_totals[0].total_suppliers if po_totals else 0) or 0,
+		"total_value": po_total_value,
+		"total_paid": po_total_paid,
+		"total_pending": max(po_total_value - po_total_paid, 0),
 	}
 	data["po_by_type"] = {
 		row.order_type: {"count": row.count, "total_value": float(row.total_value or 0)}
@@ -231,8 +299,11 @@ def get_dashboard_data(project):
 	""", project, as_dict=1)
 	data["total_expenses"] = float(expenses[0].total_expenses or 0) if expenses else 0
 
-	# Total Spent = PO + Expenses
-	data["total_spent"] = float(data["purchase_orders"]["total_value"] or 0) + data["total_expenses"]
+	# Material Consumption (extra store stock not covered by PO)
+	data["material_consumption"] = get_material_consumption(project)
+
+	# Total Spent = PO + Expenses + Material Consumption
+	data["total_spent"] = float(data["purchase_orders"]["total_value"] or 0) + data["total_expenses"] + data["material_consumption"]
 
 	# Weekly Reports
 	data["weekly_reports"] = []
@@ -309,9 +380,7 @@ def get_dashboard_data(project):
 			po.supplier_name,
 			po.name as po_name,
 			po.transaction_date,
-			COALESCE(po.grand_total, 0) as po_value,
-			COALESCE(po.grand_total * po.per_billed / 100, 0) as received,
-			COALESCE(po.grand_total * (1 - po.per_billed / 100), 0) as pending
+			COALESCE(po.grand_total, 0) as po_value
 		FROM `tabPurchase Order` po
 		WHERE po.project = %s
 		AND po.docstatus = 1
@@ -324,13 +393,96 @@ def get_dashboard_data(project):
 		"po_name": r.po_name,
 		"transaction_date": str(r.transaction_date) if r.transaction_date else "",
 		"po_value": float(r.po_value or 0),
-		"received": float(r.received or 0),
-		"pending": float(r.pending or 0),
+		"paid": po_paid_map.get(r.po_name, 0),
+		"pending": max(float(r.po_value or 0) - po_paid_map.get(r.po_name, 0), 0),
 	} for r in fitout_pos]
 	data["fitout_totals"] = {
-		"total_value": sum(float(r.po_value or 0) for r in fitout_pos),
-		"total_received": sum(float(r.received or 0) for r in fitout_pos),
-		"total_pending": sum(float(r.pending or 0) for r in fitout_pos),
+		"total_value": sum(r["po_value"] for r in data["fitout_pos"]),
+		"total_paid": sum(r["paid"] for r in data["fitout_pos"]),
+		"total_pending": sum(r["pending"] for r in data["fitout_pos"]),
 	}
 
 	return data
+
+
+def get_po_paid_map(project):
+	"""
+	Actual amount paid per Purchase Order of a project, from submitted
+	Payment Entries only (not invoice amounts, not Journal Entries).
+
+	Counts:
+	  1. Advances paid directly against the PO
+	  2. Payments against Purchase Invoices made from the PO
+	     (split by PO share if one invoice covers several POs)
+	"""
+	pos = frappe.get_all(
+		"Purchase Order",
+		filters={"project": project, "docstatus": 1},
+		pluck="name",
+	)
+	if not pos:
+		return {}
+
+	paid = {po: 0.0 for po in pos}
+
+	# 1. Direct advances against PO
+	pe_po = frappe.db.sql("""
+		SELECT per.reference_name AS po, SUM(per.allocated_amount) AS amt
+		FROM `tabPayment Entry Reference` per
+		INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+		WHERE pe.docstatus = 1
+		AND per.reference_doctype = 'Purchase Order'
+		AND per.reference_name IN %(pos)s
+		GROUP BY per.reference_name
+	""", {"pos": pos}, as_dict=1)
+
+	for r in pe_po:
+		paid[r.po] += float(r.amt or 0)
+
+	# 2. Payments against Purchase Invoices linked to these POs
+	pi_rows = frappe.db.sql("""
+		SELECT pii.parent AS pi, pii.purchase_order AS po, SUM(pii.amount) AS amt
+		FROM `tabPurchase Invoice Item` pii
+		INNER JOIN `tabPurchase Invoice` pinv ON pinv.name = pii.parent
+		WHERE pinv.docstatus = 1
+		AND pinv.is_return = 0
+		AND pii.purchase_order IN %(pos)s
+		GROUP BY pii.parent, pii.purchase_order
+	""", {"pos": pos}, as_dict=1)
+
+	if pi_rows:
+		pis = list({r.pi for r in pi_rows})
+
+		# Total item amount per PI (to split payment by PO share)
+		pi_totals = {
+			r.pi: float(r.amt or 0)
+			for r in frappe.db.sql("""
+				SELECT parent AS pi, SUM(amount) AS amt
+				FROM `tabPurchase Invoice Item`
+				WHERE parent IN %(pis)s
+				GROUP BY parent
+			""", {"pis": pis}, as_dict=1)
+		}
+
+		pi_paid = {}
+		pe_pi = frappe.db.sql("""
+			SELECT per.reference_name AS pi, SUM(per.allocated_amount) AS amt
+			FROM `tabPayment Entry Reference` per
+			INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
+			WHERE pe.docstatus = 1
+			AND per.reference_doctype = 'Purchase Invoice'
+			AND per.reference_name IN %(pis)s
+			GROUP BY per.reference_name
+		""", {"pis": pis}, as_dict=1)
+
+		for r in pe_pi:
+			pi_paid[r.pi] = pi_paid.get(r.pi, 0) + float(r.amt or 0)
+
+		for r in pi_rows:
+			total = pi_totals.get(r.pi) or 0
+			if not total or not pi_paid.get(r.pi):
+				continue
+			share = float(r.amt or 0) / total
+			paid[r.po] += pi_paid[r.pi] * share
+
+	return {po: round(max(v, 0), 2) for po, v in paid.items()}

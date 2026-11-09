@@ -1,5 +1,288 @@
 import frappe
-from frappe.utils import flt, today, date_diff
+from frappe.utils import flt, today, date_diff, nowdate
+
+
+def get_exchange_rate(from_currency, to_currency, date=None):
+    """Get exchange rate between two currencies"""
+    if from_currency == to_currency:
+        return 1.0
+    
+    if not date:
+        date = nowdate()
+    
+    # Try to get from Currency Exchange
+    rate = frappe.db.get_value("Currency Exchange", {
+        "from_currency": from_currency,
+        "to_currency": to_currency,
+        "date": ["<=", date]
+    }, "exchange_rate", order_by="date desc")
+    
+    if rate:
+        return flt(rate)
+    
+    # Try reverse
+    reverse_rate = frappe.db.get_value("Currency Exchange", {
+        "from_currency": to_currency,
+        "to_currency": from_currency,
+        "date": ["<=", date]
+    }, "exchange_rate", order_by="date desc")
+    
+    if reverse_rate and flt(reverse_rate) > 0:
+        return 1 / flt(reverse_rate)
+    
+    return 1.0  # Default if no rate found
+
+
+def get_linked_projects(project):
+    """Get child projects linked via parent_project field"""
+    children = frappe.db.sql("""
+        SELECT 
+            p.name,
+            p.project_name,
+            p.company,
+            p.status,
+            p.parent_project
+        FROM `tabProject` p
+        WHERE p.parent_project = %s
+        AND p.status != 'Cancelled'
+    """, project, as_dict=1)
+    
+    return children
+
+
+def get_project_company_currency(project):
+    """Get company and its default currency for a project"""
+    company = frappe.db.get_value("Project", project, "company")
+    if company:
+        currency = frappe.db.get_value("Company", company, "default_currency")
+        return company, currency or "AED"
+    return None, "AED"
+
+
+def get_project_costs_converted(project, target_currency):
+    """Get project costs converted to target currency using base amounts"""
+    company, source_currency = get_project_company_currency(project)
+    
+    # Purchase Orders - use base_grand_total (already in company currency)
+    po_cost = frappe.db.sql("""
+        SELECT COALESCE(SUM(base_grand_total), 0) as total
+        FROM `tabPurchase Order`
+        WHERE project = %s AND docstatus = 1
+    """, project, as_dict=1)
+    
+    # Expense Claims - use total_sanctioned_amount (Expense Claim doesn't have grand_total)
+    expense_cost = frappe.db.sql("""
+        SELECT COALESCE(SUM(total_sanctioned_amount), 0) as total
+        FROM `tabExpense Claim`
+        WHERE project = %s AND docstatus = 1
+    """, project, as_dict=1)
+    
+    # Labour cost (already calculated in company currency)
+    labour_cost = get_labour_cost(project)
+    
+    # Material Consumption (extra store stock not covered by PO)
+    material_consumption = get_material_consumption(project)
+    
+    # Manhours
+    manhours = get_manhours(project)
+    
+    po_total = flt(po_cost[0].total) if po_cost else 0
+    expense_total = flt(expense_cost[0].total) if expense_cost else 0
+    
+    # Convert to target currency if different
+    exchange_rate = get_exchange_rate(source_currency, target_currency)
+    
+    return {
+        "po_cost": po_total * exchange_rate,
+        "expense_cost": expense_total * exchange_rate,
+        "labour_cost": labour_cost * exchange_rate,
+        "material_consumption": material_consumption * exchange_rate,
+        "total_cost": (po_total + expense_total + labour_cost + material_consumption) * exchange_rate,
+        "manhours": manhours,
+        "source_currency": source_currency,
+        "exchange_rate": exchange_rate
+    }
+
+
+@frappe.whitelist()
+def get_consolidated_finance_data(project):
+    """Get consolidated finance data for parent + child projects"""
+    data = {}
+    
+    # Get parent project info
+    proj = frappe.get_doc("Project", project)
+    parent_company, parent_currency = get_project_company_currency(project)
+    
+    data["parent_project"] = {
+        "name": proj.name,
+        "project_name": proj.project_name or "",
+        "company": parent_company,
+        "currency": parent_currency,
+        "status": proj.status or ""
+    }
+    
+    # Get linked child projects
+    children = get_linked_projects(project)
+    data["linked_projects"] = []
+    
+    for child in children:
+        child_company, child_currency = get_project_company_currency(child.name)
+        data["linked_projects"].append({
+            "name": child.name,
+            "project_name": child.project_name or "",
+            "company": child_company,
+            "currency": child_currency,
+            "status": child.status or ""
+        })
+    
+    data["has_linked"] = len(children) > 0
+    data["display_currency"] = parent_currency
+    
+    # Sales Invoices FIRST (need SI total for billed amount)
+    sales_invoices = frappe.db.sql("""
+        SELECT
+            si.name,
+            si.posting_date,
+            si.base_grand_total,
+            si.outstanding_amount,
+            si.status
+        FROM `tabSales Invoice` si
+        WHERE si.project = %s
+        AND si.docstatus = 1
+        ORDER BY si.posting_date
+    """, project, as_dict=1)
+    
+    si_total = sum(flt(si.base_grand_total) for si in sales_invoices)
+    si_outstanding = sum(flt(si.outstanding_amount) for si in sales_invoices)
+    si_paid = si_total - si_outstanding
+    
+    data["sales_invoices"] = {
+        "list": [{
+            "name": si.name,
+            "date": str(si.posting_date) if si.posting_date else "",
+            "value": flt(si.base_grand_total),
+            "paid": flt(si.base_grand_total) - flt(si.outstanding_amount),
+            "outstanding": flt(si.outstanding_amount),
+            "status": "Paid" if flt(si.outstanding_amount) == 0 else ("Overdue" if si.status == "Overdue" else "Partial")
+        } for si in sales_invoices],
+        "count": len(sales_invoices),
+        "total_value": si_total,
+        "total_paid": si_paid,
+        "total_outstanding": si_outstanding
+    }
+    
+    # Sales Orders (use actual SI total for billed amount, not per_billed)
+    sales_orders = frappe.db.sql("""
+        SELECT
+            so.name,
+            so.transaction_date,
+            so.base_grand_total,
+            so.status,
+            so.per_billed,
+            so.customer
+        FROM `tabSales Order` so
+        WHERE so.project = %s
+        AND so.docstatus = 1
+        ORDER BY so.transaction_date
+    """, project, as_dict=1)
+    
+    so_total = sum(flt(so.base_grand_total) for so in sales_orders)
+    # Use actual SI total as billed amount (more accurate than per_billed)
+    so_billed = si_total
+    
+    data["sales_orders"] = {
+        "list": [{
+            "name": so.name,
+            "date": str(so.transaction_date) if so.transaction_date else "",
+            "value": flt(so.base_grand_total),
+            "billed": flt(so.base_grand_total) * flt(so.per_billed) / 100,
+            "pending": flt(so.base_grand_total) * (1 - flt(so.per_billed) / 100),
+            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
+        } for so in sales_orders],
+        "count": len(sales_orders),
+        "total_value": so_total,
+        "total_billed": so_billed,
+        "total_pending": so_total - so_billed
+    }
+    
+    data["total_outstanding"] = si_outstanding
+    
+    # Costs - Combined from parent + all children (converted to parent currency)
+    all_projects = [project] + [c.name for c in children]
+    
+    combined_costs = {
+        "po_cost": 0,
+        "expense_cost": 0,
+        "labour_cost": 0,
+        "material_consumption": 0,
+        "total_cost": 0
+    }
+    combined_manhours = {
+        "working_hours": 0,
+        "ot_hours": 0,
+        "total_hours": 0
+    }
+    
+    # Cost breakdown per project
+    data["cost_breakdown"] = []
+    
+    for proj_name in all_projects:
+        costs = get_project_costs_converted(proj_name, parent_currency)
+        proj_company, proj_currency = get_project_company_currency(proj_name)
+        
+        combined_costs["po_cost"] += costs["po_cost"]
+        combined_costs["expense_cost"] += costs["expense_cost"]
+        combined_costs["labour_cost"] += costs["labour_cost"]
+        combined_costs["material_consumption"] += costs["material_consumption"]
+        combined_costs["total_cost"] += costs["total_cost"]
+        
+        combined_manhours["working_hours"] += costs["manhours"]["working_hours"]
+        combined_manhours["ot_hours"] += costs["manhours"]["ot_hours"]
+        combined_manhours["total_hours"] += costs["manhours"]["total_hours"]
+        
+        data["cost_breakdown"].append({
+            "project": proj_name,
+            "company": proj_company,
+            "currency": proj_currency,
+            "exchange_rate": costs["exchange_rate"],
+            "po_cost": costs["po_cost"],
+            "expense_cost": costs["expense_cost"],
+            "labour_cost": costs["labour_cost"],
+            "material_consumption": costs["material_consumption"],
+            "total_cost": costs["total_cost"]
+        })
+    
+    data["costs"] = combined_costs
+    data["manhours"] = combined_manhours
+    
+    # Profitability (combined)
+    project_value = so_total
+    total_cost = combined_costs["total_cost"]
+    profit = project_value - total_cost
+    margin = (profit / project_value * 100) if project_value > 0 else 0
+    
+    data["profitability"] = {
+        "project_value": project_value,
+        "total_cost": total_cost,
+        "profit": profit,
+        "margin": round(margin, 1),
+        "is_profit": profit >= 0
+    }
+    
+    # Budget (from parent project only)
+    budget_total = get_project_budget(project)
+    variance = budget_total - total_cost
+    
+    data["budget_summary"] = {
+        "total_budget": budget_total,
+        "total_spent": total_cost,
+        "variance": variance,
+        "variance_percent": round((variance / budget_total * 100) if budget_total > 0 else 0, 1),
+        "is_under_budget": variance >= 0,
+        "has_budget": budget_total > 0
+    }
+    
+    return data
 
 
 @frappe.whitelist()
@@ -43,46 +326,7 @@ def get_finance_data(project):
     else:
         data["plan"] = {}
     
-    # Sales Orders linked to project
-    sales_orders = frappe.db.sql("""
-        SELECT
-            so.name,
-            so.transaction_date,
-            so.grand_total,
-            so.status,
-            so.per_billed,
-            so.customer,
-            (SELECT GROUP_CONCAT(DISTINCT soi.description SEPARATOR ', ')
-             FROM `tabSales Order Item` soi WHERE soi.parent = so.name LIMIT 1) as description
-        FROM `tabSales Order` so
-        WHERE so.project = %s
-        AND so.docstatus = 1
-        ORDER BY so.transaction_date
-    """, project, as_dict=1)
-    
-    so_total = 0
-    so_billed = 0
-    for so in sales_orders:
-        so_total += flt(so.grand_total)
-        so_billed += flt(so.grand_total) * flt(so.per_billed) / 100
-    
-    data["sales_orders"] = {
-        "list": [{
-            "name": so.name,
-            "date": str(so.transaction_date) if so.transaction_date else "",
-            "description": (so.description or "")[:50] + "..." if so.description and len(so.description) > 50 else (so.description or ""),
-            "value": flt(so.grand_total),
-            "billed": flt(so.grand_total) * flt(so.per_billed) / 100,
-            "pending": flt(so.grand_total) * (1 - flt(so.per_billed) / 100),
-            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
-        } for so in sales_orders],
-        "count": len(sales_orders),
-        "total_value": so_total,
-        "total_billed": so_billed,
-        "total_pending": so_total - so_billed
-    }
-    
-    # Sales Invoices linked to project
+    # Sales Invoices FIRST (need SI total for billed amount)
     sales_invoices = frappe.db.sql("""
         SELECT
             si.name,
@@ -125,6 +369,45 @@ def get_finance_data(project):
     # Total Project Outstanding (from all unpaid invoices)
     data["total_outstanding"] = si_outstanding
     
+    # Sales Orders linked to project (use SI total for billed amount)
+    sales_orders = frappe.db.sql("""
+        SELECT
+            so.name,
+            so.transaction_date,
+            so.grand_total,
+            so.status,
+            so.per_billed,
+            so.customer,
+            (SELECT GROUP_CONCAT(DISTINCT soi.description SEPARATOR ', ')
+             FROM `tabSales Order Item` soi WHERE soi.parent = so.name LIMIT 1) as description
+        FROM `tabSales Order` so
+        WHERE so.project = %s
+        AND so.docstatus = 1
+        ORDER BY so.transaction_date
+    """, project, as_dict=1)
+    
+    so_total = 0
+    for so in sales_orders:
+        so_total += flt(so.grand_total)
+    # Use actual SI total as billed amount (more accurate than per_billed)
+    so_billed = si_total
+    
+    data["sales_orders"] = {
+        "list": [{
+            "name": so.name,
+            "date": str(so.transaction_date) if so.transaction_date else "",
+            "description": (so.description or "")[:50] + "..." if so.description and len(so.description) > 50 else (so.description or ""),
+            "value": flt(so.grand_total),
+            "billed": flt(so.grand_total) * flt(so.per_billed) / 100,
+            "pending": flt(so.grand_total) * (1 - flt(so.per_billed) / 100),
+            "status": "Fully Billed" if flt(so.per_billed) >= 100 else ("Partially Billed" if flt(so.per_billed) > 0 else "Not Billed")
+        } for so in sales_orders],
+        "count": len(sales_orders),
+        "total_value": so_total,
+        "total_billed": so_billed,
+        "total_pending": so_total - so_billed
+    }
+    
     # Costs - Purchase Orders
     po_cost = frappe.db.sql("""
         SELECT COALESCE(SUM(grand_total), 0) as total
@@ -142,17 +425,26 @@ def get_finance_data(project):
     # Costs - Labour (from Project Timesheet)
     labour_cost = get_labour_cost(project)
     
+    # Costs - Material Consumption (extra store stock not covered by PO)
+    material_consumption = get_material_consumption(project)
+    
+    # Manhours breakdown
+    manhours = get_manhours(project)
+    
     po_total = flt(po_cost[0].total) if po_cost else 0
     expense_total = flt(expense_cost[0].total) if expense_cost else 0
     
-    total_cost = po_total + expense_total + labour_cost
+    total_cost = po_total + expense_total + labour_cost + material_consumption
     
     data["costs"] = {
         "po_cost": po_total,
         "expense_cost": expense_total,
         "labour_cost": labour_cost,
+        "material_consumption": material_consumption,
         "total_cost": total_cost
     }
+    
+    data["manhours"] = manhours
     
     # Profitability
     project_value = so_total  # Use SO total as project value
@@ -167,27 +459,19 @@ def get_finance_data(project):
         "is_profit": profit >= 0
     }
     
-    # Budget vs Actual
-    if pp_name:
-        budget_total = sum(flt(r.budget_amount) for r in (plan.department_budgets or []))
-        spent_total = sum(flt(r.spent_amount) for r in (plan.department_budgets or []))
-        variance = budget_total - spent_total
-        
-        data["budget_summary"] = {
-            "total_budget": budget_total,
-            "total_spent": spent_total,
-            "variance": variance,
-            "variance_percent": round((variance / budget_total * 100) if budget_total > 0 else 0, 1),
-            "is_under_budget": variance >= 0
-        }
-    else:
-        data["budget_summary"] = {
-            "total_budget": 0,
-            "total_spent": 0,
-            "variance": 0,
-            "variance_percent": 0,
-            "is_under_budget": True
-        }
+    # Budget vs Actual (from Budget DocType)
+    budget_total = get_project_budget(project)
+    spent_total = total_cost  # PO + Expenses + Labour
+    variance = budget_total - spent_total
+    
+    data["budget_summary"] = {
+        "total_budget": budget_total,
+        "total_spent": spent_total,
+        "variance": variance,
+        "variance_percent": round((variance / budget_total * 100) if budget_total > 0 else 0, 1),
+        "is_under_budget": variance >= 0,
+        "has_budget": budget_total > 0
+    }
     
     return data
 
@@ -232,6 +516,119 @@ def get_labour_cost(project):
     return round(total_cost, 2)
 
 
+def get_manhours(project):
+    """Get manhours breakdown from Project Timesheet"""
+    result = frappe.db.sql("""
+        SELECT
+            COALESCE(SUM(pte.working_hours), 0) as working_hours,
+            COALESCE(SUM(pte.overtime_hours), 0) as overtime_hours
+        FROM `tabProject Timesheet Employee` pte
+        INNER JOIN `tabProject Timesheet` pt ON pt.name = pte.parent
+        WHERE pte.project = %s AND pt.docstatus = 1
+    """, project, as_dict=1)
+    
+    working_hours = flt(result[0].working_hours) if result else 0
+    ot_hours = flt(result[0].overtime_hours) if result else 0
+    
+    return {
+        "working_hours": working_hours,
+        "ot_hours": ot_hours,
+        "total_hours": working_hours + ot_hours
+    }
+
+
+def get_project_budget(project):
+    """Get budget from Budget DocType"""
+    # Find submitted Budget linked to this project
+    budget_name = frappe.db.get_value("Budget", 
+        {"project": project, "docstatus": 1}, 
+        "name")
+    
+    if not budget_name:
+        return 0
+    
+    # Sum all budget amounts from Budget Account child table
+    total = frappe.db.sql("""
+        SELECT COALESCE(SUM(budget_amount), 0) as total
+        FROM `tabBudget Account`
+        WHERE parent = %s
+    """, budget_name)
+    
+    return flt(total[0][0]) if total else 0
+
+
+def get_material_consumption(project):
+    """
+    Calculate material consumption from store (extra stock not covered by PO).
+    Logic: For each item, if Stock Entry issued qty > PO qty, the excess is extra store cost.
+    Items issued via SE but not in any PO are 100% extra store cost.
+    """
+    result = frappe.db.sql("""
+        SELECT COALESCE(SUM(extra_amount), 0) as total
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN COALESCE(po.po_qty, 0) = 0 THEN se.issued_amount
+                    WHEN se.issued_qty > po.po_qty THEN ROUND((se.issued_qty - po.po_qty) * (se.issued_amount / se.issued_qty), 2)
+                    ELSE 0
+                END as extra_amount
+            FROM (
+                SELECT sed.item_code, SUM(sed.qty) as issued_qty, SUM(sed.amount) as issued_amount
+                FROM `tabStock Entry Detail` sed
+                JOIN `tabStock Entry` se ON se.name = sed.parent
+                WHERE se.docstatus = 1 AND se.stock_entry_type = 'Material Issue' AND sed.project = %s
+                GROUP BY sed.item_code
+            ) se
+            LEFT JOIN (
+                SELECT poi.item_code, SUM(poi.qty) as po_qty
+                FROM `tabPurchase Order Item` poi
+                JOIN `tabPurchase Order` po ON po.name = poi.parent
+                WHERE po.docstatus = 1 AND poi.project = %s
+                GROUP BY poi.item_code
+            ) po ON se.item_code = po.item_code
+        ) calc
+    """, (project, project))
+    
+    return flt(result[0][0]) if result else 0
+
+
+@frappe.whitelist()
+def check_linked_projects(project):
+    """Check if project has linked child projects"""
+    parent_company, parent_currency = get_project_company_currency(project)
+    
+    children = frappe.db.sql("""
+        SELECT 
+            p.name,
+            p.project_name,
+            p.company
+        FROM `tabProject` p
+        WHERE p.parent_project = %s
+        AND p.status != 'Cancelled'
+    """, project, as_dict=1)
+    
+    result = {
+        "has_linked": len(children) > 0,
+        "parent": {
+            "name": project,
+            "company": parent_company,
+            "currency": parent_currency
+        },
+        "children": []
+    }
+    
+    for child in children:
+        child_company, child_currency = get_project_company_currency(child.name)
+        result["children"].append({
+            "name": child.name,
+            "project_name": child.project_name or "",
+            "company": child_company,
+            "currency": child_currency
+        })
+    
+    return result
+
+
 @frappe.whitelist()
 def get_all_projects_summary():
     """Get summary of all open projects for the popup"""
@@ -245,6 +642,7 @@ def get_all_projects_summary():
             p.expected_end_date
         FROM `tabProject` p
         WHERE p.status NOT IN ('Cancelled', 'Completed')
+        AND (p.project_type IS NULL OR p.project_type NOT IN ('Operational', 'Stock'))
         ORDER BY p.expected_start_date DESC
     """, as_dict=1)
     

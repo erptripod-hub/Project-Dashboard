@@ -24,6 +24,17 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.fd-header-right{display:flex;align-items:center;gap:12px}
 			.fd-header select{background:#475569;border:1px solid #64748b;color:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;min-width:260px;cursor:pointer}
 			.fd-header select:focus{outline:none;border-color:#fbbf24}
+			.project-search-wrap{position:relative}
+			.project-search-input{background:#475569;border:1px solid #64748b;color:#f1f5f9;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;min-width:320px;cursor:text}
+			.project-search-input::placeholder{color:#94a3b8}
+			.project-search-input:focus{outline:none;border-color:#fbbf24}
+			.project-dropdown{position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #475569;border-radius:8px;max-height:300px;overflow-y:auto;display:none;z-index:100;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+			.project-dropdown.active{display:block}
+			.project-dropdown-item{padding:10px 14px;cursor:pointer;font-size:13px;color:#f1f5f9;border-bottom:1px solid #334155}
+			.project-dropdown-item:last-child{border-bottom:none}
+			.project-dropdown-item:hover,.project-dropdown-item.selected{background:#334155}
+			.project-dropdown-item .proj-id{font-weight:700;color:#fbbf24}
+			.project-dropdown-item .proj-name{color:#94a3b8;margin-left:8px}
 			.summary-btn{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%);border:none;color:#1e293b;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(251,191,36,0.3)}
 			.summary-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(251,191,36,0.4)}
 			.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin:20px 0 12px 0;display:flex;align-items:center;gap:8px}
@@ -80,6 +91,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.data-table tfoot td{padding:12px;background:#f8fafc;border-top:2px solid #e2e8f0}
 			.data-table .total-label{font-weight:700;color:#1e293b;text-align:right}
 			.data-table .amt.total{font-size:13px;font-weight:800}
+			.panel-title{justify-content:flex-start !important;text-align:left !important}
+			.data-table th,.data-table td{text-align:left !important;vertical-align:middle}
+			.data-table th.amt,.data-table td.amt,.data-table .total-label{text-align:right !important}
+			.data-table th.st,.data-table td.st{text-align:center !important}
 			.status-tag{display:inline-block;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600}
 			.status-tag.completed{background:#ecfdf5;color:#059669}
 			.status-tag.partial{background:#fef3c7;color:#b45309}
@@ -99,6 +114,15 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600}
 			.tag.saved{background:#ecfdf5;color:#059669}
 			.tag.exceeded{background:#fef2f2;color:#dc2626}
+			.data-row-simple{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9}
+			.data-row-simple:last-child{border-bottom:none}
+			.data-row-simple .drs-label{font-size:13px;color:#64748b;font-weight:500}
+			.data-row-simple .drs-value{font-size:15px;font-weight:700;color:#1e293b}
+			.data-row-simple .drs-value.green{color:#059669}
+			.data-row-simple .drs-value.red{color:#dc2626}
+			.data-row-simple.total{background:#f8fafc;margin:10px -20px -20px -20px;padding:14px 20px;border-radius:0 0 8px 8px;border-bottom:none}
+			.data-row-simple.total .drs-label{font-weight:700;color:#1e293b}
+			.data-row-simple.total .drs-value{font-size:18px}
 			.summary-row{background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:12px;padding:20px 28px;display:flex;justify-content:space-around;align-items:center;margin-top:20px;flex-wrap:wrap;gap:16px}
 			.summary-item{text-align:center}
 			.summary-item .si-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:6px}
@@ -144,8 +168,25 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			.projects-table .status-dot.delayed::before{background:#f43f5e}
 			.projects-table tfoot td{padding:12px 10px;background:#f8fafc;font-weight:700;border-top:2px solid #e2e8f0}
 			.projects-table tfoot .amt{font-size:13px;font-weight:800}
+			.projects-bar{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+			.project-card{background:#fff;border-radius:12px;padding:16px 20px;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.04)}
+			.project-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+			.project-card.parent::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+			.project-card.child::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed)}
+			.pc-row{display:flex;justify-content:space-between;align-items:center}
+			.pc-left{display:flex;flex-direction:column;gap:2px}
+			.pc-tag{font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}
+			.pc-tag.parent{color:#f59e0b}
+			.pc-tag.child{color:#8b5cf6}
+			.pc-title{font-size:15px;font-weight:700;color:#1e293b}
+			.pc-name{font-size:11px;color:#64748b}
+			.pc-company{font-size:11px;color:#94a3b8;background:#f1f5f9;padding:4px 10px;border-radius:4px}
+			.consolidate-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #475569}
+			.consolidate-toggle input{width:16px;height:16px;accent-color:#fbbf24;cursor:pointer}
+			.consolidate-toggle label{font-size:12px;color:#94a3b8;cursor:pointer}
+			.consolidate-toggle label strong{color:#fbbf24}
 			@media(max-width:1200px){.card-grid.g4{grid-template-columns:repeat(2,1fr)}.summary-stats{grid-template-columns:repeat(3,1fr)}}
-			@media(max-width:768px){.card-grid.g4,.card-grid.g3,.card-grid.g2{grid-template-columns:1fr}.two-col{grid-template-columns:1fr}.summary-row{flex-direction:column}.divider-v{display:none}.summary-stats{grid-template-columns:repeat(2,1fr)}}
+			@media(max-width:768px){.card-grid.g4,.card-grid.g3,.card-grid.g2{grid-template-columns:1fr}.two-col{grid-template-columns:1fr}.summary-row{flex-direction:column}.divider-v{display:none}.summary-stats{grid-template-columns:repeat(2,1fr)}.projects-bar{grid-template-columns:1fr}}
 		`;
 		document.head.appendChild(s);
 	}
@@ -159,11 +200,17 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 				</div>
 				<div class="fd-header-right">
 					<button class="summary-btn" onclick="openProjectSummary()">📊 Project Summary</button>
-					<select id="fd-project-select">
-						<option value="">Select a project...</option>
-					</select>
+					<div class="project-search-wrap">
+						<input type="text" id="fd-project-search" class="project-search-input" placeholder="Search project..." autocomplete="off">
+						<div id="fd-project-dropdown" class="project-dropdown"></div>
+						<div class="consolidate-toggle" id="consolidate-toggle" style="display:none">
+							<input type="checkbox" id="consolidate-check">
+							<label for="consolidate-check">Include linked: <strong id="linked-project-name"></strong></label>
+						</div>
+					</div>
 				</div>
 			</div>
+			<div id="fd-projects-bar"></div>
 			<div id="fd-body" style="text-align:center;padding:60px;color:#64748b;font-size:13px">
 				Select a project above to load financial data
 			</div>
@@ -181,26 +228,92 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		</div>
 	`);
 
-	// Load projects list
+	// Load projects list for search
+	var allProjects = [];
 	frappe.db.get_list('Project', {
 		fields: ['name', 'project_name'],
 		limit: 500,
 		filters: {status: ['!=', 'Cancelled']},
 		order_by: 'modified desc'
 	}).then(function(projects) {
-		var sel = document.getElementById('fd-project-select');
-		projects.forEach(function(p) {
-			var opt = document.createElement('option');
-			opt.value = p.name;
-			opt.textContent = p.name + ' — ' + p.project_name;
-			sel.appendChild(opt);
-		});
+		allProjects = projects;
 	});
 
-	document.getElementById('fd-project-select').addEventListener('change', function() {
-		if (this.value) {
-			cur_project = this.value;
+	var searchInput = document.getElementById('fd-project-search');
+	var dropdown = document.getElementById('fd-project-dropdown');
+	var selectedIndex = -1;
+
+	searchInput.addEventListener('focus', function() {
+		showDropdown(this.value);
+	});
+
+	searchInput.addEventListener('input', function() {
+		showDropdown(this.value);
+		selectedIndex = -1;
+	});
+
+	searchInput.addEventListener('keydown', function(e) {
+		var items = dropdown.querySelectorAll('.project-dropdown-item');
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+			updateSelection(items);
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			selectedIndex = Math.max(selectedIndex - 1, 0);
+			updateSelection(items);
+		} else if (e.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+			e.preventDefault();
+			selectProject(items[selectedIndex].dataset.project);
+		} else if (e.key === 'Escape') {
+			dropdown.classList.remove('active');
+		}
+	});
+
+	function updateSelection(items) {
+		items.forEach((item, i) => {
+			item.classList.toggle('selected', i === selectedIndex);
+			if (i === selectedIndex) item.scrollIntoView({block: 'nearest'});
+		});
+	}
+
+	function showDropdown(query) {
+		query = (query || '').toLowerCase();
+		var filtered = allProjects.filter(function(p) {
+			return p.name.toLowerCase().includes(query) || (p.project_name || '').toLowerCase().includes(query);
+		}).slice(0, 20);
+
+		if (filtered.length === 0) {
+			dropdown.innerHTML = '<div style="padding:14px;color:#64748b;text-align:center;font-size:12px">No projects found</div>';
+		} else {
+			dropdown.innerHTML = filtered.map(function(p) {
+				return '<div class="project-dropdown-item" data-project="' + p.name + '">' +
+					'<span class="proj-id">' + p.name + '</span>' +
+					'<span class="proj-name">' + (p.project_name || '') + '</span></div>';
+			}).join('');
+		}
+		dropdown.classList.add('active');
+
+		dropdown.querySelectorAll('.project-dropdown-item').forEach(function(item) {
+			item.addEventListener('click', function() {
+				selectProject(this.dataset.project);
+			});
+		});
+	}
+
+	function selectProject(projectName) {
+		var proj = allProjects.find(function(p) { return p.name === projectName; });
+		if (proj) {
+			searchInput.value = proj.name + ' — ' + (proj.project_name || '');
+			cur_project = proj.name;
+			dropdown.classList.remove('active');
 			load_dashboard(cur_project);
+		}
+	}
+
+	document.addEventListener('click', function(e) {
+		if (!e.target.closest('.project-search-wrap')) {
+			dropdown.classList.remove('active');
 		}
 	});
 
@@ -320,31 +433,153 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 		document.getElementById('modal-body').innerHTML = html;
 	}
 
+	var linkedProjectsData = null;
+	var consolidateMode = false;
+
 	function load_dashboard(project) {
 		document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:60px;color:#64748b">Loading...</div>';
+		document.getElementById('fd-projects-bar').innerHTML = '';
+		
+		// First check for linked projects
 		frappe.call({
-			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_finance_data',
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.check_linked_projects',
 			args: {project: project},
 			callback: function(r) {
-				if (r.message) render(r.message);
-				else document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading data.</div>';
+				if (r.message) {
+					linkedProjectsData = r.message;
+					
+					if (linkedProjectsData.has_linked) {
+						// Show consolidate toggle
+						document.getElementById('consolidate-toggle').style.display = 'flex';
+						var childName = linkedProjectsData.children[0].name;
+						document.getElementById('linked-project-name').textContent = childName + ' (' + linkedProjectsData.children[0].company + ')';
+						
+						// Check if consolidate checkbox was previously checked
+						var checkbox = document.getElementById('consolidate-check');
+						if (checkbox.checked) {
+							consolidateMode = true;
+							loadConsolidatedData(project);
+						} else {
+							consolidateMode = false;
+							loadSingleProjectData(project);
+						}
+					} else {
+						// No linked projects
+						document.getElementById('consolidate-toggle').style.display = 'none';
+						linkedProjectsData = null;
+						consolidateMode = false;
+						loadSingleProjectData(project);
+					}
+				} else {
+					loadSingleProjectData(project);
+				}
 			}
 		});
 	}
 
-	function fmt(v) {
-		v = parseFloat(v) || 0;
-		if (v >= 1000000) return 'AED ' + (v/1000000).toFixed(2) + 'M';
-		if (v >= 1000) return 'AED ' + Math.round(v/1000) + 'K';
-		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	function loadSingleProjectData(project) {
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_finance_data',
+			args: {project: project},
+			callback: function(r) {
+				if (r.message) {
+					renderProjectsBar(false);
+					render(r.message, false);
+				} else {
+					document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading data.</div>';
+				}
+			}
+		});
 	}
 
-	function fmtFull(v) {
-		v = parseFloat(v) || 0;
-		return 'AED ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	function loadConsolidatedData(project) {
+		frappe.call({
+			method: 'project_dashboard.project_dashboard.page.finance_dashboard.finance_dashboard.get_consolidated_finance_data',
+			args: {project: project},
+			callback: function(r) {
+				if (r.message) {
+					renderProjectsBar(true, r.message);
+					render(r.message, true);
+				} else {
+					document.getElementById('fd-body').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626">Error loading consolidated data.</div>';
+				}
+			}
+		});
 	}
 
-	function render(d) {
+	function renderProjectsBar(consolidated, data) {
+		var bar = document.getElementById('fd-projects-bar');
+		if (!consolidated || !linkedProjectsData || !linkedProjectsData.has_linked) {
+			bar.innerHTML = '';
+			return;
+		}
+		
+		var parent = data.parent_project || linkedProjectsData.parent;
+		var children = data.linked_projects || linkedProjectsData.children;
+		var currency = data.display_currency || 'AED';
+		
+		var html = '<div class="projects-bar">';
+		
+		// Parent card
+		html += '<div class="project-card parent">';
+		html += '<div class="pc-row">';
+		html += '<div class="pc-left">';
+		html += '<span class="pc-tag parent">● Parent Project</span>';
+		html += '<span class="pc-title">' + parent.name + '</span>';
+		html += '<span class="pc-name">' + (parent.project_name || '') + '</span>';
+		html += '</div>';
+		html += '<span class="pc-company">' + (parent.company || '') + '</span>';
+		html += '</div></div>';
+		
+		// Child cards
+		children.forEach(function(child) {
+			html += '<div class="project-card child">';
+			html += '<div class="pc-row">';
+			html += '<div class="pc-left">';
+			html += '<span class="pc-tag child">● Linked Project</span>';
+			html += '<span class="pc-title">' + child.name + '</span>';
+			html += '<span class="pc-name">' + (child.project_name || '') + '</span>';
+			html += '</div>';
+			html += '<span class="pc-company">' + (child.company || '') + '</span>';
+			html += '</div></div>';
+		});
+		
+		html += '</div>';
+		bar.innerHTML = html;
+	}
+
+	// Consolidate toggle event
+	document.getElementById('consolidate-check').addEventListener('change', function() {
+		consolidateMode = this.checked;
+		if (cur_project) {
+			load_dashboard(cur_project);
+		}
+	});
+
+	var displayCurrency = 'AED';
+
+	function fmt(v, currency) {
+		v = parseFloat(v) || 0;
+		var cur = currency || displayCurrency;
+		if (v >= 1000000) return cur + ' ' + (v/1000000).toFixed(2) + 'M';
+		if (v >= 1000) return cur + ' ' + Math.round(v/1000) + 'K';
+		return cur + ' ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	}
+
+	function fmtFull(v, currency) {
+		v = parseFloat(v) || 0;
+		var cur = currency || displayCurrency;
+		return cur + ' ' + v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	}
+
+	function fmtNum(v) {
+		v = parseFloat(v) || 0;
+		return v.toLocaleString('en-AE', {minimumFractionDigits:0, maximumFractionDigits:0});
+	}
+
+	function render(d, isConsolidated) {
+		// Set display currency
+		displayCurrency = d.display_currency || 'AED';
 		var info = d.project_info || {};
 		var so = d.sales_orders || {};
 		var si = d.sales_invoices || {};
@@ -421,10 +656,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 								<th>SO Number</th>
 								<th>Date</th>
 								<th>Description</th>
-								<th>SO Value</th>
-								<th>Billed</th>
-								<th>Pending</th>
-								<th>Status</th>
+								<th class="amt">SO Value</th>
+								<th class="amt">Billed</th>
+								<th class="amt">Pending</th>
+								<th class="st">Status</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -439,7 +674,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<td class="amt">${fmtFull(s.value)}</td>
 						<td class="amt green">${fmtFull(s.billed)}</td>
 						<td class="amt orange">${fmtFull(s.pending)}</td>
-						<td><span class="status-tag ${stCls}">${s.status}</span></td>
+						<td class="st"><span class="status-tag ${stCls}">${s.status}</span></td>
 					</tr>
 				`;
 			});
@@ -501,10 +736,10 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 								<th>Invoice No</th>
 								<th>Date</th>
 								<th>Against SO</th>
-								<th>Invoice Value</th>
-								<th>Paid</th>
-								<th>Outstanding</th>
-								<th>Status</th>
+								<th class="amt">Invoice Value</th>
+								<th class="amt">Paid</th>
+								<th class="amt">Outstanding</th>
+								<th class="st">Status</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -519,7 +754,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 						<td class="amt">${fmtFull(s.value)}</td>
 						<td class="amt green">${fmtFull(s.paid)}</td>
 						<td class="amt red">${fmtFull(s.outstanding)}</td>
-						<td><span class="status-tag ${stCls}">${s.status}</span></td>
+						<td class="st"><span class="status-tag ${stCls}">${s.status}</span></td>
 					</tr>
 				`;
 			});
@@ -539,107 +774,87 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 			`;
 		}
 
-		// Profitability Section
-		html += '<div class="sec-title">Profitability</div>';
-		html += `
-			<div class="card-grid g4">
-				<div class="card gold">
-					<div class="c-label">Project Value</div>
-					<div class="c-value">${fmt(prof.project_value)}</div>
-					<div class="c-sub">Contract amount</div>
-				</div>
-				<div class="card amber">
-					<div class="c-label">Total Cost</div>
-					<div class="c-value">${fmt(prof.total_cost)}</div>
-					<div class="c-sub">PO + Expenses + Labour</div>
-				</div>
-				<div class="card ${prof.is_profit ? 'emerald' : 'rose'}">
-					<div class="c-label">${prof.is_profit ? 'Profit' : 'Loss'}</div>
-					<div class="c-value ${prof.is_profit ? 'profit' : 'loss'}">${fmt(Math.abs(prof.profit))}</div>
-					<div class="c-sub"><span class="${prof.is_profit ? 'up' : 'down'}">↑ ${prof.is_profit ? 'Profitable' : 'Loss'}</span></div>
-				</div>
-				<div class="card ${prof.margin >= 20 ? 'emerald' : (prof.margin >= 10 ? 'amber' : 'rose')}">
-					<div class="c-label">Profit Margin</div>
-					<div class="c-value ${prof.margin >= 20 ? 'profit' : (prof.margin >= 0 ? '' : 'loss')}">${prof.margin}%</div>
-					<div class="c-sub">${prof.margin >= 20 ? 'Healthy margin' : (prof.margin >= 10 ? 'Low margin' : 'Critical')}</div>
-				</div>
-			</div>
-		`;
-
-		// Budget vs Actual Section
-		html += '<div class="sec-title">Budget vs Actual</div>';
+		// Manhours, Costs & Profitability Section (Simplified 2-Panel Layout)
+		var mh = d.manhours || {working_hours: 0, ot_hours: 0, total_hours: 0};
+		var costs = d.costs || {};
+		
+		html += '<div class="sec-title">Manhours, Costs & Profitability</div>';
 		html += '<div class="two-col">';
-
-		// Left: Department Budgets
-		html += '<div class="panel">';
-		html += '<div class="panel-title"><span class="icon">📈</span> Cost Tracking</div>';
-		if (hp && plan.department_budgets && plan.department_budgets.length) {
-			plan.department_budgets.forEach(function(db) {
-				var pct = db.budget_amount > 0 ? Math.min(100, Math.round(db.spent_amount / db.budget_amount * 100)) : 0;
-				var variance = db.budget_amount - db.spent_amount;
-				var barColor = db.status === 'On Track' ? 'emerald' : (db.status === 'Warning' ? 'gold' : 'rose');
-				html += `
-					<div class="budget-row">
-						<div class="br-label">${db.department_name}</div>
-						<div class="br-bar">
-							<div class="progress-bar">
-								<div class="fill ${barColor}" style="width:${pct}%"></div>
-							</div>
-						</div>
-						<div class="br-values">
-							<div class="bv-item">
-								<div class="bv-label">Budget</div>
-								<div class="bv-val">${fmt(db.budget_amount)}</div>
-							</div>
-							<div class="bv-item">
-								<div class="bv-label">Spent</div>
-								<div class="bv-val">${fmt(db.spent_amount)}</div>
-							</div>
-							<div class="bv-item">
-								<div class="bv-label">Variance</div>
-								<div class="bv-val ${variance >= 0 ? 'green' : 'red'}">${variance >= 0 ? '+' : ''}${fmt(variance)} ${variance >= 0 ? '✓' : '✗'}</div>
-							</div>
-						</div>
-					</div>
-				`;
-			});
-		} else {
-			html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px">No budgets defined in Project Plan</div>';
-		}
-		html += '</div>';
-
-		// Right: Budget Summary
-		html += '<div class="panel">';
-		html += '<div class="panel-title"><span class="icon">💰</span> Budget Summary</div>';
+		
+		// Left Panel: Manhours & Costs
 		html += `
-			<div class="card-grid g2" style="margin-bottom:16px">
-				<div class="card gold">
-					<div class="c-label">Total Budget</div>
-					<div class="c-value">${fmt(budget.total_budget)}</div>
+			<div class="panel" style="border-top:4px solid #0ea5e9">
+				<div class="panel-title"><span class="icon">⏱️</span> Manhours & Costs</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Working Hours</span>
+					<span class="drs-value">${fmtNum(mh.working_hours)}</span>
 				</div>
-				<div class="card amber">
-					<div class="c-label">Total Spent</div>
-					<div class="c-value">${fmt(budget.total_spent)}</div>
+				<div class="data-row-simple">
+					<span class="drs-label">OT Hours</span>
+					<span class="drs-value">${fmtNum(mh.ot_hours)}</span>
 				</div>
-			</div>
-			<div class="card ${budget.is_under_budget ? 'emerald' : 'rose'}">
-				<div class="c-label">Total Variance</div>
-				<div class="c-value ${budget.is_under_budget ? 'profit' : 'loss'}">${budget.variance >= 0 ? '+' : ''}${fmt(budget.variance)}</div>
-				<div class="c-sub">
-					<span class="tag ${budget.is_under_budget ? 'saved' : 'exceeded'}">${budget.is_under_budget ? '✓ Under Budget by' : '✗ Over Budget by'} ${Math.abs(budget.variance_percent)}%</span>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Manhours</span>
+					<span class="drs-value">${fmtNum(mh.total_hours)}</span>
 				</div>
-				<div class="progress-wrap">
-					<div class="progress-bar">
-						<div class="fill gold" style="width:${budget.total_budget > 0 ? Math.min(100, Math.round(budget.total_spent / budget.total_budget * 100)) : 0}%"></div>
-					</div>
-					<div class="progress-info">
-						<span>${budget.total_budget > 0 ? Math.round(budget.total_spent / budget.total_budget * 100) : 0}% budget utilized</span>
-						<span>${Math.abs(budget.variance_percent)}% ${budget.is_under_budget ? 'saved' : 'exceeded'}</span>
-					</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Labour Cost</span>
+					<span class="drs-value">${fmtFull(costs.labour_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Purchase Orders</span>
+					<span class="drs-value">${fmtFull(costs.po_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Expense Claims</span>
+					<span class="drs-value">${fmtFull(costs.expense_cost || 0)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Material Consumption</span>
+					<span class="drs-value">${fmtFull(costs.material_consumption || 0)}</span>
+				</div>
+				<div class="data-row-simple total">
+					<span class="drs-label">Total Spent</span>
+					<span class="drs-value">${fmtFull(costs.total_cost || 0)}</span>
 				</div>
 			</div>
 		`;
-		html += '</div>';
+		
+		// Right Panel: Budget & Profitability
+		html += `
+			<div class="panel" style="border-top:4px solid #fbbf24">
+				<div class="panel-title"><span class="icon">💰</span> Budget & Profitability</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Budget</span>
+					<span class="drs-value">${budget.has_budget ? fmtFull(budget.total_budget) : '<span style="color:#94a3b8">Not Set</span>'}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Spent</span>
+					<span class="drs-value">${fmtFull(budget.total_spent)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Variance</span>
+					<span class="drs-value ${budget.is_under_budget ? 'green' : 'red'}">${budget.has_budget ? ((budget.variance >= 0 ? '+' : '') + fmtFull(budget.variance) + ' <span class="tag ' + (budget.is_under_budget ? 'saved' : 'exceeded') + '">' + (budget.is_under_budget ? '✓ Under' : '✗ Over') + '</span>') : '—'}</span>
+				</div>
+				<div class="data-row-simple" style="margin-top:12px;padding-top:14px;border-top:2px solid #e2e8f0">
+					<span class="drs-label">Project Value (SO)</span>
+					<span class="drs-value">${fmtFull(prof.project_value)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">Total Cost</span>
+					<span class="drs-value">${fmtFull(prof.total_cost)}</span>
+				</div>
+				<div class="data-row-simple">
+					<span class="drs-label">${prof.is_profit ? 'Profit' : 'Loss'}</span>
+					<span class="drs-value ${prof.is_profit ? 'green' : 'red'}">${fmtFull(Math.abs(prof.profit))}</span>
+				</div>
+				<div class="data-row-simple total">
+					<span class="drs-label">Profit Margin</span>
+					<span class="drs-value ${prof.margin >= 20 ? 'green' : (prof.margin >= 0 ? '' : 'red')}">${prof.margin}%</span>
+				</div>
+			</div>
+		`;
+		
 		html += '</div>'; // end two-col
 
 		// Final Summary Bar
@@ -656,7 +871,7 @@ frappe.pages['finance-dashboard'].on_page_load = function(wrapper) {
 				</div>
 				<div class="divider-v"></div>
 				<div class="summary-item">
-					<div class="si-label">Net ${prof.is_profit ? 'Profit' : 'Loss'}</div>
+					<div class="si-label">Gross ${prof.is_profit ? 'Profit' : 'Loss'}</div>
 					<div class="si-value ${prof.is_profit ? 'green' : 'red'}">${fmt(Math.abs(prof.profit))}</div>
 				</div>
 				<div class="divider-v"></div>
